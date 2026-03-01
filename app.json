@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "Collective",
+    "slug": "collective-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "scheme": "collective",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.collectivenetwork.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "package": "com.collectivenetwork.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your groups."
+        }
+      ],
+      "expo-font",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Collective needs access to your contacts to find friends on the app."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#22ff0a"
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/app-check",
+      "./plugins/withModularHeaders"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d4d68e8d-25b9-440b-a71a-d70fc68c53e2"
+      }
+    },
+    "owner": "darkstarcyb3r"
+  }
+}
