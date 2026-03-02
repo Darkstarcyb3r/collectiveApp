@@ -15,6 +15,7 @@ import {
   Image,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { BlurView } from 'expo-blur'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
@@ -109,11 +110,13 @@ const ActiveUsersScreen = ({ navigation }) => {
 
           {/* User Counter */}
           <View style={styles.userCounterRow}>
-            <View style={styles.userCounterButton}>
-              <Text style={styles.userCounterText}>
-                {visibleUsers.length.toString().padStart(6, '0')} users
-              </Text>
-            </View>
+            <BlurView intensity={10} tint="dark" style={styles.userCounterButton}>
+              <View style={styles.userCounterInner}>
+                <Text style={styles.userCounterText}>
+                  {visibleUsers.length.toString().padStart(6, '0')} users
+                </Text>
+              </View>
+            </BlurView>
           </View>
 
           {/* Avatar Grid — 4 columns */}
@@ -227,22 +230,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   userCounterButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  userCounterInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1acc0a',
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderTopColor: '#0f9900',
-    borderLeftColor: '#0f9900',
-    borderBottomColor: '#55ff3f',
-    borderRightColor: '#55ff3f',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    gap: 6,
   },
   userCounterText: {
     fontSize: 10,
     fontFamily: fonts.mono,
-    color: colors.textDark,
+    color: '#ffffff',
   },
 
   // Avatar Grid

@@ -496,16 +496,19 @@ exports.onMessageCreate = onDocumentCreated(
       }
 
       // Store to Firestore notification history (for in-app bell + badge)
-      // Always stored regardless of push token or active screen
-      await db.collection("users").doc(recipientId)
-        .collection("notifications").add({
-          title: senderName,
-          body: notifBody,
-          type: notifData.type,
-          data: notifData,
-          read: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
+      // Skip regular DM messages — they have their own unread indicators
+      // Keep chatroom invites and group invites in history since they're actionable
+      if (notifData.type !== "message") {
+        await db.collection("users").doc(recipientId)
+          .collection("notifications").add({
+            title: senderName,
+            body: notifBody,
+            type: notifData.type,
+            data: notifData,
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+      }
 
       // Suppress push if recipient is actively viewing this conversation
       const activeScreen = recipientData.activeScreen;
@@ -1938,16 +1941,8 @@ exports.onConversationCreate = onDocumentCreated(
       const initiatorDoc = await db.collection("users").doc(initiatorId).get();
       const initiatorName = initiatorDoc.exists ? (initiatorDoc.data().name || "Someone") : "Someone";
 
-      // Store notification history
-      await db.collection("users").doc(recipientId)
-        .collection("notifications").add({
-          title: initiatorName,
-          body: `${initiatorName} wants to start a chat with you`,
-          type: "chat_request",
-          data: { type: "chat_request", conversationId, senderId: initiatorId },
-          read: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
+      // Skip notification history for private messages — they have their own indicators
+      // Still send push notification below
 
       // Send push notification (read token from private subcollection)
       const recipientDoc = await db.collection("users").doc(recipientId).get();
@@ -2019,16 +2014,8 @@ exports.onConversationStatusChange = onDocumentUpdated(
       : "perhaps another time";
 
     try {
-      // Store notification history
-      await db.collection("users").doc(requesterId)
-        .collection("notifications").add({
-          title: notifTitle,
-          body: notifBody,
-          type: notifType,
-          data: { type: notifType, conversationId },
-          read: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
+      // Skip notification history for private messages — they have their own indicators
+      // Still send push notification below
 
       // Send push notification (read token from private subcollection)
       const requesterDoc = await db.collection("users").doc(requesterId).get();

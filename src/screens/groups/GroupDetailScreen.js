@@ -19,6 +19,7 @@ import {
 } from 'react-native'
 import Swipeable from 'react-native-gesture-handler/Swipeable'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from '@react-navigation/native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors } from '../../theme'
@@ -416,13 +417,24 @@ const GroupDetailScreen = ({ navigation, route }) => {
           <View style={styles.actionRow}>
             {isMember && (
               <TouchableOpacity
-                style={styles.postButton}
+                style={styles.postButtonOuter}
                 onPress={() =>
                   navigation.navigate('CreatePost', { groupId, groupName: group.name })
                 }
               >
-                <Ionicons name="add" size={16} color={colors.textDark} />
-                <Text style={styles.postButtonText}>Post</Text>
+                <LinearGradient
+                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.postButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.postButtonHighlight}
+                  />
+                  <Ionicons name="add" size={16} color={colors.textDark} />
+                  <Text style={styles.postButtonText}>Post</Text>
+                </LinearGradient>
               </TouchableOpacity>
             )}
 
@@ -453,9 +465,20 @@ const GroupDetailScreen = ({ navigation, route }) => {
             </TouchableOpacity>
 
             {/* Members button */}
-            <TouchableOpacity style={styles.membersButton} onPress={handleViewMembers}>
-              <Ionicons name="people-outline" size={14} color={colors.textDark} />
-              <Text style={styles.membersButtonText}>Members</Text>
+            <TouchableOpacity style={styles.membersButtonOuter} onPress={handleViewMembers} activeOpacity={0.8}>
+              <LinearGradient
+                colors={['#d8f434', '#b3f425', '#93f478']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.membersButton}
+              >
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                  style={styles.membersButtonHighlight}
+                />
+                <Ionicons name="people-outline" size={14} color={colors.textDark} />
+                <Text style={styles.membersButtonText}>Members</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -674,13 +697,36 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 10,
   },
+  postButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   postButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  postButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   postButtonText: {
     fontSize: 13,
@@ -720,14 +766,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: '#fff',
   },
+  membersButtonOuter: {
+    borderRadius: 16,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+    marginRight: 6,
+  },
   membersButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.secondary,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 16,
-    marginRight: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  membersButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   membersButtonText: {
     fontSize: 13,

@@ -15,6 +15,7 @@ import {
   Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
 import { useFocusEffect } from '@react-navigation/native'
@@ -216,21 +217,32 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
       >
         <View style={styles.mainContainer}>
           {/* Header */}
-          <View style={styles.headerRow}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ padding: 4 }}
+          <View style={styles.headerOuter}>
+            <LinearGradient
+              colors={['#d8f434', '#b3f425', '#93f478']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerRow}
             >
-              <Ionicons name="chevron-back" size={24} color={colors.textDark} />
-            </TouchableOpacity>
-            <Ionicons
-              name="globe-outline"
-              size={22}
-              color={colors.textDark}
-              style={{ marginLeft: 4 }}
-            />
-            <Text style={styles.title}>{title}</Text>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                style={styles.headerHighlight}
+              />
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="chevron-back" size={24} color={colors.textDark} />
+              </TouchableOpacity>
+              <Ionicons
+                name="globe-outline"
+                size={22}
+                color={colors.textDark}
+                style={{ marginLeft: 4 }}
+              />
+              <Text style={styles.title}>{title}</Text>
+            </LinearGradient>
           </View>
 
           {/* Description */}
@@ -242,11 +254,22 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
           {/* + Group Button */}
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.addButton}
+              style={styles.addButtonOuter}
               onPress={() => navigation.navigate('MutualAidCreate', { category, title })}
             >
-              <Ionicons name="add" size={16} color={colors.textDark} />
-              <Text style={styles.addButtonText}>Group</Text>
+              <LinearGradient
+                colors={['#cafb6c', '#71f200', '#23ff0d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.addButton}
+              >
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                  style={styles.addButtonHighlight}
+                />
+                <Ionicons name="add" size={16} color={colors.textDark} />
+                <Text style={styles.addButtonText}>Group</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -383,10 +406,21 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
                         {group.name}
                       </Text>
                       <TouchableOpacity
-                        style={styles.arrowButton}
+                        style={styles.arrowButtonOuter}
                         onPress={() => navigation.navigate('MutualAidPost', { groupId: group.id })}
                       >
-                        <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+                        <LinearGradient
+                          colors={['#d8f434', '#b3f425', '#93f478']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.arrowButton}
+                        >
+                          <LinearGradient
+                            colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                            style={styles.arrowButtonHighlight}
+                          />
+                          <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+                        </LinearGradient>
                       </TouchableOpacity>
                     </View>
 
@@ -402,7 +436,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
                           vet
                         </Text>
                       </TouchableOpacity>
-
+                      
                       <TouchableOpacity
                         style={styles.vettedByButton}
                         onPress={() => navigation.navigate('VettedMembers', { groupId: group.id })}
@@ -476,14 +510,37 @@ const styles = StyleSheet.create({
   },
 
   // Header
+  headerOuter: {
+    borderRadius: 10,
+    marginBottom: 12,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: colors.secondary,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  headerHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
   title: {
     fontSize: 18,
@@ -504,13 +561,36 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 16,
   },
+  addButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  addButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   addButtonText: {
     fontSize: 14,
@@ -529,7 +609,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
@@ -579,9 +664,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
     paddingHorizontal: 14,
     paddingVertical: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sortLabel: {
     fontSize: 12,
@@ -619,6 +709,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     paddingHorizontal: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   groupRow: {
     paddingVertical: 14,
@@ -642,14 +739,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textDark,
   },
+  arrowButtonOuter: {
+    borderRadius: 20,
+    marginLeft: 8,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   arrowButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  arrowButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
 
   // Bottom Row
@@ -688,6 +808,11 @@ const styles = StyleSheet.create({
   },
   vetButtonTextActive: {
     color: colors.textDark,
+  },
+  vetNote: {
+    fontSize: 9,
+    fontFamily: fonts.italic,
+    color: colors.offline,
   },
   vettedByButton: {
     borderWidth: 1,

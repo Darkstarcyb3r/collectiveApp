@@ -19,6 +19,7 @@ import {
   Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from '@react-navigation/native'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
@@ -194,11 +195,22 @@ const GroupMembersScreen = ({ navigation, route }) => {
               {groupName} — {members.length} {members.length === 1 ? 'member' : 'members'}
             </Text>
             <TouchableOpacity
-              style={styles.addMemberButton}
+              style={styles.addMemberButtonOuter}
               onPress={() => navigation.navigate('InviteMember', { groupId, groupName })}
             >
-              <Ionicons name="add" size={16} color={colors.textDark} />
-              <Text style={styles.addMemberText}>Member</Text>
+              <LinearGradient
+                colors={['#cafb6c', '#71f200', '#23ff0d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.addMemberButton}
+              >
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                  style={styles.addMemberButtonHighlight}
+                />
+                <Ionicons name="add" size={16} color={colors.textDark} />
+                <Text style={styles.addMemberText}>Member</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -343,13 +355,36 @@ const styles = StyleSheet.create({
   },
 
   // Add Member Button
+  addMemberButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   addMemberButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  addMemberButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   addMemberText: {
     fontSize: 13,

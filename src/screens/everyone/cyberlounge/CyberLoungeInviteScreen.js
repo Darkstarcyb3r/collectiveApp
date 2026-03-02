@@ -17,8 +17,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -182,15 +184,26 @@ const CyberLoungeInviteScreen = ({ navigation, route }) => {
           </View>
         ) : (
           <TouchableOpacity
-            style={styles.inviteButton}
+            style={styles.inviteButtonOuter}
             onPress={() => handleInvite(item.id, item.name, item.profilePhoto)}
             disabled={inviting === item.id}
           >
-            {inviting === item.id ? (
-              <ActivityIndicator size="small" color={colors.textDark} />
-            ) : (
-              <Text style={styles.inviteButtonText}>Invite</Text>
-            )}
+            <LinearGradient
+              colors={['#cafb6c', '#71f200', '#23ff0d']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.inviteButton}
+            >
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                style={styles.inviteButtonHighlight}
+              />
+              {inviting === item.id ? (
+                <ActivityIndicator size="small" color={colors.textDark} />
+              ) : (
+                <Text style={styles.inviteButtonText}>Invite</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
@@ -205,16 +218,27 @@ const CyberLoungeInviteScreen = ({ navigation, route }) => {
         style={{ flex: 1 }}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{ padding: 4 }}
+        <View style={styles.headerOuter}>
+          <LinearGradient
+            colors={['#d8f434', '#b3f425', '#93f478']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.header}
           >
-            <Ionicons name="chevron-back" size={24} color={colors.textDark} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Members</Text>
-          <View style={{ width: 24 }} />
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+              style={styles.headerHighlight}
+            />
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{ padding: 4 }}
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.textDark} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Add Members</Text>
+            <View style={{ width: 24 }} />
+          </LinearGradient>
         </View>
 
         <Text style={styles.subtitle}>Invite to {roomName}</Text>
@@ -292,7 +316,14 @@ const CyberLoungeInviteScreen = ({ navigation, route }) => {
                 <View style={styles.centerContainer}>
                   <Text style={styles.emptyText}>No users found.</Text>
                   <Text style={styles.emptySubtext}>
-                    If they don't have an account, they'll need to create one first.
+                    They might not be on Collective yet.{' '}
+                    <Text
+                      style={styles.emptyLink}
+                      onPress={() => Linking.openURL('https://apps.apple.com/us/app/collective-network/id6759182429')}
+                    >
+                      Share the app link
+                    </Text>{' '}
+                    to invite them!
                   </Text>
                 </View>
               ) : null
@@ -311,13 +342,40 @@ const styles = StyleSheet.create({
   },
 
   // Header
+  headerOuter: {
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    marginBottom: 4,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  headerHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
   headerTitle: {
     fontSize: 18,
@@ -456,13 +514,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textDark,
   },
+  inviteButtonOuter: {
+    borderRadius: 22,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   inviteButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 16,
-    minWidth: 70,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  inviteButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
   },
   inviteButtonText: {
     fontSize: 13,
@@ -488,6 +570,10 @@ const styles = StyleSheet.create({
     color: colors.offline,
     textAlign: 'center',
     paddingHorizontal: 40,
+  },
+  emptyLink: {
+    textDecorationLine: 'underline',
+    color: colors.textDark,
   },
 })
 

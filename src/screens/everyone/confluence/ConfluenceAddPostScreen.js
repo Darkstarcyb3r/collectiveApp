@@ -17,6 +17,7 @@ import {
   Modal,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
@@ -136,6 +137,11 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
     )
   }
 
+  const SHARED_CHAR_LIMIT = 75
+  const combinedLength = caption.length + linkLabel.length
+  const captionRemaining = SHARED_CHAR_LIMIT - linkLabel.length
+  const linkLabelRemaining = SHARED_CHAR_LIMIT - caption.length
+
   const isMaxed = monthlyCount >= MAX_MONTHLY
 
   return (
@@ -155,12 +161,15 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
               <Ionicons name="chevron-back" size={24} color={colors.textGreen} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.publishButton, (publishing || isMaxed) && { opacity: 0.4 }]}
+              style={[styles.publishButtonOuter, (publishing || isMaxed) && { opacity: 0.4 }]}
               onPress={handlePublish}
               disabled={publishing || isMaxed}
             >
-              <Ionicons name="add" size={14} color={colors.textDark} />
-              <Text style={styles.publishButtonText}>Publish</Text>
+              <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishButton}>
+                <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.publishButtonHighlight} />
+                <Ionicons name="add" size={14} color={colors.textDark} />
+                <Text style={styles.publishButtonText}>Publish</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -173,64 +182,52 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
               <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
             ) : (
               <View style={styles.uploadPlaceholder}>
-                <Ionicons name="image-outline" size={48} color={colors.textDark} />
+                <Ionicons name="image-outline" size={48} color={colors.offline} />
                 <Text style={styles.uploadText}>upload a photo</Text>
               </View>
             )}
           </TouchableOpacity>
 
-          {/* Caption — hidden when a link has been saved */}
-          {!linkLabel && !link ? (
-            <View style={styles.captionRow}>
-              <Text style={styles.captionLabel}>caption:</Text>
-              <TextInput
-                style={styles.captionInput}
-                value={caption}
-                onChangeText={setCaption}
-                placeholder="// caption goes here"
-                placeholderTextColor={colors.offline}
-                maxLength={50}
-                numberOfLines={1}
-                multiline={false}
-              />
-              <Text style={styles.captionCount}>{caption.length}/50</Text>
-            </View>
-          ) : null}
+          {/* Caption */}
+          <View style={styles.captionRow}>
+            <Text style={styles.captionLabel}>caption:</Text>
+            <TextInput
+              style={styles.captionInput}
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="// caption goes here"
+              placeholderTextColor={colors.offline}
+              maxLength={Math.max(caption.length, captionRemaining)}
+              numberOfLines={1}
+              multiline={false}
+            />
+            <Text style={styles.captionCount}>{combinedLength}/75</Text>
+          </View>
 
-          {/* Hyperlink option — hidden when caption has text */}
-          {!caption.trim() && (
-            <TouchableOpacity
-              style={styles.linkCell}
-              onPress={() => {
-                setTempLinkLabel(linkLabel)
-                setTempLink(link)
-                setShowLinkModal(true)
-              }}
-              activeOpacity={0.7}
-            >
-              {linkLabel ? (
-                <Text style={styles.linkDisplayText} numberOfLines={1}>
-                  {linkLabel}
-                </Text>
-              ) : (
-                <Text style={styles.linkPlaceholder}>+ Add link</Text>
-              )}
-            </TouchableOpacity>
-          )}
+          {/* Hyperlink option */}
+          <TouchableOpacity
+            style={styles.linkCell}
+            onPress={() => {
+              setTempLinkLabel(linkLabel)
+              setTempLink(link)
+              setShowLinkModal(true)
+            }}
+            activeOpacity={0.7}
+          >
+            {linkLabel ? (
+              <Text style={styles.linkDisplayText} numberOfLines={1}>
+                {linkLabel}
+              </Text>
+            ) : (
+              <Text style={styles.linkPlaceholder}>+ Add link</Text>
+            )}
+          </TouchableOpacity>
 
           {/* Notices */}
           <Text style={styles.notice}>
             Anonymous posting of a collective stream of consciousness with your connects
           </Text>
 
-          <Text style={styles.notice}>
-            Each user gets {MAX_MONTHLY} confluence contributions a month, then it resets at the
-            beginning of the month. Contribute to the trove.
-          </Text>
-
-          <Text style={styles.countText}>
-            {monthlyCount}/{MAX_MONTHLY} used this month
-          </Text>
 
           {/* Collective Logo */}
           <View style={styles.logoContainer}>
@@ -261,8 +258,9 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
               onChangeText={setTempLinkLabel}
               placeholder="Label (e.g. Sign Up Here)"
               placeholderTextColor={colors.offline}
-              maxLength={50}
+              maxLength={Math.max(tempLinkLabel.length, SHARED_CHAR_LIMIT - caption.length)}
             />
+            <Text style={styles.modalCharCount}>{caption.length + tempLinkLabel.length}/75</Text>
             <TextInput
               style={styles.linkModalInput}
               value={tempLink}
@@ -290,14 +288,17 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
                 <View />
               )}
               <TouchableOpacity
-                style={styles.linkModalSaveButton}
+                style={styles.linkModalSaveButtonOuter}
                 onPress={() => {
                   setLink(tempLink.trim())
                   setLinkLabel(tempLinkLabel.trim())
                   setShowLinkModal(false)
                 }}
               >
-                <Text style={styles.linkModalSaveText}>Save</Text>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.linkModalSaveButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.linkModalSaveButtonHighlight} />
+                  <Text style={styles.linkModalSaveText}>Save</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -342,13 +343,36 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 0,
   },
+  publishButtonOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   publishButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  publishButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   publishButtonText: {
     fontSize: 12,
@@ -369,10 +393,12 @@ const styles = StyleSheet.create({
   // Image Upload
   imageUpload: {
     borderRadius: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.backgroundCard,
     height: 180,
     marginBottom: 24,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   uploadedImage: {
     width: '100%',
@@ -386,7 +412,7 @@ const styles = StyleSheet.create({
   uploadText: {
     fontSize: 12,
     fontFamily: fonts.bold,
-    color: colors.textDark,
+    color: colors.offline,
     marginTop: 8,
   },
 
@@ -426,7 +452,7 @@ const styles = StyleSheet.create({
     borderColor: colors.textGreen,
     borderRadius: 8,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 6,
     marginBottom: 18,
     marginTop: -10,
     backgroundColor: colors.background,
@@ -475,6 +501,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginBottom: 12,
   },
+  modalCharCount: {
+    textAlign: 'right',
+    fontSize: 11,
+    fontFamily: fonts.mono,
+    color: colors.offline,
+    marginTop: -8,
+    marginBottom: 12,
+  },
   linkModalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -490,11 +524,34 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.offline,
   },
+  linkModalSaveButtonOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   linkModalSaveButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  linkModalSaveButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   linkModalSaveText: {
     fontSize: 13,
@@ -520,7 +577,7 @@ const styles = StyleSheet.create({
   // Logo
   logoContainer: {
     alignItems: 'flex-end',
-    marginTop: -30,
+    marginTop: 10,
   },
   logoImage: {
     width: 200,

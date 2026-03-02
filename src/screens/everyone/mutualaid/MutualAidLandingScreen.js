@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -128,21 +129,32 @@ const MutualAidLandingScreen = ({ navigation }) => {
       >
         <View style={styles.mainContainer}>
           {/* Header */}
-          <View style={styles.headerRow}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('MainTabs', { screen: 'HomeTab' })}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ padding: 4 }}
+          <View style={styles.headerOuter}>
+            <LinearGradient
+              colors={['#d8f434', '#b3f425', '#93f478']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.headerRow}
             >
-              <Ionicons name="chevron-back" size={24} color={colors.textDark} />
-            </TouchableOpacity>
-            <Ionicons
-              name="globe-outline"
-              size={22}
-              color={colors.textDark}
-              style={{ marginLeft: 4 }}
-            />
-            <Text style={styles.title}>Mutual Aid</Text>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                style={styles.headerHighlight}
+              />
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MainTabs', { screen: 'HomeTab' })}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="chevron-back" size={24} color={colors.textDark} />
+              </TouchableOpacity>
+              <Ionicons
+                name="globe-outline"
+                size={22}
+                color={colors.textDark}
+                style={{ marginLeft: 4 }}
+              />
+              <Text style={styles.title}>Mutual Aid</Text>
+            </LinearGradient>
           </View>
 
           {/* Description */}
@@ -173,25 +185,39 @@ const MutualAidLandingScreen = ({ navigation }) => {
                 >
                   {cat.label}
                 </Text>
-                <TouchableOpacity
-                  style={[styles.arrowButton, cat.bold && styles.arrowButtonDark]}
-                  onPress={() => {
-                    if (cat.isBarter) {
+                {cat.bold ? (
+                  <TouchableOpacity
+                    style={styles.arrowButtonDark}
+                    onPress={() => {
                       navigation.navigate('BarterMarketLanding')
-                    } else {
+                    }}
+                  >
+                    <Ionicons name="arrow-forward" size={20} color="#ffffff" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.arrowButtonOuter}
+                    onPress={() => {
                       navigation.navigate('MutualAidCategory', {
                         category: cat.category,
                         title: cat.title,
                       })
-                    }
-                  }}
-                >
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color={cat.bold ? '#ffffff' : colors.textDark}
-                  />
-                </TouchableOpacity>
+                    }}
+                  >
+                    <LinearGradient
+                      colors={['#d8f434', '#b3f425', '#93f478']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.arrowButton}
+                    >
+                      <LinearGradient
+                        colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                        style={styles.arrowButtonHighlight}
+                      />
+                      <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </View>
@@ -237,14 +263,37 @@ const styles = StyleSheet.create({
   },
 
   // Header
+  headerOuter: {
+    borderRadius: 10,
+    marginBottom: 12,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    backgroundColor: colors.secondary,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  headerHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
   title: {
     fontSize: 18,
@@ -258,7 +307,6 @@ const styles = StyleSheet.create({
     color: colors.textDark,
     alignText: 'flex-start',
   },
-
   description: {
     fontSize: 12,
     fontFamily: fonts.regular,
@@ -272,6 +320,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     paddingHorizontal: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   categoryRow: {
     flexDirection: 'row',
@@ -306,16 +361,45 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   arrowButtonDark: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#333333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  arrowButtonOuter: {
+    borderRadius: 20,
+    marginLeft: 8,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
   },
   arrowButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  arrowButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
 
   // Request Category
@@ -329,6 +413,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderLight,
     borderRadius: 20,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   requestButtonText: {
     fontSize: 13,

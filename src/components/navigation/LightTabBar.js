@@ -28,7 +28,7 @@ const TABS = [
   { name: 'ConfluenceTab', icon: 'globe-outline' },
 ]
 
-const LightTabBar = forwardRef((props, ref) => {
+const LightTabBar = forwardRef(({ dark, ...props }, ref) => {
   const navigation = useNavigation()
   const { user } = useAuth()
   const insets = useSafeAreaInsets()
@@ -114,7 +114,11 @@ const LightTabBar = forwardRef((props, ref) => {
 
   return (
     <Animated.View
-      style={[styles.container, { opacity: fadeAnim, paddingBottom: insets.bottom || 8 }]}
+      style={[
+        styles.container,
+        dark && styles.containerDark,
+        { opacity: fadeAnim, paddingBottom: insets.bottom || 8 },
+      ]}
       pointerEvents={visible ? 'auto' : 'none'}
     >
       {TABS.map((tab) => (
@@ -146,6 +150,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  containerDark: {
+    backgroundColor: colors.background,
+    borderTopColor: '#1a1a1a',
   },
   tab: {
     flex: 1,

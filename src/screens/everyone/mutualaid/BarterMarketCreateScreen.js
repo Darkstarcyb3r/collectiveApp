@@ -18,6 +18,7 @@ import {
   Modal,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
@@ -291,11 +292,14 @@ const BarterMarketCreateScreen = ({ navigation }) => {
             <View style={styles.actionRow}>
               <View style={{ width: 20 }} />
               <TouchableOpacity
-                style={[styles.publishButton, publishing && { opacity: 0.5 }]}
+                style={[styles.publishButtonOuter, publishing && { opacity: 0.5 }]}
                 onPress={handlePublish}
                 disabled={publishing}
               >
-                <Text style={styles.publishButtonText}>Publish</Text>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.publishButtonHighlight} />
+                  <Text style={styles.publishButtonText}>Publish</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
 
@@ -490,8 +494,11 @@ const BarterMarketCreateScreen = ({ navigation }) => {
               >
                 <Text style={styles.calCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.calApplyButton} onPress={applyCalendar}>
-                <Text style={styles.calApplyText}>Apply</Text>
+              <TouchableOpacity style={styles.calApplyButtonOuter} onPress={applyCalendar}>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.calApplyButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.calApplyButtonHighlight} />
+                  <Text style={styles.calApplyText}>Apply</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -546,12 +553,35 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 12,
   },
+  publishButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+    marginTop: 20,
+  },
   publishButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 20,
-    marginTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  publishButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   publishButtonText: {
     fontSize: 14,
@@ -804,11 +834,34 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.textDark,
   },
+  calApplyButtonOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   calApplyButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 16,
-    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  calApplyButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   calApplyText: {
     fontSize: 13,

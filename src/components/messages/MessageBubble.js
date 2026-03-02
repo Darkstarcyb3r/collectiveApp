@@ -18,6 +18,7 @@ import {
   SafeAreaView,
   Animated,
   ScrollView,
+  Pressable,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Swipeable } from 'react-native-gesture-handler'
@@ -351,20 +352,17 @@ const MessageBubble = ({
             animationType="fade"
             onRequestClose={() => setImageModalVisible(false)}
           >
-            <SafeAreaView style={styles.imageModalContainer}>
-              <TouchableOpacity
-                style={styles.imageModalClose}
-                onPress={() => setImageModalVisible(false)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <Ionicons name="close" size={28} color="#ffffff" />
-              </TouchableOpacity>
+            <Pressable
+              style={styles.imageModalContainer}
+              onPress={() => setImageModalVisible(false)}
+            >
               <Image
                 source={{ uri: message.imageUrl }}
                 style={styles.imageModalFull}
                 resizeMode="contain"
+                pointerEvents="none"
               />
-            </SafeAreaView>
+            </Pressable>
           </Modal>
         )}
       </View>
@@ -517,21 +515,9 @@ const styles = StyleSheet.create({
   // Fullscreen image modal
   imageModalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  imageModalClose: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   imageModalFull: {
     width: Dimensions.get('window').width - 32,

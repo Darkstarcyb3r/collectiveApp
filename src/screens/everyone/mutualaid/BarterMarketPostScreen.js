@@ -19,6 +19,7 @@ import {
   Dimensions,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
 import { colors } from '../../../theme'
@@ -313,9 +314,12 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
             </TouchableOpacity>
 
             {!isAuthor && (
-              <TouchableOpacity style={styles.contactButton} onPress={handleContact}>
-                <Ionicons name="add" size={14} color={colors.textDark} />
-                <Text style={styles.contactButtonText}>Contact</Text>
+              <TouchableOpacity style={styles.contactButtonOuter} onPress={handleContact}>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.contactButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.contactButtonHighlight} />
+                  <Ionicons name="add" size={14} color={colors.textDark} />
+                  <Text style={styles.contactButtonText}>Contact</Text>
+                </LinearGradient>
               </TouchableOpacity>
             )}
 
@@ -351,15 +355,18 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
                       <Ionicons name="trash-outline" size={20} color={colors.offline} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.saveButton, saving && { opacity: 0.5 }]}
+                      style={[styles.saveButtonOuter, saving && { opacity: 0.5 }]}
                       onPress={handleSaveEdit}
                       disabled={saving}
                     >
-                      {saving ? (
-                        <ActivityIndicator size="small" color={colors.textDark} />
-                      ) : (
-                        <Text style={styles.saveButtonText}>Save</Text>
-                      )}
+                      <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveButton}>
+                        <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.saveButtonHighlight} />
+                        {saving ? (
+                          <ActivityIndicator size="small" color={colors.textDark} />
+                        ) : (
+                          <Text style={styles.saveButtonText}>Save</Text>
+                        )}
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -653,13 +660,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  contactButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  contactButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   contactButtonText: {
     fontSize: 14,
@@ -886,12 +916,35 @@ const styles = StyleSheet.create({
     padding: 12,
     minHeight: 60,
   },
+  saveButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+    marginTop: 20,
+  },
   saveButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 20,
-    marginTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  saveButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   saveButtonText: {
     fontSize: 14,

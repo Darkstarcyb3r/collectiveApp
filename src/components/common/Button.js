@@ -101,6 +101,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // Sizes
+  small: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  medium: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  large: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+  },
+
   // Variants
   primary: {
     backgroundColor: colors.primary,
@@ -123,6 +137,17 @@ const styles = StyleSheet.create({
   // Disabled
   disabled: {
     opacity: 0.5,
+  },
+
+  // Text sizes
+  smallText: {
+    fontSize: 13,
+  },
+  mediumText: {
+    fontSize: 15,
+  },
+  largeText: {
+    fontSize: 17,
   },
 
   // Text styles

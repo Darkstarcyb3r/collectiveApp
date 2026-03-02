@@ -27,6 +27,8 @@ import {
   Animated,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
 import { Swipeable } from 'react-native-gesture-handler'
 import * as ImagePicker from 'expo-image-picker'
 import { Audio } from 'expo-av'
@@ -91,6 +93,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
   const appStateRef = useRef(AppState.currentState)
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null) // messageId to confirm delete
+  const [viewImageUrl, setViewImageUrl] = useState(null)
 
   // Track mounted state to prevent stale navigation calls
   useEffect(() => {
@@ -568,19 +571,21 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
             delayLongPress={400}
           >
             {item.imageUrl ? (
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={[
-                  styles.chatImage,
-                  item.imageWidth && item.imageHeight
-                    ? { aspectRatio: item.imageWidth / item.imageHeight, height: undefined }
-                    : null,
-                ]}
-                resizeMode="cover"
-              />
+              <TouchableOpacity activeOpacity={0.9} onPress={() => setViewImageUrl(item.imageUrl)}>
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={[
+                    styles.chatImage,
+                    item.imageWidth && item.imageHeight
+                      ? { aspectRatio: item.imageWidth / item.imageHeight, height: undefined }
+                      : null,
+                  ]}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
             ) : null}
             {item.text ? (
-              <View style={styles.messageBubbleInner}>
+              <BlurView intensity={40} tint="dark" style={styles.messageBubbleInner}>
                 <Autolink
                   text={item.text}
                   style={styles.messageText}
@@ -592,13 +597,13 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
                   stripPrefix={false}
                   onPress={(url) => Linking.openURL(url)}
                 />
-              </View>
+              </BlurView>
             ) : null}
           </TouchableOpacity>
           {messageUrl && (
-            <View style={styles.messageBubbleInner}>
+            <BlurView intensity={40} tint="dark" style={styles.messageBubbleInner}>
               <LinkPreviewCard url={messageUrl} />
-            </View>
+            </BlurView>
           )}
           {/* Reaction Badges — shown below message */}
           {reactionEntries.length > 0 && (
@@ -638,7 +643,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.backgroundLight} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'position' : 'height'}
@@ -653,7 +658,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={{ padding: 4 }}
             >
-              <Ionicons name="chevron-back" size={24} color={colors.textDark} />
+              <Ionicons name="chevron-back" size={24} color={colors.primary} />
             </TouchableOpacity>
             <Text style={styles.title} numberOfLines={1}>
               {room?.name || 'Chatroom'}
@@ -721,9 +726,12 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
               </View>
 
               {/* + Members Button */}
-              <TouchableOpacity style={styles.addMemberButton} onPress={handleAddMembers}>
-                <Ionicons name="add" size={16} color={colors.textDark} />
-                <Text style={styles.addMemberText}>Active Members</Text>
+              <TouchableOpacity style={styles.addMemberButtonShadow} onPress={handleAddMembers}>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addMemberButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.addMemberButtonHighlight} />
+                  <Ionicons name="add" size={16} color={colors.textDark} />
+                  <Text style={styles.addMemberText}>Active Members</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -757,82 +765,123 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
           <Text style={styles.countdown}>Room countdown: {countdown}</Text>
 
           {/* Audio Controls */}
-          {room?.vibe && room.vibe !== 'none' && (
-            <View style={styles.audioSection}>
-              <View style={styles.audioControlRow}>
-                <Ionicons name="musical-notes" size={14} color={colors.primary} />
-                <Text style={styles.vibeNameText} numberOfLines={1}>
-                  {getVibeById(room.vibe).label}
-                </Text>
-                {isHost && (
+          {/* Audio Controls + Vibe Dropdown */}
+          <View style={styles.vibeDropdownWrapper}>
+            {room?.vibe && room.vibe !== 'none' && (
+              <View style={styles.audioSection}>
+                <View style={styles.audioControlRow}>
+                  <Ionicons name="musical-notes" size={14} color={colors.primary} />
+                  <Text style={styles.vibeNameText} numberOfLines={1}>
+                    {getVibeById(room.vibe).label}
+                  </Text>
+                  {isHost && (
+                    <TouchableOpacity
+                      onPress={() => setVibePickerVisible(!vibePickerVisible)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.changeVibeText}>change</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
-                    onPress={() => setVibePickerVisible(true)}
+                    onPress={() => setIsMuted(!isMuted)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Text style={styles.changeVibeText}>change</Text>
+                    <Ionicons
+                      name={isMuted ? 'volume-mute' : 'volume-high'}
+                      size={18}
+                      color={colors.primary}
+                    />
                   </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  onPress={() => setIsMuted(!isMuted)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons
-                    name={isMuted ? 'volume-mute' : 'volume-high'}
-                    size={18}
-                    color={colors.textDark}
-                  />
-                </TouchableOpacity>
-              </View>
+                </View>
 
-              {/* Seek Bar + Time */}
-              <View style={styles.seekBarRow}>
-                <Text style={styles.seekTimeText}>{formatTime(playbackPosition)}</Text>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={styles.seekBarTrack}
-                  onPress={isHost ? handleSeek : undefined}
-                  onLayout={(e) => {
-                    seekBarWidth.current = e.nativeEvent.layout.width
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.seekBarFill,
-                      {
-                        width:
-                          playbackDuration > 0
-                            ? `${(playbackPosition / playbackDuration) * 100}%`
-                            : '0%',
-                      },
-                    ]}
-                  />
-                  {isHost && playbackDuration > 0 && (
+                {/* Seek Bar + Time */}
+                <View style={styles.seekBarRow}>
+                  <Text style={styles.seekTimeText}>{formatTime(playbackPosition)}</Text>
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    style={styles.seekBarTrack}
+                    onPress={isHost ? handleSeek : undefined}
+                    onLayout={(e) => {
+                      seekBarWidth.current = e.nativeEvent.layout.width
+                    }}
+                  >
                     <View
                       style={[
-                        styles.seekBarThumb,
+                        styles.seekBarFill,
                         {
-                          left:
+                          width:
                             playbackDuration > 0
                               ? `${(playbackPosition / playbackDuration) * 100}%`
                               : '0%',
                         },
                       ]}
                     />
-                  )}
-                </TouchableOpacity>
-                <Text style={styles.seekTimeText}>{formatTime(playbackDuration)}</Text>
+                    {isHost && playbackDuration > 0 && (
+                      <View
+                        style={[
+                          styles.seekBarThumb,
+                          {
+                            left:
+                              playbackDuration > 0
+                                ? `${(playbackPosition / playbackDuration) * 100}%`
+                                : '0%',
+                          },
+                        ]}
+                      />
+                    )}
+                  </TouchableOpacity>
+                  <Text style={styles.seekTimeText}>{formatTime(playbackDuration)}</Text>
+                </View>
               </View>
-            </View>
-          )}
-          {room?.vibe === 'none' && isHost && (
-            <TouchableOpacity
-              style={styles.addVibeButton}
-              onPress={() => setVibePickerVisible(true)}
-            >
-              <Ionicons name="musical-notes-outline" size={14} color={colors.offline} />
-              <Text style={styles.addVibeText}>add a vibe</Text>
-            </TouchableOpacity>
-          )}
+            )}
+            {room?.vibe === 'none' && isHost && (
+              <TouchableOpacity
+                style={styles.addVibeButton}
+                onPress={() => setVibePickerVisible(!vibePickerVisible)}
+              >
+                <Ionicons name="musical-notes-outline" size={14} color={colors.primary} />
+                <Text style={styles.addVibeText}>add a vibe</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Inline Vibe Dropdown */}
+            {vibePickerVisible && (
+              <View style={styles.vibeDropdownContainer}>
+                <ScrollView
+                  style={styles.vibeDropdownList}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                >
+                  {VIBES.map((vibe) => (
+                    <TouchableOpacity
+                      key={vibe.id}
+                      style={[
+                        styles.vibeDropdownOption,
+                        room?.vibe === vibe.id && styles.vibeDropdownOptionSelected,
+                      ]}
+                      onPress={async () => {
+                        await updateRoomVibe(roomId, vibe.id)
+                        setVibePickerVisible(false)
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.vibeDropdownOptionText,
+                          room?.vibe === vibe.id && styles.vibeDropdownOptionTextSelected,
+                        ]}
+                      >
+                        {vibe.label}
+                      </Text>
+                      {room?.vibe === vibe.id && (
+                        <Ionicons name="checkmark" size={16} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
 
           {/* Background Picker (host only) */}
           {isHost && (
@@ -845,7 +894,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
                 <Ionicons
                   name="image-outline"
                   size={14}
-                  color={hasBackground ? colors.primary : colors.offline}
+                  color={colors.primary}
                 />
                 <Text style={styles.bgPickerLabel} numberOfLines={1}>
                   {hasBackground ? roomBackground.label : 'background'}
@@ -853,7 +902,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
                 <Ionicons
                   name={backgroundPickerVisible ? 'chevron-up' : 'chevron-down'}
                   size={14}
-                  color={colors.offline}
+                  color={colors.primary}
                 />
               </TouchableOpacity>
               {backgroundPickerVisible && (
@@ -942,7 +991,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
               onPickImage={handlePickImage}
               disabled={sending}
               uploading={uploading}
-              variant="light"
+              variant="dark"
             />
           </View>
         </View>
@@ -970,9 +1019,12 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
               <TouchableOpacity style={styles.modalCancelButton} onPress={handleCancelSendImage}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSendButton} onPress={handleConfirmSendImage}>
-                <Ionicons name="send" size={16} color={colors.textDark} />
-                <Text style={styles.modalSendText}>Send</Text>
+              <TouchableOpacity style={styles.modalSendButtonShadow} onPress={handleConfirmSendImage}>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalSendButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.modalSendButtonHighlight} />
+                  <Ionicons name="send" size={16} color={colors.textDark} />
+                  <Text style={styles.modalSendText}>Send</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -998,48 +1050,6 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
         onConfirm={handleDeleteMessage}
         onCancel={() => setDeleteConfirm(null)}
       />
-
-      {/* Vibe Picker Modal (host only) */}
-      <Modal
-        visible={vibePickerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setVibePickerVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setVibePickerVisible(false)}>
-          <Pressable style={styles.vibeModalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.vibeModalTitle}>Change Vibe</Text>
-            <ScrollView style={styles.vibeModalList} showsVerticalScrollIndicator={false}>
-              {VIBES.map((vibe) => (
-                <TouchableOpacity
-                  key={vibe.id}
-                  style={[
-                    styles.vibeModalOption,
-                    room?.vibe === vibe.id && styles.vibeModalOptionSelected,
-                  ]}
-                  onPress={async () => {
-                    await updateRoomVibe(roomId, vibe.id)
-                    setVibePickerVisible(false)
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.vibeModalOptionText,
-                      room?.vibe === vibe.id && styles.vibeModalOptionTextSelected,
-                    ]}
-                  >
-                    {vibe.label}
-                  </Text>
-                  {room?.vibe === vibe.id && (
-                    <Ionicons name="checkmark" size={18} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       {/* Sticker Picker Modal (host only) */}
       <Modal
@@ -1070,12 +1080,37 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
               ))}
             </View>
             <TouchableOpacity
-              style={styles.stickerModalDone}
+              style={styles.stickerModalDoneShadow}
               onPress={() => setStickerPickerVisible(false)}
             >
-              <Text style={styles.stickerModalDoneText}>Done</Text>
+              <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.stickerModalDone}>
+                <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.stickerModalDoneHighlight} />
+                <Text style={styles.stickerModalDoneText}>Done</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Fullscreen Image Viewer */}
+      <Modal
+        visible={!!viewImageUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewImageUrl(null)}
+      >
+        <Pressable
+          style={styles.imageViewerContainer}
+          onPress={() => setViewImageUrl(null)}
+        >
+          {viewImageUrl && (
+            <Image
+              source={{ uri: viewImageUrl }}
+              style={styles.imageViewerFull}
+              resizeMode="contain"
+              pointerEvents="none"
+            />
+          )}
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -1085,14 +1120,14 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: colors.background,
   },
   mainContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 8,
@@ -1107,16 +1142,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-    backgroundColor: colors.secondary,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 10,
+    backgroundColor: 'rgba(34, 255, 10, 0.1)',
+    marginBottom: 8,
   },
   title: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: colors.textDark,
+    color: colors.primary,
     flex: 1,
     textAlign: 'center',
   },
@@ -1125,7 +1160,7 @@ const styles = StyleSheet.create({
   participantCount: {
     fontSize: 11,
     fontFamily: fonts.mono,
-    color: colors.offline,
+    color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     marginBottom: 10,
   },
@@ -1170,12 +1205,12 @@ const styles = StyleSheet.create({
   hostName: {
     fontSize: 12,
     fontFamily: fonts.regular,
-    color: colors.offline,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   hostLabel: {
     fontSize: 12,
     fontFamily: fonts.bold,
-    color: colors.textDark,
+    color: '#ffffff',
   },
 
   // Sticker Display
@@ -1184,16 +1219,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     marginBottom: 0,
-    gap: 6,
-    minHeight: 32,
+    gap: 4,
+    minHeight: 24,
   },
   stickerEmoji: {
-    fontSize: 32,
+    fontSize: 22,
   },
   stickerPlaceholder: {
     fontSize: 11,
     fontFamily: fonts.mono,
-    color: colors.offline,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 
   // Participant Avatar Banner
@@ -1209,7 +1244,7 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 2,
-    borderColor: '#ffffff',
+    borderColor: colors.background,
   },
   participantAvatarPlaceholder: {
     width: 26,
@@ -1219,7 +1254,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#ffffff',
+    borderColor: colors.background,
   },
   participantCountText: {
     fontSize: 9,
@@ -1228,14 +1263,37 @@ const styles = StyleSheet.create({
   },
 
   // Add Member Button
+  addMemberButtonShadow: {
+    borderRadius: 16,
+    marginLeft: 4,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   addMemberButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 6,
     paddingHorizontal: 8,
     borderRadius: 16,
-    marginLeft: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  addMemberButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   addMemberText: {
     fontSize: 12,
@@ -1248,25 +1306,25 @@ const styles = StyleSheet.create({
   endChatButton: {
     alignSelf: 'flex-end',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 12,
     marginBottom: 10,
     marginLeft: 52,
-    marginTop: -40,
+    marginTop: -30,
   },
   endChatText: {
     fontSize: 11,
     fontFamily: fonts.mono,
-    color: colors.textDark,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 
   // Countdown
   countdown: {
     fontSize: 12,
     fontFamily: fonts.mono,
-    color: colors.textDark,
+    color: '#ffffff',
     textAlign: 'right',
     marginBottom: 10,
   },
@@ -1278,7 +1336,7 @@ const styles = StyleSheet.create({
   audioControlRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(34, 255, 10, 0.08)',
+    backgroundColor: 'rgba(34, 255, 10, 0.1)',
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
     paddingVertical: 6,
@@ -1289,7 +1347,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontFamily: fonts.mono,
-    color: colors.textDark,
+    color: '#ffffff',
   },
   changeVibeText: {
     fontSize: 11,
@@ -1301,7 +1359,7 @@ const styles = StyleSheet.create({
   seekBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(34, 255, 10, 0.08)',
+    backgroundColor: 'rgba(34, 255, 10, 0.1)',
     borderBottomLeftRadius: 10,
     borderBottomRightRadius: 10,
     paddingHorizontal: 12,
@@ -1312,14 +1370,14 @@ const styles = StyleSheet.create({
   seekTimeText: {
     fontSize: 10,
     fontFamily: fonts.mono,
-    color: colors.offline,
+    color: 'rgba(255, 255, 255, 0.5)',
     minWidth: 32,
     textAlign: 'center',
   },
   seekBarTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 2,
     justifyContent: 'center',
   },
@@ -1348,7 +1406,7 @@ const styles = StyleSheet.create({
   addVibeText: {
     fontSize: 11,
     fontFamily: fonts.mono,
-    color: colors.offline,
+    color: colors.primary,
   },
 
   // Input bar — stretch edge to edge
@@ -1359,7 +1417,7 @@ const styles = StyleSheet.create({
   // Chat
   chatContainer: {
     flex: 1,
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     borderBottomLeftRadius: 0,
@@ -1399,20 +1457,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messageBubbleInner: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   messageText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.regular,
-    color: colors.textDark,
-    lineHeight: 20,
+    color: '#ffffff',
+    lineHeight: 18,
   },
   linkText: {
-    color: '#000000',
+    color: colors.primary,
     textDecorationLine: 'underline',
     fontFamily: fonts.regular,
   },
@@ -1423,6 +1484,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: '#e0e0e0',
     maxHeight: 320,
+  },
+
+  // Fullscreen Image Viewer
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerFull: {
+    width: '100%',
+    height: '80%',
   },
 
   // Reaction Picker (horizontal scrollable strip above message)
@@ -1456,12 +1529,12 @@ const styles = StyleSheet.create({
   reactionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 12,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   reactionBadgeActive: {
     backgroundColor: 'rgba(34, 255, 10, 0.15)',
@@ -1473,7 +1546,7 @@ const styles = StyleSheet.create({
   reactionBadgeCount: {
     fontSize: 11,
     fontFamily: fonts.medium,
-    color: colors.textDark,
+    color: '#ffffff',
     marginLeft: 3,
   },
 
@@ -1530,15 +1603,39 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.textDark,
   },
+  modalSendButtonShadow: {
+    flex: 1,
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   modalSendButton: {
     flex: 1,
     flexDirection: 'row',
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  modalSendButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   modalSendText: {
     fontSize: 14,
@@ -1546,43 +1643,46 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
 
-  // Vibe Picker Modal
-  vibeModalContent: {
-    width: '80%',
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
+  // Vibe Inline Dropdown
+  vibeDropdownWrapper: {
+    zIndex: 100,
+  },
+  vibeDropdownContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(26, 26, 26, 0.9)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    padding: 20,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  vibeModalTitle: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.textDark,
-    textAlign: 'center',
-    marginBottom: 14,
+  vibeDropdownList: {
+    maxHeight: 280,
+    paddingVertical: 6,
   },
-  vibeModalList: {
-    maxHeight: 350,
-  },
-  vibeModalOption: {
+  vibeDropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    marginBottom: 4,
+    paddingHorizontal: 16,
   },
-  vibeModalOptionSelected: {
+  vibeDropdownOptionSelected: {
     backgroundColor: 'rgba(34, 255, 10, 0.08)',
   },
-  vibeModalOptionText: {
+  vibeDropdownOptionText: {
     fontSize: 13,
     fontFamily: fonts.regular,
-    color: colors.textDark,
+    color: '#ffffff',
   },
-  vibeModalOptionTextSelected: {
+  vibeDropdownOptionTextSelected: {
     fontFamily: fonts.bold,
   },
 
@@ -1599,7 +1699,7 @@ const styles = StyleSheet.create({
   bgPickerLabel: {
     fontSize: 11,
     fontFamily: fonts.mono,
-    color: colors.offline,
+    color: colors.primary,
   },
   bgScrollStrip: {
     marginTop: 6,
@@ -1629,16 +1729,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 78,
     borderRadius: 6,
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   bgThumbLabel: {
     fontSize: 7,
     fontFamily: fonts.regular,
-    color: colors.textDark,
+    color: 'rgba(255, 255, 255, 0.6)',
     marginTop: 2,
     textAlign: 'center',
   },
@@ -1691,11 +1791,34 @@ const styles = StyleSheet.create({
   stickerModalEmoji: {
     fontSize: 22,
   },
+  stickerModalDoneShadow: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   stickerModalDone: {
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 32,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  stickerModalDoneHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   stickerModalDoneText: {
     fontSize: 14,

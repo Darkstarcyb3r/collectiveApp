@@ -20,6 +20,7 @@ import {
   Linking,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -218,11 +219,14 @@ const ConfluenceLandingScreen = ({ navigation }) => {
               />
             </View>
             <TouchableOpacity
-              style={styles.uploadButton}
+              style={styles.uploadButtonOuter}
               onPress={() => navigation.navigate('ConfluenceAddPost')}
             >
-              <Ionicons name="add" size={14} color={colors.textDark} />
-              <Text style={styles.uploadButtonText}>Upload</Text>
+              <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.uploadButton}>
+                <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.uploadButtonHighlight} />
+                <Ionicons name="add" size={14} color={colors.textDark} />
+                <Text style={styles.uploadButtonText}>Upload</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -389,15 +393,18 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                 <Text style={styles.flagCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.flagSubmitButton}
+                style={styles.flagSubmitButtonOuter}
                 onPress={handleSubmitFlag}
                 disabled={flagLoading}
               >
-                {flagLoading ? (
-                  <ActivityIndicator size="small" color={colors.textDark} />
-                ) : (
-                  <Text style={styles.flagSubmitText}>Submit</Text>
-                )}
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagSubmitButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagSubmitButtonHighlight} />
+                  {flagLoading ? (
+                    <ActivityIndicator size="small" color={colors.textDark} />
+                  ) : (
+                    <Text style={styles.flagSubmitText}>Submit</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -417,10 +424,13 @@ const ConfluenceLandingScreen = ({ navigation }) => {
             <Text style={styles.flagAlertMessage}>{flagAlert.message}</Text>
             <View style={{ alignItems: 'center' }}>
               <TouchableOpacity
-                style={styles.flagAlertOkButton}
+                style={styles.flagAlertOkButtonOuter}
                 onPress={() => setFlagAlert({ visible: false, title: '', message: '' })}
               >
-                <Text style={styles.flagSubmitText}>OK</Text>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagAlertOkButtonHighlight} />
+                  <Text style={styles.flagSubmitText}>OK</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -477,13 +487,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  uploadButtonOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  uploadButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   uploadButtonText: {
     fontSize: 12,
@@ -624,22 +657,68 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.offline,
   },
+  flagSubmitButtonOuter: {
+    borderRadius: 8,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   flagSubmitButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  flagSubmitButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   flagSubmitText: {
     fontSize: 14,
     fontFamily: fonts.bold,
     color: colors.textDark,
   },
+  flagAlertOkButtonOuter: {
+    borderRadius: 8,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   flagAlertOkButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 24,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  flagAlertOkButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   flagAlertMessage: {
     fontSize: 13,

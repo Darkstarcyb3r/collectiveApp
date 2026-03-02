@@ -15,6 +15,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from '@react-navigation/native'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
@@ -237,10 +238,13 @@ const ConversationListScreen = ({ navigation }) => {
                       <Text style={styles.declineBtnText}>Decline</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.acceptBtn}
+                      style={styles.acceptBtnOuter}
                       onPress={() => handleAcceptRequest(item, reqOtherUserId, reqOtherProfile)}
                     >
-                      <Text style={styles.acceptBtnText}>Accept</Text>
+                      <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.acceptBtn}>
+                        <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.acceptBtnHighlight} />
+                        <Text style={styles.acceptBtnText}>Accept</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -386,11 +390,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.bold,
   },
+  acceptBtnOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   acceptBtn: {
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 16,
-    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  acceptBtnHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   acceptBtnText: {
     color: colors.textDark,

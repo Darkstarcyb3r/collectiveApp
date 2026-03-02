@@ -16,10 +16,12 @@ import {
   Alert,
   Linking,
   TextInput,
-  Modal,
+  ActivityIndicator,
 } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
 import { STICKER_OPTIONS } from '../../../config/stickers'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from '@react-navigation/native'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
@@ -36,6 +38,8 @@ import AddMutualAidCommentModal from './AddMutualAidCommentModal'
 import { ConfirmModal } from '../../../components/common'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
 import { groupCommentsWithReplies } from '../../../utils/commentUtils'
+import { validateImageAsset } from '../../../utils/imageValidation'
+import { signedUpload } from '../../../utils/cloudinaryUpload'
 
 const MutualAidPostScreen = ({ route, navigation }) => {
   const { groupId, editMode } = route.params
@@ -47,9 +51,6 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   const [editCaption, setEditCaption] = useState('')
   const [editLink, setEditLink] = useState('')
   const [editLinkLabel, setEditLinkLabel] = useState('')
-  const [showLinkModal, setShowLinkModal] = useState(false)
-  const [tempLinkLabel, setTempLinkLabel] = useState('')
-  const [tempLink, setTempLink] = useState('')
   const [editCity, setEditCity] = useState('')
   const [editIsGlobal, setEditIsGlobal] = useState(false)
   const [editDescription, setEditDescription] = useState('')
@@ -62,6 +63,30 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   })
   const [reactionPickerCommentId, setReactionPickerCommentId] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
+  const [editImageUri, setEditImageUri] = useState(null)
+  const [editImageMeta, setEditImageMeta] = useState(null)
+  const [imageChanged, setImageChanged] = useState(false)
+
+  const isArtAction = group?.category === 'action_art'
+
+  const handlePickEditImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets?.length > 0) {
+      const asset = result.assets[0]
+      const validation = await validateImageAsset(asset)
+      if (!validation.valid) {
+        Alert.alert('Image Error', validation.error)
+        return
+      }
+      setEditImageUri(asset.uri)
+      setEditImageMeta({ fileSize: validation.fileSize, mimeType: validation.mimeType })
+      setImageChanged(true)
+    }
+  }
 
   const fetchGroup = async () => {
     const result = await getMutualAidGroup(groupId)
@@ -80,6 +105,8 @@ const MutualAidPostScreen = ({ route, navigation }) => {
     setEditCity(result.data.city === 'Global' ? '' : result.data.city || '')
     setEditIsGlobal(result.data.city === 'Global')
     setEditDescription(result.data.description || '')
+    setEditImageUri(result.data.imageUrl || null)
+    setImageChanged(false)
 
     const commentsResult = await getMutualAidComments(groupId)
     if (commentsResult.success) {
@@ -183,23 +210,39 @@ const MutualAidPostScreen = ({ route, navigation }) => {
 
   const handleSaveEdit = async () => {
     const savedCity = editIsGlobal ? 'Global' : editCity.trim()
-    await updateMutualAidGroup(groupId, {
+
+    // Upload new image if changed (Art & Action only)
+    let imageUrl = group?.imageUrl || null
+    if (isArtAction && imageChanged) {
+      if (editImageUri && !editImageUri.startsWith('http')) {
+        const uploadResult = await signedUpload(
+          editImageUri,
+          'collective/mutualaid',
+          `mutualaid_${user.uid}`,
+          editImageMeta || {}
+        )
+        if (!uploadResult.success) {
+          Alert.alert('Upload Error', uploadResult.error || 'Could not upload image.')
+          return
+        }
+        imageUrl = uploadResult.url
+      } else if (!editImageUri) {
+        imageUrl = null
+      }
+    }
+
+    const updates = {
       name: editName.trim(),
       caption: editCaption.trim(),
       link: editLink.trim(),
       linkLabel: editLinkLabel.trim(),
       city: savedCity,
       description: editDescription.trim(),
-    })
-    setGroup({
-      ...group,
-      name: editName.trim(),
-      caption: editCaption.trim(),
-      link: editLink.trim(),
-      linkLabel: editLinkLabel.trim(),
-      city: savedCity,
-      description: editDescription.trim(),
-    })
+      ...(isArtAction && { imageUrl }),
+    }
+    await updateMutualAidGroup(groupId, updates)
+    setGroup({ ...group, ...updates })
+    setImageChanged(false)
     setEditing(false)
   }
 
@@ -274,41 +317,63 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                   placeholder="Group Name"
                   placeholderTextColor={colors.offline}
                 />
+
+                {/* Image Picker — Art & Action edit mode */}
+                {isArtAction && (
+                  <View style={styles.imageSection}>
+                    {editImageUri ? (
+                      <View style={styles.imagePreviewContainer}>
+                        <Image source={{ uri: editImageUri }} style={styles.imagePreview} />
+                        <View style={styles.imageActions}>
+                          <TouchableOpacity onPress={handlePickEditImage} style={styles.imageChangeButton}>
+                            <Ionicons name="camera-outline" size={16} color={colors.textDark} />
+                            <Text style={styles.imageChangeText}>Change</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => { setEditImageUri(null); setEditImageMeta(null); setImageChanged(true) }}
+                            style={styles.imageRemoveButton}
+                          >
+                            <Ionicons name="close-circle-outline" size={16} color={colors.offline} />
+                            <Text style={styles.imageRemoveText}>Remove</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <TouchableOpacity style={styles.imagePicker} onPress={handlePickEditImage}>
+                        <Ionicons name="image-outline" size={24} color={colors.offline} />
+                        <Text style={styles.imagePickerText}>+ Add photo</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
                 <TextInput
                   style={styles.editInput}
                   value={editCaption}
-                  onChangeText={(text) => {
-                    setEditCaption(text)
-                    if (text.trim()) {
-                      setEditLink('')
-                      setEditLinkLabel('')
-                    }
-                  }}
+                  onChangeText={setEditCaption}
                   placeholder="Caption"
                   placeholderTextColor={colors.offline}
                   maxLength={80}
                 />
 
-                {/* Hyperlink option — only visible when no typed caption */}
-                {!editCaption.trim() && (
-                  <TouchableOpacity
-                    style={styles.editLinkCell}
-                    onPress={() => {
-                      setTempLinkLabel(editLinkLabel)
-                      setTempLink(editLink)
-                      setShowLinkModal(true)
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    {editLinkLabel ? (
-                      <Text style={styles.linkDisplayText} numberOfLines={1}>
-                        {editLinkLabel}
-                      </Text>
-                    ) : (
-                      <Text style={styles.linkPlaceholder}>+ Add link</Text>
-                    )}
-                  </TouchableOpacity>
-                )}
+                {/* Link fields (inline) */}
+                <TextInput
+                  style={styles.editInput}
+                  value={editLinkLabel}
+                  onChangeText={setEditLinkLabel}
+                  placeholder="Link label (e.g. Sign Up Here)"
+                  placeholderTextColor={colors.offline}
+                  maxLength={80}
+                />
+                <TextInput
+                  style={styles.editInput}
+                  value={editLink}
+                  onChangeText={setEditLink}
+                  placeholder="Paste URL"
+                  placeholderTextColor={colors.offline}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
                 {!editIsGlobal && (
                   <CityAutocomplete
                     value={editCity}
@@ -348,8 +413,19 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                   multiline
                 />
                 <View style={styles.editActions}>
-                  <TouchableOpacity style={styles.saveButton} onPress={handleSaveEdit}>
-                    <Text style={styles.saveButtonText}>Save</Text>
+                  <TouchableOpacity style={styles.saveButtonOuter} onPress={handleSaveEdit}>
+                    <LinearGradient
+                      colors={['#cafb6c', '#71f200', '#23ff0d']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.saveButton}
+                    >
+                      <LinearGradient
+                        colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                        style={styles.saveButtonHighlight}
+                      />
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    </LinearGradient>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setEditing(false)}>
                     <Text style={styles.cancelText}>Cancel</Text>
@@ -383,9 +459,19 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                   </View>
                 ) : null}
 
+                {/* Image — Art & Action view mode */}
+                {group.imageUrl ? (
+                  <Image
+                    source={{ uri: group.imageUrl }}
+                    style={styles.viewImage}
+                    resizeMode="cover"
+                  />
+                ) : null}
+
                 {group.caption ? (
                   <Text style={styles.groupCaption}>{group.caption}</Text>
-                ) : group.link ? (
+                ) : null}
+                {group.link ? (
                   <TouchableOpacity onPress={handleOpenLink}>
                     <Text style={styles.groupLink}>{group.linkLabel || group.link}</Text>
                   </TouchableOpacity>
@@ -584,68 +670,6 @@ const MutualAidPostScreen = ({ route, navigation }) => {
         onCancel={() => setDeleteCommentConfirm({ visible: false, commentId: null })}
       />
 
-      {/* ==================== LINK MODAL ==================== */}
-      <Modal
-        visible={showLinkModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLinkModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowLinkModal(false)}
-        >
-          <View style={styles.linkModalContainer}>
-            <Text style={styles.linkModalTitle}>Add Link</Text>
-            <TextInput
-              style={styles.linkModalInput}
-              value={tempLinkLabel}
-              onChangeText={setTempLinkLabel}
-              placeholder="Label (e.g. Sign Up Here)"
-              placeholderTextColor={colors.offline}
-              maxLength={80}
-            />
-            <TextInput
-              style={styles.linkModalInput}
-              value={tempLink}
-              onChangeText={setTempLink}
-              placeholder="Paste URL"
-              placeholderTextColor={colors.offline}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
-            <View style={styles.linkModalButtons}>
-              {editLink || editLinkLabel ? (
-                <TouchableOpacity
-                  style={styles.linkModalRemoveButton}
-                  onPress={() => {
-                    setEditLink('')
-                    setEditLinkLabel('')
-                    setTempLink('')
-                    setTempLinkLabel('')
-                    setShowLinkModal(false)
-                  }}
-                >
-                  <Text style={styles.linkModalRemoveText}>Remove</Text>
-                </TouchableOpacity>
-              ) : (
-                <View />
-              )}
-              <TouchableOpacity
-                style={styles.linkModalSaveButton}
-                onPress={() => {
-                  setEditLink(tempLink.trim())
-                  setEditLinkLabel(tempLinkLabel.trim())
-                  setShowLinkModal(false)
-                }}
-              >
-                <Text style={styles.linkModalSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   )
 }
@@ -699,8 +723,19 @@ const styles = StyleSheet.create({
 
   // Content
   contentSection: {
-    paddingHorizontal: 4,
-    paddingTop: 30,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 20,
+    marginTop: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   groupName: {
     fontSize: 22,
@@ -765,6 +800,71 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  // Image (Art & Action)
+  viewImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  imageSection: {
+    marginBottom: 12,
+  },
+  imagePicker: {
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 8,
+    borderStyle: 'dashed',
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  imagePickerText: {
+    fontSize: 13,
+    fontFamily: fonts.italic,
+    color: colors.offline,
+    marginTop: 6,
+  },
+  imagePreviewContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  imagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+  },
+  imageActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#ffffff',
+  },
+  imageChangeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  imageChangeText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textDark,
+  },
+  imageRemoveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  imageRemoveText: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: colors.offline,
+  },
+
   // Delete (in edit mode)
   deleteLink: {
     fontSize: 12,
@@ -773,99 +873,23 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
-  // Edit link cell
-  editLinkCell: {
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-    backgroundColor: '#ffffff',
-  },
-  linkDisplayText: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
-    color: colors.textDark,
-    textDecorationLine: 'underline',
-  },
-  linkPlaceholder: {
-    fontSize: 13,
-    fontFamily: fonts.italic,
-    color: colors.offline,
-  },
-
-  // Link Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  linkModalContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    width: '95%',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  linkModalTitle: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.textDark,
-    marginBottom: 16,
-  },
-  linkModalInput: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: colors.textDark,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  linkModalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  linkModalRemoveButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  linkModalRemoveText: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: colors.offline,
-  },
-  linkModalSaveButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-  },
-  linkModalSaveText: {
-    fontSize: 13,
-    fontFamily: fonts.bold,
-    color: colors.textDark,
-  },
-
   // Edit Mode
   editInput: {
     fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.textDark,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
     backgroundColor: '#ffffff',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   editActions: {
     flexDirection: 'row',
@@ -873,11 +897,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
+  saveButtonOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   saveButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  saveButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   saveButtonText: {
     fontSize: 13,
@@ -892,8 +939,19 @@ const styles = StyleSheet.create({
 
   // Comments Section
   commentsSection: {
-    marginTop: 20,
-    marginHorizontal: 4,
+    marginTop: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
   },
   commentsHeader: {
     fontSize: 16,

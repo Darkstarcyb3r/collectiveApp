@@ -2,7 +2,7 @@
 // Host creates a new chatroom with a name, vibe (background music), and stickers
 // Timer starts at 4:00:00, room goes live immediately
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import {
   View,
   Text,
@@ -18,11 +18,12 @@ import {
   ScrollView,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
 import { useAuth } from '../../../contexts/AuthContext'
 import { createChatroom } from '../../../services/everyoneService'
-import LightTabBar from '../../../components/navigation/LightTabBar'
+import DarkTabBar from '../../../components/navigation/DarkTabBar'
 import { VIBES, DEFAULT_VIBE_ID, getVibeById } from '../../../config/vibes'
 import { STICKER_OPTIONS, MAX_STICKERS } from '../../../config/stickers'
 import { BACKGROUNDS, DEFAULT_BACKGROUND_ID, getBackgroundById } from '../../../config/backgrounds'
@@ -37,6 +38,22 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
   const [selectedBackground, setSelectedBackground] = useState(DEFAULT_BACKGROUND_ID)
   const [bgPickerOpen, setBgPickerOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+
+  // Tab bar ref for scroll-based show/hide
+  const tabBarRef = useRef(null)
+  const lastScrollY = useRef(0)
+
+  const handleScroll = useCallback((event) => {
+    const currentY = event.nativeEvent.contentOffset.y
+    if (currentY > lastScrollY.current && currentY > 20) {
+      tabBarRef.current?.hide()
+    }
+    lastScrollY.current = currentY
+  }, [])
+
+  const handleScrollBeginDrag = useCallback(() => {
+    tabBarRef.current?.show()
+  }, [])
 
   const handleCreate = async () => {
     const name = roomName.trim()
@@ -82,240 +99,269 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.backgroundLight} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <View style={styles.mainContainer}>
-          {/* Header */}
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={24} color={colors.textDark} />
-          </TouchableOpacity>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          onScroll={handleScroll}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.mainContainer}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="chevron-back" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Create Chatroom</Text>
+              <View style={{ width: 24 }} />
+            </View>
 
-          {/* Chatroom Name Input */}
-          <TextInput
-            style={styles.nameInput}
-            value={roomName}
-            onChangeText={setRoomName}
-            placeholder="Chatroom Name"
-            placeholderTextColor={colors.offline}
-            maxLength={28}
-          />
+            {/* Chatroom Name Input */}
+            <TextInput
+              style={styles.nameInput}
+              value={roomName}
+              onChangeText={setRoomName}
+              placeholder="Chatroom Name"
+              placeholderTextColor="rgba(255, 255, 255, 0.3)"
+              maxLength={28}
+            />
 
-          {/* Host Info */}
-          <View style={styles.hostRow}>
-            <View style={styles.hostAvatar}>
-              {userProfile?.profilePhoto ? (
-                <Image
-                  source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={20} color="#666" />
+            {/* Host Info */}
+            <View style={styles.hostRow}>
+              <View style={styles.hostAvatar}>
+                {userProfile?.profilePhoto ? (
+                  <Image
+                    source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={20} color="#666" />
+                  </View>
+                )}
+              </View>
+              <View style={styles.hostInfo}>
+                <Text style={styles.hostName}>{userProfile?.name || 'You'}</Text>
+                <Text style={styles.hostLabel}>Host</Text>
+              </View>
+
+              {/* Create Button */}
+              <TouchableOpacity
+                style={[styles.createButtonOuter, creating && { opacity: 0.5 }]}
+                onPress={handleCreate}
+                disabled={creating}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.createButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.createButtonHighlight}
+                  />
+                  <Ionicons name="add" size={16} color={colors.textDark} />
+                  <Text style={styles.createButtonText}>Chat</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sticker Picker */}
+            <View style={styles.stickerSection}>
+              <View style={styles.stickerDisplay}>
+                {selectedStickers.length > 0 ? (
+                  selectedStickers.map((emoji, idx) => (
+                    <Text key={idx} style={styles.stickerEmoji}>
+                      {emoji}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.stickerPlaceholder}>stickers</Text>
+                )}
+                <TouchableOpacity
+                  onPress={() => {
+                    setStickerPickerOpen(!stickerPickerOpen)
+                    setVibeDropdownOpen(false)
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={stickerPickerOpen ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color="rgba(255, 255, 255, 0.4)"
+                  />
+                </TouchableOpacity>
+              </View>
+              {stickerPickerOpen && (
+                <View style={styles.stickerGrid}>
+                  {STICKER_OPTIONS.map((emoji) => (
+                    <TouchableOpacity
+                      key={emoji}
+                      style={[
+                        styles.stickerOption,
+                        selectedStickers.includes(emoji) && styles.stickerOptionSelected,
+                      ]}
+                      onPress={() => toggleSticker(emoji)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.stickerOptionEmoji}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
             </View>
-            <View style={styles.hostInfo}>
-              <Text style={styles.hostName}>{userProfile?.name || 'You'}</Text>
-              <Text style={styles.hostLabel}>Host</Text>
-            </View>
 
-            {/* Create Button */}
-            <TouchableOpacity
-              style={[styles.createButton, creating && { opacity: 0.5 }]}
-              onPress={handleCreate}
-              disabled={creating}
-            >
-              <Ionicons name="add" size={16} color={colors.textDark} />
-              <Text style={styles.createButtonText}>Chat</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Countdown Preview */}
+            <Text style={styles.countdownText}>Room countdown: 4:00:00</Text>
 
-          {/* Sticker Picker */}
-          <View style={styles.stickerSection}>
-            <View style={styles.stickerDisplay}>
-              {selectedStickers.length > 0 ? (
-                selectedStickers.map((emoji, idx) => (
-                  <Text key={idx} style={styles.stickerEmoji}>
-                    {emoji}
-                  </Text>
-                ))
-              ) : (
-                <Text style={styles.stickerPlaceholder}>stickers</Text>
-              )}
+            {/* Background Picker */}
+            <View style={styles.bgSection}>
               <TouchableOpacity
+                style={styles.bgPickerTrigger}
                 onPress={() => {
-                  setStickerPickerOpen(!stickerPickerOpen)
+                  setBgPickerOpen(!bgPickerOpen)
                   setVibeDropdownOpen(false)
+                  setStickerPickerOpen(false)
                 }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
               >
                 <Ionicons
-                  name={stickerPickerOpen ? 'chevron-up' : 'chevron-down'}
+                  name="image-outline"
                   size={14}
-                  color={colors.offline}
+                  color={colors.primary}
+                />
+                <Text style={styles.bgPickerLabel} numberOfLines={1}>
+                  {getBackgroundById(selectedBackground).label}
+                </Text>
+                <Ionicons
+                  name={bgPickerOpen ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color="rgba(255, 255, 255, 0.4)"
                 />
               </TouchableOpacity>
-            </View>
-            {stickerPickerOpen && (
-              <View style={styles.stickerGrid}>
-                {STICKER_OPTIONS.map((emoji) => (
-                  <TouchableOpacity
-                    key={emoji}
-                    style={[
-                      styles.stickerOption,
-                      selectedStickers.includes(emoji) && styles.stickerOptionSelected,
-                    ]}
-                    onPress={() => toggleSticker(emoji)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.stickerOptionEmoji}>{emoji}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Countdown Preview */}
-          <Text style={styles.countdownText}>Room countdown: 4:00:00</Text>
-
-          {/* Background Picker */}
-          <View style={styles.bgSection}>
-            <TouchableOpacity
-              style={styles.bgPickerTrigger}
-              onPress={() => {
-                setBgPickerOpen(!bgPickerOpen)
-                setVibeDropdownOpen(false)
-                setStickerPickerOpen(false)
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name="image-outline"
-                size={14}
-                color={selectedBackground !== 'none' ? colors.primary : colors.offline}
-              />
-              <Text style={styles.bgPickerLabel} numberOfLines={1}>
-                {getBackgroundById(selectedBackground).label}
-              </Text>
-              <Ionicons
-                name={bgPickerOpen ? 'chevron-up' : 'chevron-down'}
-                size={14}
-                color={colors.offline}
-              />
-            </TouchableOpacity>
-            {bgPickerOpen && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.bgScrollStrip}
-                contentContainerStyle={styles.bgScrollContent}
-              >
-                {BACKGROUNDS.map((bg) => (
-                  <TouchableOpacity
-                    key={bg.id}
-                    style={[
-                      styles.bgThumbWrap,
-                      selectedBackground === bg.id && styles.bgThumbWrapSelected,
-                    ]}
-                    onPress={() => setSelectedBackground(bg.id)}
-                    activeOpacity={0.7}
-                  >
-                    {bg.source ? (
-                      <Image source={bg.source} style={styles.bgThumbImage} />
-                    ) : (
-                      <View style={styles.bgThumbNone}>
-                        <Ionicons name="close-circle-outline" size={16} color={colors.offline} />
-                      </View>
-                    )}
-                    <Text
-                      style={[
-                        styles.bgThumbLabel,
-                        selectedBackground === bg.id && styles.bgThumbLabelSelected,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {bg.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-
-          {/* Vibe Dropdown — wrapper for relative positioning */}
-          <View style={styles.vibeDropdownWrapper}>
-            <TouchableOpacity
-              style={styles.vibeDropdownTrigger}
-              onPress={() => setVibeDropdownOpen(!vibeDropdownOpen)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="musical-notes" size={14} color={colors.primary} />
-              <Text style={styles.vibeDropdownLabel} numberOfLines={1}>
-                {selectedVibeLabel}
-              </Text>
-              <Ionicons
-                name={vibeDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color={colors.textDark}
-              />
-            </TouchableOpacity>
-
-            {/* Dropdown list — opens directly below the trigger */}
-            {vibeDropdownOpen && (
-              <View style={styles.vibeDropdownContainer}>
+              {bgPickerOpen && (
                 <ScrollView
-                  style={styles.vibeDropdownList}
-                  showsVerticalScrollIndicator={false}
-                  nestedScrollEnabled
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.bgScrollStrip}
+                  contentContainerStyle={styles.bgScrollContent}
                 >
-                  {VIBES.map((vibe) => (
+                  {BACKGROUNDS.map((bg) => (
                     <TouchableOpacity
-                      key={vibe.id}
+                      key={bg.id}
                       style={[
-                        styles.vibeDropdownOption,
-                        selectedVibe === vibe.id && styles.vibeDropdownOptionSelected,
+                        styles.bgThumbWrap,
+                        selectedBackground === bg.id && styles.bgThumbWrapSelected,
                       ]}
-                      onPress={() => {
-                        setSelectedVibe(vibe.id)
-                        setVibeDropdownOpen(false)
-                      }}
+                      onPress={() => setSelectedBackground(bg.id)}
                       activeOpacity={0.7}
                     >
+                      {bg.source ? (
+                        <Image source={bg.source} style={styles.bgThumbImage} />
+                      ) : (
+                        <View style={styles.bgThumbNone}>
+                          <Ionicons name="close-circle-outline" size={16} color={colors.offline} />
+                        </View>
+                      )}
                       <Text
                         style={[
-                          styles.vibeDropdownOptionText,
-                          selectedVibe === vibe.id && styles.vibeDropdownOptionTextSelected,
+                          styles.bgThumbLabel,
+                          selectedBackground === bg.id && styles.bgThumbLabelSelected,
                         ]}
+                        numberOfLines={1}
                       >
-                        {vibe.label}
+                        {bg.label}
                       </Text>
-                      {selectedVibe === vibe.id && (
-                        <Ionicons name="checkmark" size={16} color={colors.primary} />
-                      )}
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-              </View>
-            )}
+              )}
+            </View>
+
+            {/* Vibe Dropdown — wrapper for relative positioning */}
+            <View style={styles.vibeDropdownWrapper}>
+              <TouchableOpacity
+                style={styles.vibeDropdownTrigger}
+                onPress={() => setVibeDropdownOpen(!vibeDropdownOpen)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="musical-notes" size={14} color={colors.primary} />
+                <Text style={styles.vibeDropdownLabel} numberOfLines={1}>
+                  {selectedVibeLabel}
+                </Text>
+                <Ionicons
+                  name={vibeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color="rgba(255, 255, 255, 0.4)"
+                />
+              </TouchableOpacity>
+
+              {/* Dropdown list — opens directly below the trigger */}
+              {vibeDropdownOpen && (
+                <View style={styles.vibeDropdownContainer}>
+                  <ScrollView
+                    style={styles.vibeDropdownList}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                  >
+                    {VIBES.map((vibe) => (
+                      <TouchableOpacity
+                        key={vibe.id}
+                        style={[
+                          styles.vibeDropdownOption,
+                          selectedVibe === vibe.id && styles.vibeDropdownOptionSelected,
+                        ]}
+                        onPress={() => {
+                          setSelectedVibe(vibe.id)
+                          setVibeDropdownOpen(false)
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.vibeDropdownOptionText,
+                            selectedVibe === vibe.id && styles.vibeDropdownOptionTextSelected,
+                          ]}
+                        >
+                          {vibe.label}
+                        </Text>
+                        {selectedVibe === vibe.id && (
+                          <Ionicons name="checkmark" size={16} color={colors.primary} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Bottom Logo Watermark — outside KeyboardAvoidingView so keyboard covers it */}
       <View style={styles.bottomLogo} pointerEvents="none">
         <Image
-          source={require('../../../assets/images/black-logo.png')}
+          source={require('../../../assets/images/green-logo.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />
       </View>
 
-      {/* Light Tab Bar */}
-      <LightTabBar />
+      {/* Dark Tab Bar with auto-hide */}
+      <DarkTabBar ref={tabBarRef} />
     </SafeAreaView>
   )
 }
@@ -323,14 +369,14 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: colors.background,
   },
   mainContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#000000',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 16,
@@ -338,22 +384,32 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
 
-  // Header
-  backButton: {
-    width: 40,
-    height: 40,
+  // Header — matches CyberLoungeDetailScreen
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: 'rgba(34, 255, 10, 0.1)',
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: fonts.bold,
+    color: colors.primary,
+    flex: 1,
+    textAlign: 'center',
   },
 
   // Name Input
   nameInput: {
     fontSize: 16,
     fontFamily: fonts.regular,
-    color: colors.textDark,
+    color: '#ffffff',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -390,22 +446,46 @@ const styles = StyleSheet.create({
   hostName: {
     fontSize: 13,
     fontFamily: fonts.regular,
-    color: colors.offline,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
   hostLabel: {
     fontSize: 13,
     fontFamily: fonts.bold,
-    color: colors.textDark,
+    color: '#ffffff',
   },
 
   // Create Button
+  createButtonOuter: {
+    borderRadius: 22,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    justifyContent: 'center',
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 20,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  createButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
   },
   createButtonText: {
     fontSize: 14,
@@ -429,7 +509,7 @@ const styles = StyleSheet.create({
   stickerPlaceholder: {
     fontSize: 12,
     fontFamily: fonts.mono,
-    color: colors.offline,
+    color: 'rgba(255, 255, 255, 0.4)',
   },
   stickerGrid: {
     flexDirection: 'row',
@@ -443,7 +523,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   stickerOptionSelected: {
     backgroundColor: 'rgba(34, 255, 10, 0.15)',
@@ -458,7 +538,7 @@ const styles = StyleSheet.create({
   countdownText: {
     fontSize: 13,
     fontFamily: fonts.mono,
-    color: colors.textDark,
+    color: '#ffffff',
     textAlign: 'right',
     marginBottom: 16,
   },
@@ -471,7 +551,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -481,7 +561,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: fonts.regular,
-    color: colors.textDark,
+    color: '#ffffff',
   },
   vibeDropdownContainer: {
     position: 'absolute',
@@ -490,13 +570,13 @@ const styles = StyleSheet.create({
     top: '100%',
     marginTop: 4,
     zIndex: 100,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.backgroundCard,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -517,7 +597,7 @@ const styles = StyleSheet.create({
   vibeDropdownOptionText: {
     fontSize: 13,
     fontFamily: fonts.regular,
-    color: colors.textDark,
+    color: '#ffffff',
   },
   vibeDropdownOptionTextSelected: {
     fontFamily: fonts.bold,
@@ -531,7 +611,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -541,7 +621,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontFamily: fonts.regular,
-    color: colors.textDark,
+    color: '#ffffff',
   },
   bgScrollStrip: {
     marginTop: 8,
@@ -565,22 +645,22 @@ const styles = StyleSheet.create({
     width: 48,
     height: 85,
     borderRadius: 6,
-    backgroundColor: colors.borderLight,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   bgThumbNone: {
     width: 48,
     height: 85,
     borderRadius: 6,
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   bgThumbLabel: {
     fontSize: 8,
     fontFamily: fonts.regular,
-    color: colors.textDark,
+    color: 'rgba(255, 255, 255, 0.6)',
     marginTop: 3,
     textAlign: 'center',
   },
@@ -598,7 +678,7 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 250,
     height: 250,
-    opacity: 100,
+    opacity: 0.15,
   },
 })
 

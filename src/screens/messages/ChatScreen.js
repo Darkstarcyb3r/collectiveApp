@@ -18,6 +18,7 @@ import {
   Keyboard,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../theme'
@@ -492,8 +493,12 @@ const ChatScreen = ({ route, navigation }) => {
         animationType="fade"
         onRequestClose={handleCancelSendImage}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={handleCancelSendImage}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
             <Text style={styles.modalTitle}>Send Photo</Text>
             {pendingImageUri && (
               <Image
@@ -507,13 +512,24 @@ const ChatScreen = ({ route, navigation }) => {
               <TouchableOpacity style={styles.modalCancelButton} onPress={handleCancelSendImage}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSendButton} onPress={handleConfirmSendImage}>
-                <Ionicons name="send" size={16} color={colors.textDark} />
-                <Text style={styles.modalSendText}>Send</Text>
+              <TouchableOpacity style={styles.modalSendButtonOuter} onPress={handleConfirmSendImage}>
+                <LinearGradient
+                  colors={['#d8f434', '#b3f425', '#93f478']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.modalSendButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.modalSendButtonHighlight}
+                  />
+                  <Ionicons name="send" size={16} color={colors.textDark} />
+                  <Text style={styles.modalSendText}>Send</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   )
@@ -646,15 +662,38 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
-  modalSendButton: {
+  modalSendButtonOuter: {
     flex: 1,
+    borderRadius: 16,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalSendButton: {
     flexDirection: 'row',
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  modalSendButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   modalSendText: {
     fontSize: 14,

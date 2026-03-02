@@ -17,6 +17,7 @@ import {
   TextInput,
 } from 'react-native'
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
@@ -325,18 +326,15 @@ const UserProfileScreen = ({ route, navigation }) => {
             This account no longer exists.
           </Text>
           <TouchableOpacity
-            style={{
-              marginTop: 24,
-              paddingVertical: 10,
-              paddingHorizontal: 24,
-              backgroundColor: colors.primary,
-              borderRadius: 20,
-            }}
+            style={styles.goBackButtonShadow}
             onPress={() => navigation.goBack()}
           >
-            <Text style={{ color: colors.textDark, fontSize: 14, fontFamily: fonts.medium }}>
-              Go Back
-            </Text>
+            <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.goBackButton}>
+              <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.goBackButtonHighlight} />
+              <Text style={{ color: colors.textDark, fontSize: 14, fontFamily: fonts.medium }}>
+                Go Back
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -418,15 +416,18 @@ const UserProfileScreen = ({ route, navigation }) => {
                     <Text style={styles.modalButtonCancelText}>cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.modalButtonConfirm}
+                    style={styles.modalButtonConfirmShadow}
                     onPress={handleConfirmAction}
                     disabled={actionLoading}
                   >
-                    {actionLoading ? (
-                      <ActivityIndicator size="small" color={colors.textDark} />
-                    ) : (
-                      <Text style={styles.modalButtonConfirmText}>confirm</Text>
-                    )}
+                    <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalButtonConfirm}>
+                      <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.modalButtonConfirmHighlight} />
+                      {actionLoading ? (
+                        <ActivityIndicator size="small" color={colors.textDark} />
+                      ) : (
+                        <Text style={styles.modalButtonConfirmText}>confirm</Text>
+                      )}
+                    </LinearGradient>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -500,15 +501,18 @@ const UserProfileScreen = ({ route, navigation }) => {
                   </View>
                   <View style={{ alignItems: 'center' }}>
                     <TouchableOpacity
-                      style={styles.flagAlertOkButton}
+                      style={styles.flagAlertOkButtonShadow}
                       onPress={handleSaveNotifPrefs}
                       disabled={actionLoading}
                     >
-                      {actionLoading ? (
-                        <ActivityIndicator size="small" color={colors.textDark} />
-                      ) : (
-                        <Text style={styles.flagSubmitText}>done</Text>
-                      )}
+                      <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
+                        <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagAlertOkButtonHighlight} />
+                        {actionLoading ? (
+                          <ActivityIndicator size="small" color={colors.textDark} />
+                        ) : (
+                          <Text style={styles.flagSubmitText}>done</Text>
+                        )}
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -525,15 +529,18 @@ const UserProfileScreen = ({ route, navigation }) => {
                       <Text style={styles.modalButtonCancelText}>cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.modalButtonConfirm}
+                      style={styles.modalButtonConfirmShadow}
                       onPress={handleConfirmAction}
                       disabled={actionLoading}
                     >
-                      {actionLoading ? (
-                        <ActivityIndicator size="small" color={colors.textDark} />
-                      ) : (
-                        <Text style={styles.modalButtonConfirmText}>confirm</Text>
-                      )}
+                      <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalButtonConfirm}>
+                        <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.modalButtonConfirmHighlight} />
+                        {actionLoading ? (
+                          <ActivityIndicator size="small" color={colors.textDark} />
+                        ) : (
+                          <Text style={styles.modalButtonConfirmText}>confirm</Text>
+                        )}
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -587,15 +594,18 @@ const UserProfileScreen = ({ route, navigation }) => {
                 <Text style={styles.flagCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.flagSubmitButton}
+                style={styles.flagSubmitButtonShadow}
                 onPress={handleSubmitFlag}
                 disabled={actionLoading}
               >
-                {actionLoading ? (
-                  <ActivityIndicator size="small" color="#000" />
-                ) : (
-                  <Text style={styles.flagSubmitText}>Submit</Text>
-                )}
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagSubmitButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagSubmitButtonHighlight} />
+                  {actionLoading ? (
+                    <ActivityIndicator size="small" color="#000" />
+                  ) : (
+                    <Text style={styles.flagSubmitText}>Submit</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -615,10 +625,13 @@ const UserProfileScreen = ({ route, navigation }) => {
             <Text style={styles.flagAlertMessage}>{flagAlert.message}</Text>
             <View style={{ alignItems: 'center' }}>
               <TouchableOpacity
-                style={styles.flagAlertOkButton}
+                style={styles.flagAlertOkButtonShadow}
                 onPress={() => setFlagAlert({ visible: false, title: '', message: '' })}
               >
-                <Text style={styles.flagSubmitText}>OK</Text>
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagAlertOkButtonHighlight} />
+                  <Text style={styles.flagSubmitText}>OK</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -669,7 +682,7 @@ const UserProfileScreen = ({ route, navigation }) => {
 
               {/* Message Button — left side, under online status */}
               <TouchableOpacity
-                style={styles.messageButton}
+                style={styles.messageButtonOuter}
                 onPress={async () => {
                   if (isBlocked) return
                   const result = await sendChatRequest(user.uid, userId, userProfile, {
@@ -698,8 +711,19 @@ const UserProfileScreen = ({ route, navigation }) => {
                   }
                 }}
               >
-                <FontAwesome5 name="envelope" size={16} color={colors.textDark} />
-                <Text style={styles.messageButtonText}>message</Text>
+                <LinearGradient
+                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.messageButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.messageButtonHighlight}
+                  />
+                  <FontAwesome5 name="envelope" size={16} color={colors.textDark} />
+                  <Text style={styles.messageButtonText}>message</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
 
@@ -887,19 +911,37 @@ const styles = StyleSheet.create({
   photoWrapper: {
     position: 'relative',
   },
+  messageButtonOuter: {
+    borderRadius: 24,
+    alignSelf: 'flex-start',
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   messageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.secondary,
     paddingVertical: 6,
     paddingHorizontal: 20,
     borderRadius: 24,
-    alignSelf: 'flex-start',
-    borderWidth: 2,
-    borderTopColor: '#B8D816',
-    borderLeftColor: '#B8D816',
-    borderBottomColor: '#EFFFB0',
-    borderRightColor: '#EFFFB0',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  messageButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   messageButtonText: {
     color: colors.textDark,
@@ -1094,23 +1136,70 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.textPrimary,
   },
+  flagSubmitButtonShadow: {
+    flex: 1,
+    borderRadius: 8,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   flagSubmitButton: {
     flex: 1,
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  flagSubmitButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   flagSubmitText: {
     fontSize: 14,
     fontFamily: fonts.bold,
     color: colors.textDark,
   },
+  flagAlertOkButtonShadow: {
+    borderRadius: 8,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   flagAlertOkButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 24,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  flagAlertOkButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   flagAlertMessage: {
     fontSize: 13,
@@ -1119,6 +1208,38 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 18,
+  },
+
+  // Go Back Button (extracted from inline)
+  goBackButtonShadow: {
+    marginTop: 24,
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  goBackButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  goBackButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
 
   // Logo
@@ -1173,14 +1294,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.bold,
   },
+  modalButtonConfirmShadow: {
+    flex: 1,
+    borderRadius: 8,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   modalButtonConfirm: {
     flex: 1,
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
     minWidth: 80,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  modalButtonConfirmHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   modalButtonConfirmText: {
     color: colors.textDark,

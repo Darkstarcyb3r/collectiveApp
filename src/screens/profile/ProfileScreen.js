@@ -17,6 +17,8 @@ import {
   Modal,
 } from 'react-native'
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Contacts from 'expo-contacts'
 import * as ImagePicker from 'expo-image-picker'
@@ -284,7 +286,7 @@ const ProfileScreen = ({ navigation }) => {
             { text: 'Cancel', style: 'cancel' },
             {
               text: 'Invite via SMS',
-              onPress: () => Linking.openURL(`sms:${cleanNumber}&body=Join me on Collective!`),
+              onPress: () => Linking.openURL(`sms:${cleanNumber}&body=Join me on Collective! Download the app here: https://apps.apple.com/us/app/collective-network/id6759182429`),
             },
           ]
         )
@@ -399,11 +401,22 @@ const ProfileScreen = ({ navigation }) => {
               {/* Messages Button */}
               <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
                 <TouchableOpacity
-                  style={styles.messagesButton}
+                  style={styles.messagesButtonOuter}
                   onPress={() => navigation.navigate('MainTabs', { screen: 'MessagesTab' })}
                 >
-                  <FontAwesome5 name="envelope" size={16} color={colors.textDark} />
-                  <Text style={styles.messagesText}>messages</Text>
+                  <LinearGradient
+                    colors={['#cafb6c', '#71f200', '#23ff0d']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.messagesButton}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                      style={styles.buttonHighlight}
+                    />
+                    <FontAwesome5 name="envelope" size={16} color={colors.textDark} />
+                    <Text style={styles.messagesText}>messages</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
                 {unreadMessages > 0 && (
                   <View style={styles.messagesBadge}>
@@ -458,32 +471,55 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.buttonsColumn}>
               <View style={styles.settingsStack}>
                 <TouchableOpacity
-                  style={styles.secondaryButton}
+                  style={styles.glassyButtonWrap}
                   onPress={() => navigation.navigate('FollowingUsers')}
                 >
-                  <Ionicons name="people-outline" size={14} color="#000000" />
-                  <Text style={styles.navButtonText}>following</Text>
+                  <BlurView intensity={10} tint="dark" style={styles.glassyButton}>
+                    <View style={styles.glassyButtonInner}>
+                      <Ionicons name="people-outline" size={14} color="#ffffff" />
+                      <Text style={styles.glassyButtonText}>following</Text>
+                    </View>
+                  </BlurView>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.secondaryButton}
+                  style={styles.glassyButtonWrap}
                   onPress={() => navigation.navigate('Followers')}
                 >
-                  <Ionicons name="person-add-outline" size={14} color="#000000" />
-                  <Text style={styles.navButtonText}>followers</Text>
+                  <BlurView intensity={10} tint="dark" style={styles.glassyButton}>
+                    <View style={styles.glassyButtonInner}>
+                      <Ionicons name="person-add-outline" size={14} color="#ffffff" />
+                      <Text style={styles.glassyButtonText}>followers</Text>
+                    </View>
+                  </BlurView>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.networkSettingsButton}
+                  style={styles.glassyButtonWrap}
                   onPress={() => setNetworkDropdownOpen(true)}
                 >
-                  <Text style={styles.networkSettingsText}>Network Settings</Text>
-                  <Ionicons name="chevron-down" size={14} color="#000000" />
+                  <BlurView intensity={10} tint="dark" style={styles.glassyButton}>
+                    <View style={styles.glassyButtonInner}>
+                      <Text style={styles.glassyButtonText}>hide / block</Text>
+                      <Ionicons name="chevron-down" size={14} color="#ffffff" />
+                    </View>
+                  </BlurView>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.navButtons}>
-                <TouchableOpacity style={styles.navButton} onPress={handleSearchContact}>
-                  <Ionicons name="search-outline" size={14} color="#000000" />
-                  <Text style={styles.navButtonText}>Search #</Text>
+                <TouchableOpacity style={styles.navButtonOuter} onPress={handleSearchContact}>
+                  <LinearGradient
+                    colors={['#cafb6c', '#71f200', '#23ff0d']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.navButton}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                      style={styles.buttonHighlight}
+                    />
+                    <Ionicons name="search-outline" size={14} color="#000000" />
+                    <Text style={styles.navButtonText}>find friends</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
@@ -511,7 +547,7 @@ const ProfileScreen = ({ navigation }) => {
               onPress={() => setNetworkDropdownOpen(false)}
             >
               <View style={styles.networkModalContent}>
-                <Text style={styles.networkModalTitle}>Network Settings</Text>
+                <Text style={styles.networkModalTitle}>hide / block</Text>
                 <TouchableOpacity
                   style={styles.networkModalItem}
                   onPress={() => {
@@ -670,19 +706,29 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: -12,
   },
+  messagesButtonOuter: {
+    borderRadius: 14,
+    alignSelf: 'flex-start',
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   messagesButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#d8ff1b',
-    paddingVertical: 6,
-    paddingHorizontal: 20,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderTopColor: '#B8D816',
-    borderLeftColor: '#B8D816',
-    borderBottomColor: '#EFFFB0',
-    borderRightColor: '#EFFFB0',
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
   },
 
   messagesText: {
@@ -693,21 +739,36 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
 
-  secondaryButton: {
+  glassyButtonWrap: {
+    alignSelf: 'flex-start',
+    width: 160,
+  },
+  glassyButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  glassyButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#15ff00',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderTopColor: '#2dd816',
-    borderLeftColor: '#5ad816',
-    borderBottomColor: '#bcffb0',
-    borderRightColor: '#c5ffb0',
-    alignSelf: 'flex-start',
-    width: 160,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    gap: 6,
+  },
+  glassyButtonText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: '#ffffff',
   },
 
   messagesBadge: {
@@ -828,28 +889,6 @@ const styles = StyleSheet.create({
     gap: 20,
     marginBottom: 18,
   },
-  networkSettingsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#D6D1D1',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    gap: 4,
-    borderWidth: 2,
-    borderTopColor: '#B0ABAB',
-    borderLeftColor: '#B0ABAB',
-    borderBottomColor: '#EFEFEF',
-    borderRightColor: '#EFEFEF',
-    alignSelf: 'flex-start',
-    width: 160,
-  },
-  networkSettingsText: {
-    color: '#000000',
-    fontSize: 12,
-    fontFamily: fonts.medium,
-  },
   networkModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -887,29 +926,47 @@ const styles = StyleSheet.create({
   },
 
   //search button
+  navButtonOuter: {
+    borderRadius: 14,
+    alignSelf: 'flex-start',
+    width: 160,
+    marginBottom: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   navButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#D6D1D1',
     paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     gap: 4,
-    borderWidth: 2,
-    borderTopColor: '#B0ABAB',
-    borderLeftColor: '#B0ABAB',
-    borderBottomColor: '#EFEFEF',
-    borderRightColor: '#EFEFEF',
-    alignSelf: 'flex-start',
-    width: 160,
-    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
   },
   navButtonText: {
     color: '#000000',
     fontSize: 12,
     fontFamily: fonts.medium,
     marginLeft: 5,
+  },
+  buttonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   // Vertical Logo
   logoContainer: {

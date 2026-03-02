@@ -14,6 +14,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from '@react-navigation/native'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
@@ -108,13 +109,24 @@ const MyGroupsScreen = ({ navigation }) => {
 
         {/* Arrow button */}
         <TouchableOpacity
-          style={styles.arrowButton}
+          style={styles.arrowButtonOuter}
           onPress={() => {
             const parentNav = navigation.getParent() || navigation
             parentNav.navigate('GroupDetail', { groupId: item.id })
           }}
         >
-          <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+          <LinearGradient
+            colors={['#d8f434', '#b3f425', '#93f478']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.arrowButton}
+          >
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+              style={styles.arrowButtonHighlight}
+            />
+            <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
@@ -311,13 +323,36 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textDark,
   },
+  arrowButtonOuter: {
+    borderRadius: 22,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   arrowButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  arrowButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
   },
 
   // Empty State

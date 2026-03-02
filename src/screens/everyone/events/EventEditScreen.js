@@ -21,6 +21,7 @@ import {
   FlatList,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
@@ -520,23 +521,40 @@ const EventEditScreen = ({ route, navigation }) => {
                           onPress={() => handleSelectDay(day)}
                           disabled={!inRange}
                         >
-                          <View
-                            style={[
-                              styles.calDayInner,
-                              isToday && !isSelected && styles.calDayCellToday,
-                              isSelected && styles.calDayCellSelected,
-                            ]}
-                          >
-                            <Text
+                          {isSelected ? (
+                            <View style={styles.calDayCellSelectedOuter}>
+                              <LinearGradient
+                                colors={['#cafb6c', '#71f200', '#23ff0d']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.calDayCellSelected}
+                              >
+                                <LinearGradient
+                                  colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                                  style={styles.calDayCellSelectedHighlight}
+                                />
+                                <Text style={[styles.calDayText, styles.calDayTextSelected]}>
+                                  {day}
+                                </Text>
+                              </LinearGradient>
+                            </View>
+                          ) : (
+                            <View
                               style={[
-                                styles.calDayText,
-                                isToday && !isSelected && styles.calDayTextToday,
-                                isSelected && styles.calDayTextSelected,
+                                styles.calDayInner,
+                                isToday && styles.calDayCellToday,
                               ]}
                             >
-                              {day}
-                            </Text>
-                          </View>
+                              <Text
+                                style={[
+                                  styles.calDayText,
+                                  isToday && styles.calDayTextToday,
+                                ]}
+                              >
+                                {day}
+                              </Text>
+                            </View>
+                          )}
                         </TouchableOpacity>
                       )
                     })}
@@ -724,17 +742,30 @@ const EventEditScreen = ({ route, navigation }) => {
               style={styles.timeList}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.timeOption, time === item && styles.timeOptionSelected]}
+                  style={[styles.timeOption, time === item && styles.timeOptionSelectedOuter]}
                   onPress={() => {
                     setTime(item)
                     setShowTimePicker(false)
                   }}
                 >
-                  <Text
-                    style={[styles.timeOptionText, time === item && styles.timeOptionTextSelected]}
-                  >
-                    {item}
-                  </Text>
+                  {time === item ? (
+                    <LinearGradient
+                      colors={['#cafb6c', '#71f200', '#23ff0d']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.timeOptionSelected}
+                    >
+                      <LinearGradient
+                        colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                        style={styles.timeOptionSelectedHighlight}
+                      />
+                      <Text style={[styles.timeOptionText, styles.timeOptionTextSelected]}>
+                        {item}
+                      </Text>
+                    </LinearGradient>
+                  ) : (
+                    <Text style={styles.timeOptionText}>{item}</Text>
+                  )}
                 </TouchableOpacity>
               )}
               getItemLayout={(data, index) => ({ length: 44, offset: 44 * index, index })}
@@ -1200,8 +1231,37 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
+  timeOptionSelectedOuter: {
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    borderRadius: 10,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   timeOptionSelected: {
-    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  timeOptionSelectedHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
   timeOptionText: {
     fontSize: 16,
@@ -1263,8 +1323,36 @@ const styles = StyleSheet.create({
   calDayCellToday: {
     backgroundColor: '#000000',
   },
+  calDayCellSelectedOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   calDayCellSelected: {
-    backgroundColor: colors.primary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  calDayCellSelectedHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   calDayText: {
     fontSize: 14,

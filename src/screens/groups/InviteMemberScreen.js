@@ -17,8 +17,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
@@ -192,15 +194,26 @@ const InviteMemberScreen = ({ navigation, route }) => {
           </View>
         ) : (
           <TouchableOpacity
-            style={styles.inviteButton}
+            style={styles.inviteButtonOuter}
             onPress={() => handleInvite(item.id, item.name, item.profilePhoto)}
             disabled={inviting === item.id}
           >
-            {inviting === item.id ? (
-              <ActivityIndicator size="small" color={colors.textDark} />
-            ) : (
-              <Text style={styles.inviteButtonText}>Invite</Text>
-            )}
+            <LinearGradient
+              colors={['#cafb6c', '#71f200', '#23ff0d']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.inviteButton}
+            >
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                style={styles.inviteButtonHighlight}
+              />
+              {inviting === item.id ? (
+                <ActivityIndicator size="small" color={colors.textDark} />
+              ) : (
+                <Text style={styles.inviteButtonText}>Invite</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
@@ -276,7 +289,14 @@ const InviteMemberScreen = ({ navigation, route }) => {
                   <View style={styles.centerContainer}>
                     <Text style={styles.emptyText}>No users found.</Text>
                     <Text style={styles.emptySubtext}>
-                      If they don't have an account, they'll need to create one first.
+                      They might not be on Collective yet.{' '}
+                      <Text
+                        style={styles.emptyLink}
+                        onPress={() => Linking.openURL('https://apps.apple.com/us/app/collective-network/id6759182429')}
+                      >
+                        Share the app link
+                      </Text>{' '}
+                      to invite them!
                     </Text>
                   </View>
                 ) : null
@@ -413,13 +433,36 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.textDark,
   },
+  inviteButtonOuter: {
+    borderRadius: 16,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   inviteButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 18,
     borderRadius: 16,
     minWidth: 70,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  inviteButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   inviteButtonText: {
     fontSize: 13,
@@ -445,6 +488,10 @@ const styles = StyleSheet.create({
     color: colors.offline,
     textAlign: 'center',
     paddingHorizontal: 40,
+  },
+  emptyLink: {
+    textDecorationLine: 'underline',
+    color: colors.textDark,
   },
 })
 

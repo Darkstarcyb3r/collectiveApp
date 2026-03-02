@@ -18,7 +18,9 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
@@ -142,6 +144,14 @@ const EditPostScreen = ({ navigation, route }) => {
     setSaving(false)
 
     if (result.success) {
+      // Mark group as visited so our own edit doesn't trigger the activity dot
+      try {
+        const key = `groupLastVisited_${user.uid}`
+        const stored = await AsyncStorage.getItem(key)
+        const parsed = stored ? JSON.parse(stored) : {}
+        parsed[groupId] = Date.now()
+        await AsyncStorage.setItem(key, JSON.stringify(parsed))
+      } catch (_e) { /* silently fail */ }
       navigation.goBack()
     } else {
       Alert.alert('Error', 'Could not update post.')
@@ -267,15 +277,26 @@ const EditPostScreen = ({ navigation, route }) => {
             {/* Action Row: Save Changes */}
             <View style={styles.actionRow}>
               <TouchableOpacity
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                style={[styles.saveButtonOuter, saving && styles.saveButtonDisabled]}
                 onPress={handleSave}
                 disabled={saving}
               >
-                {saving ? (
-                  <ActivityIndicator size="small" color={colors.textDark} />
-                ) : (
-                  <Text style={styles.saveText}>Save Changes</Text>
-                )}
+                <LinearGradient
+                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.saveButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.saveButtonHighlight}
+                  />
+                  {saving ? (
+                    <ActivityIndicator size="small" color={colors.textDark} />
+                  ) : (
+                    <Text style={styles.saveText}>Save Changes</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -425,13 +446,36 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 16,
   },
+  saveButtonOuter: {
+    borderRadius: 24,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   saveButton: {
-    backgroundColor: colors.primary,
     borderRadius: 24,
     paddingVertical: 12,
     paddingHorizontal: 28,
     minWidth: 120,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  saveButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   saveButtonDisabled: {
     opacity: 0.6,

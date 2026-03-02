@@ -5,6 +5,7 @@ import React from 'react'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 
 import TabNavigator from './TabNavigator'
+import { OnboardingScreen } from '../screens/home'
 
 // Profile screens
 import {
@@ -64,6 +65,7 @@ const MainNavigator = () => {
     >
       {/* Main Tabs - This should be your initial route */}
       <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
 
       {/* Profile Stack */}
       <Stack.Screen name="Profile" component={ProfileScreen} />

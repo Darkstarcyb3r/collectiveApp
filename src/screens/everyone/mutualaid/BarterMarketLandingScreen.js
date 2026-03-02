@@ -17,6 +17,7 @@ import {
 } from 'react-native'
 import Swipeable from 'react-native-gesture-handler/Swipeable'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useFocusEffect } from '@react-navigation/native'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
@@ -278,11 +279,14 @@ const BarterMarketLandingScreen = ({ navigation }) => {
           {/* + Post Button */}
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.addButton}
+              style={styles.addButtonOuter}
               onPress={() => navigation.navigate('BarterMarketCreate')}
             >
-              <Ionicons name="add" size={16} color={colors.textDark} />
-              <Text style={styles.addButtonText}>Post</Text>
+              <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButton}>
+                <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.addButtonHighlight} />
+                <Ionicons name="add" size={16} color={colors.textDark} />
+                <Text style={styles.addButtonText}>Post</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
@@ -525,12 +529,23 @@ const BarterMarketLandingScreen = ({ navigation }) => {
                           </Text>
                         </View>
                         <TouchableOpacity
-                          style={styles.arrowButton}
+                          style={styles.arrowButtonOuter}
                           onPress={() =>
                             navigation.navigate('BarterMarketPost', { postId: post.id })
                           }
                         >
-                          <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+                          <LinearGradient
+                            colors={['#d8f434', '#b3f425', '#93f478']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.arrowButton}
+                          >
+                            <LinearGradient
+                              colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                              style={styles.arrowButtonHighlight}
+                            />
+                            <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+                          </LinearGradient>
                         </TouchableOpacity>
                       </View>
                       {isAuthor && (
@@ -622,13 +637,36 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 16,
   },
+  addButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  addButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   addButtonText: {
     fontSize: 14,
@@ -801,14 +839,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.offline,
   },
+  arrowButtonOuter: {
+    borderRadius: 20,
+    marginLeft: 8,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   arrowButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  arrowButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   editPostContainer: {
     flexDirection: 'row',

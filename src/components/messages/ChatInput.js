@@ -29,7 +29,7 @@ const ChatInput = ({ onSend, onPickImage, disabled, uploading, variant = 'dark' 
         {uploading ? (
           <ActivityIndicator size="small" color={isLight ? colors.textDark : colors.primary} />
         ) : (
-          <Ionicons name="add" size={22} color={isLight ? colors.textDark : colors.offline} />
+          <Ionicons name="add" size={22} color={isLight ? colors.textDark : colors.primary} />
         )}
       </TouchableOpacity>
 

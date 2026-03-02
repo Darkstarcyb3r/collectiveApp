@@ -13,15 +13,17 @@ import {
   Alert,
   ScrollView,
   Image,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
+  ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
+import * as ImagePicker from 'expo-image-picker'
 import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
 import { useAuth } from '../../../contexts/AuthContext'
 import { createMutualAidGroup } from '../../../services/everyoneService'
+import { validateImageAsset } from '../../../utils/imageValidation'
+import { signedUpload } from '../../../utils/cloudinaryUpload'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
 import LightTabBar from '../../../components/navigation/LightTabBar'
 
@@ -32,16 +34,34 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
   const [caption, setCaption] = useState('')
   const [link, setLink] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
-  const [showLinkModal, setShowLinkModal] = useState(false)
-  const [tempLinkLabel, setTempLinkLabel] = useState('')
-  const [tempLink, setTempLink] = useState('')
   const [city, setCity] = useState('')
   const [isGlobal, setIsGlobal] = useState(false)
   const [description, setDescription] = useState('')
   const [vetByAuthor, setVetByAuthor] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [imageUri, setImageUri] = useState(null)
+  const [imageMeta, setImageMeta] = useState(null)
   const lightTabRef = useRef(null)
   const lastScrollY = useRef(0)
+  const isArtAction = category === 'action_art'
+
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    })
+    if (!result.canceled && result.assets?.length > 0) {
+      const asset = result.assets[0]
+      const validation = await validateImageAsset(asset)
+      if (!validation.valid) {
+        Alert.alert('Image Error', validation.error)
+        return
+      }
+      setImageUri(asset.uri)
+      setImageMeta({ fileSize: validation.fileSize, mimeType: validation.mimeType })
+    }
+  }
 
   const handlePublish = async () => {
     if (!name.trim()) {
@@ -55,6 +75,24 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
     if (!user?.uid) return
 
     setPublishing(true)
+
+    // Upload image if one was selected (Art & Action only)
+    let imageUrl = null
+    if (isArtAction && imageUri) {
+      const uploadResult = await signedUpload(
+        imageUri,
+        'collective/mutualaid',
+        `mutualaid_${user.uid}`,
+        imageMeta || {}
+      )
+      if (!uploadResult.success) {
+        Alert.alert('Upload Error', uploadResult.error || 'Could not upload image.')
+        setPublishing(false)
+        return
+      }
+      imageUrl = uploadResult.url
+    }
+
     const result = await createMutualAidGroup({
       name: name.trim(),
       caption: caption.trim(),
@@ -67,6 +105,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
       authorName: userProfile?.name || '',
       authorPhoto: userProfile?.profilePhoto || null,
       vetByAuthor,
+      ...(imageUrl && { imageUrl }),
     })
 
     setPublishing(false)
@@ -109,44 +148,61 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.backgroundLight} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          keyboardDismissMode="interactive"
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
           onScroll={handleScroll}
           onScrollBeginDrag={handleScrollBeginDrag}
           scrollEventThrottle={16}
         >
           <View style={styles.mainContainer}>
             {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                style={{ padding: 4 }}
+            <View style={styles.headerOuter}>
+              <LinearGradient
+                colors={['#d8f434', '#b3f425', '#93f478']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.header}
               >
-                <Ionicons name="chevron-back" size={24} color={colors.textDark} />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Add a Mutual Aid Group</Text>
-              <View style={{ width: 24 }} />
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                  style={styles.headerHighlight}
+                />
+                <TouchableOpacity
+                  onPress={() => navigation.goBack()}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="chevron-back" size={24} color={colors.textDark} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Add a Mutual Aid Group</Text>
+                <View style={{ width: 24 }} />
+              </LinearGradient>
             </View>
 
             {/* Action Row */}
             <View style={styles.actionRow}>
-              <TouchableOpacity onPress={handleDelete}>
-                <Ionicons name="trash-outline" size={20} color={colors.offline} />
-              </TouchableOpacity>
+              
               <TouchableOpacity
-                style={[styles.publishButton, publishing && { opacity: 0.5 }]}
+                style={[styles.publishButtonOuter, publishing && { opacity: 0.5 }]}
                 onPress={handlePublish}
                 disabled={publishing}
               >
-                <Text style={styles.publishButtonText}>Publish</Text>
+                <LinearGradient
+                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.publishButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.publishButtonHighlight}
+                  />
+                  <Text style={styles.publishButtonText}>Publish</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
 
@@ -160,41 +216,62 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
               maxLength={40}
             />
 
+            {/* Image Picker — Art & Action only */}
+            {isArtAction && (
+              <View style={styles.imageSection}>
+                {imageUri ? (
+                  <View style={styles.imagePreviewContainer}>
+                    <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                    <View style={styles.imageActions}>
+                      <TouchableOpacity onPress={handlePickImage} style={styles.imageChangeButton}>
+                        <Ionicons name="camera-outline" size={16} color={colors.textDark} />
+                        <Text style={styles.imageChangeText}>Change</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => { setImageUri(null); setImageMeta(null) }}
+                        style={styles.imageRemoveButton}
+                      >
+                        <Ionicons name="close-circle-outline" size={16} color={colors.offline} />
+                        <Text style={styles.imageRemoveText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.imagePicker} onPress={handlePickImage}>
+                    <Ionicons name="image-outline" size={24} color={colors.offline} />
+                    <Text style={styles.imagePickerText}>+ Add photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
             <TextInput
               style={styles.input}
               value={caption}
-              onChangeText={(text) => {
-                setCaption(text)
-                if (text.trim()) {
-                  setLink('')
-                  setLinkLabel('')
-                }
-              }}
+              onChangeText={setCaption}
               placeholder="Caption"
               placeholderTextColor={colors.offline}
               maxLength={80}
             />
 
-            {/* Hyperlink option — only visible when no typed caption */}
-            {!caption.trim() && (
-              <TouchableOpacity
-                style={styles.linkCell}
-                onPress={() => {
-                  setTempLinkLabel(linkLabel)
-                  setTempLink(link)
-                  setShowLinkModal(true)
-                }}
-                activeOpacity={0.7}
-              >
-                {linkLabel ? (
-                  <Text style={styles.linkDisplayText} numberOfLines={1}>
-                    {linkLabel}
-                  </Text>
-                ) : (
-                  <Text style={styles.linkPlaceholder}>+ Add link</Text>
-                )}
-              </TouchableOpacity>
-            )}
+            {/* Link fields (inline) */}
+            <TextInput
+              style={styles.input}
+              value={linkLabel}
+              onChangeText={setLinkLabel}
+              placeholder="Link label (e.g. Sign Up Here)"
+              placeholderTextColor={colors.offline}
+              maxLength={80}
+            />
+            <TextInput
+              style={styles.input}
+              value={link}
+              onChangeText={setLink}
+              placeholder="Paste URL"
+              placeholderTextColor={colors.offline}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
 
             {!isGlobal && (
               <CityAutocomplete
@@ -244,7 +321,10 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
               <View style={[styles.vetCheckbox, vetByAuthor && styles.vetCheckboxActive]}>
                 {vetByAuthor && <Ionicons name="checkmark" size={14} color={colors.textDark} />}
               </View>
-              <Text style={styles.vetToggleLabel}>Vet this organization</Text>
+              <View style={styles.vetTextContainer}>
+                <Text style={styles.vetToggleLabel}>Vet this organization</Text>
+                <Text style={styles.vetNote}>(you have direct experience with this resource)</Text>
+              </View>
             </TouchableOpacity>
 
             {/* Collective Logo */}
@@ -257,70 +337,6 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
             </View>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
-      {/* ==================== LINK MODAL ==================== */}
-      <Modal
-        visible={showLinkModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLinkModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowLinkModal(false)}
-        >
-          <View style={styles.linkModalContainer}>
-            <Text style={styles.linkModalTitle}>Add Link</Text>
-            <TextInput
-              style={styles.linkModalInput}
-              value={tempLinkLabel}
-              onChangeText={setTempLinkLabel}
-              placeholder="Label (e.g. Sign Up Here)"
-              placeholderTextColor={colors.offline}
-              maxLength={80}
-            />
-            <TextInput
-              style={styles.linkModalInput}
-              value={tempLink}
-              onChangeText={setTempLink}
-              placeholder="Paste URL"
-              placeholderTextColor={colors.offline}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
-            <View style={styles.linkModalButtons}>
-              {link || linkLabel ? (
-                <TouchableOpacity
-                  style={styles.linkModalRemoveButton}
-                  onPress={() => {
-                    setLink('')
-                    setLinkLabel('')
-                    setTempLink('')
-                    setTempLinkLabel('')
-                    setShowLinkModal(false)
-                  }}
-                >
-                  <Text style={styles.linkModalRemoveText}>Remove</Text>
-                </TouchableOpacity>
-              ) : (
-                <View />
-              )}
-              <TouchableOpacity
-                style={styles.linkModalSaveButton}
-                onPress={() => {
-                  setLink(tempLink.trim())
-                  setLinkLabel(tempLinkLabel.trim())
-                  setShowLinkModal(false)
-                }}
-              >
-                <Text style={styles.linkModalSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
       <LightTabBar ref={lightTabRef} />
     </SafeAreaView>
   )
@@ -348,14 +364,37 @@ const styles = StyleSheet.create({
   },
 
   // Header
+  headerOuter: {
+    borderRadius: 10,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.secondary,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  headerHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
   headerTitle: {
     fontSize: 16,
@@ -373,11 +412,34 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 12,
   },
+  publishButtonOuter: {
+    borderRadius: 20,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   publishButton: {
-    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 24,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  publishButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   publishButtonText: {
     fontSize: 14,
@@ -391,96 +453,79 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.textDark,
     borderWidth: 1,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(0, 0, 0, 0.04)',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     backgroundColor: '#ffffff',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   descriptionInput: {
     minHeight: 80,
   },
 
-  // Link cell
-  linkCell: {
+  // Image Picker (Art & Action)
+  imageSection: {
+    marginBottom: 12,
+  },
+  imagePicker: {
     borderWidth: 1,
     borderColor: colors.borderLight,
     borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 12,
+    borderStyle: 'dashed',
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#ffffff',
   },
-  linkDisplayText: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
-    color: colors.textDark,
-    textDecorationLine: 'underline',
-  },
-  linkPlaceholder: {
+  imagePickerText: {
     fontSize: 13,
     fontFamily: fonts.italic,
     color: colors.offline,
+    marginTop: 6,
   },
-
-  // Link Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  linkModalContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    width: '95%',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  linkModalTitle: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.textDark,
-    marginBottom: 16,
-  },
-  linkModalInput: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: colors.textDark,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
+  imagePreviewContainer: {
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  linkModalButtons: {
+  imagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+  },
+  imageActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  linkModalRemoveButton: {
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    backgroundColor: '#ffffff',
   },
-  linkModalRemoveText: {
-    fontSize: 13,
+  imageChangeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  imageChangeText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textDark,
+  },
+  imageRemoveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  imageRemoveText: {
+    fontSize: 12,
     fontFamily: fonts.regular,
     color: colors.offline,
-  },
-  linkModalSaveButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-  },
-  linkModalSaveText: {
-    fontSize: 13,
-    fontFamily: fonts.bold,
-    color: colors.textDark,
   },
 
   // Global Toggle
@@ -517,6 +562,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.medium,
     color: colors.textDark,
+  },
+  vetNote: {
+    fontSize: 11,
+    fontFamily: fonts.italic,
+    color: colors.offline,
   },
 
   // Logo

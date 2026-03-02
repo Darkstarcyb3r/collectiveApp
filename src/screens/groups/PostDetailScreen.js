@@ -644,9 +644,18 @@ const PostDetailScreen = ({ navigation, route }) => {
           setShowCommentModal(false)
           setReplyTarget(null)
         }}
-        onCommentAdded={() => {
+        onCommentAdded={async () => {
           setShowCommentModal(false)
           setReplyTarget(null)
+          // Mark post and group as viewed so our own comment doesn't trigger dots
+          markPostViewed()
+          try {
+            const key = `groupLastVisited_${user.uid}`
+            const stored = await AsyncStorage.getItem(key)
+            const parsed = stored ? JSON.parse(stored) : {}
+            parsed[groupId] = Date.now()
+            await AsyncStorage.setItem(key, JSON.stringify(parsed))
+          } catch (_e) { /* silently fail */ }
           fetchData()
         }}
         groupId={groupId}

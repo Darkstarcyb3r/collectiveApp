@@ -17,6 +17,8 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../theme';
@@ -95,7 +97,10 @@ const DashboardScreen = ({ navigation }) => {
   const groupsScrollThumb = useRef(new Animated.Value(0)).current;
   const roomsScrollThumbAnim = useRef(new Animated.Value(0)).current;
   const [groupConfirmModal, setGroupConfirmModal] = useState({ visible: false, group: null });
-
+  const onboardingComplete = userProfile?.onboardingComplete === true;
+  const diamondScale = useRef(new Animated.Value(1)).current;
+  const diamondOpacity = useRef(new Animated.Value(0.8)).current;
+  const pulseAnimRef = useRef(null);
   // Excluded users (hidden/blocked)
   const hiddenUsers = userProfile?.hiddenUsers || [];
   const blockedUsers = userProfile?.blockedUsers || [];
@@ -193,6 +198,39 @@ const DashboardScreen = ({ navigation }) => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.uid, userProfile?.hiddenUsers?.length, userProfile?.blockedUsers?.length])
   );
+
+  // Diamond pulse animation — runs until onboarding is completed
+  useEffect(() => {
+    if (!onboardingComplete) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(diamondScale, { toValue: 1.4, duration: 800, useNativeDriver: true }),
+            Animated.timing(diamondOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(diamondScale, { toValue: 1.0, duration: 800, useNativeDriver: true }),
+            Animated.timing(diamondOpacity, { toValue: 0.6, duration: 800, useNativeDriver: true }),
+          ]),
+        ])
+      );
+      pulse.start();
+      pulseAnimRef.current = pulse;
+    } else {
+      // Stop animation, reset to static
+      if (pulseAnimRef.current) {
+        pulseAnimRef.current.stop();
+        pulseAnimRef.current = null;
+      }
+      diamondScale.setValue(1);
+      diamondOpacity.setValue(0.7);
+    }
+    return () => {
+      if (pulseAnimRef.current) {
+        pulseAnimRef.current.stop();
+      }
+    };
+  }, [onboardingComplete]);
 
   // Real-time subscription to network users (for 2-degree filtering)
   useEffect(() => {
@@ -459,22 +497,26 @@ const DashboardScreen = ({ navigation }) => {
 
         {/* ==================== HEADER ==================== */}
         <View style={styles.headerSection}>
-          {/* Avatar + Bell */}
+          {/* Avatar + Bell in glass container */}
           <View style={styles.avatarWrapper}>
-            <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')}>
-              <View style={styles.avatarContainer}>
-                {userProfile?.profilePhoto ? (
-                  <Image
-                    source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Ionicons name="person" size={32} color="#666" />
+            <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
+              <View style={styles.glassInner}>
+                <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')} style={{ flex: 1, width: '100%' }}>
+                  <View style={styles.avatarContainer}>
+                    {userProfile?.profilePhoto ? (
+                      <Image
+                        source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
+                        style={styles.avatarImage}
+                      />
+                    ) : (
+                      <View style={styles.avatarPlaceholder}>
+                        <Ionicons name="person" size={32} color="#666" />
+                      </View>
+                    )}
                   </View>
-                )}
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </BlurView>
             {/* Notification bell — always visible, opens notification modal */}
             <TouchableOpacity
               style={[styles.bellOverlay, unreadCount === 0 && styles.bellOverlayInactive]}
@@ -486,38 +528,80 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Logo */}
-          <Image
-            source={require('../../assets/images/green-logo.png')}
-            style={styles.logoImage}
-            resizeMode="fill"
-          
-          />
+          {/* Logo — tappable, opens onboarding */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Onboarding')}
+            activeOpacity={0.8}
+            style={{ flex: 1 }}
+          >
+            <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
+              <View style={[styles.glassInner, { padding: 0 }]}>
+                <Image
+                  source={require('../../assets/images/green-logo.png')}
+                  style={styles.logoImage}
+                  resizeMode="cover"
+                />
+              </View>
+            </BlurView>
+            {/* Pulsing 4-pointed star indicator — only shows before onboarding is complete */}
+            {!onboardingComplete && (
+              <Animated.View
+                style={[
+                  styles.diamondIndicator,
+                  {
+                    transform: [{ scale: diamondScale }],
+                    opacity: diamondOpacity,
+                  },
+                ]}
+              >
+                {/* Vertical spike */}
+                <View style={styles.starSpikeV} />
+                {/* Horizontal spike */}
+                <View style={styles.starSpikeH} />
+                {/* Diagonal spike (45°) */}
+                <View style={[styles.starSpikeV, { transform: [{ rotate: '45deg' }], opacity: 0.7, width: 3, height: 14 }]} />
+                {/* Diagonal spike (-45°) */}
+                <View style={[styles.starSpikeV, { transform: [{ rotate: '-45deg' }], opacity: 0.7, width: 3, height: 14 }]} />
+              </Animated.View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* ==================== =MY PRIVATE GROUPS ==================== */}
-        <View style={styles.privateGroupsSection}>
-          {/* Section Header */}
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={styles.privateGroupsTitle}>My Private Groups</Text>
-              <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} groups</Text>
+        <BlurView intensity={10} tint="dark" style={styles.privateGroupsGlass}>
+          <View style={styles.privateGroupsSection}>
+            {/* Section Header */}
+            <View style={styles.sectionHeaderRow}>
+              <View>
+                <Text style={styles.privateGroupsTitle}>My Private Groups</Text>
+                <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} groups</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
+                onPress={handleCreateGroup}
+                disabled={groups.length >= MAX_GROUPS}
+              >
+                <LinearGradient
+                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.addButtonHighlight}
+                  />
+                  <Ionicons name="add" size={12} color="#1a1a1a" />
+                  <Text style={styles.addButtonText}>Group</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
-              onPress={handleCreateGroup}
-              disabled={groups.length >= MAX_GROUPS}
-            >
-              <Ionicons name="add" size={12} color={colors.textDark} />
-              <Text style={styles.addButtonText}>Group</Text>
-            </TouchableOpacity>
-          </View>
 
           {/* Groups Scrollable Container */}
           <View style={styles.groupsContainer}>
               <View style={styles.groupsScrollRow}>
                 <ScrollView
-                  style={[styles.groupsScrollView, { height: 126 }]}
+                  style={[styles.groupsScrollView, { height: 115 }]}
                   nestedScrollEnabled={true}
                   showsVerticalScrollIndicator={false}
                   onScroll={handleGroupsScroll}
@@ -535,28 +619,33 @@ const DashboardScreen = ({ navigation }) => {
                         overshootRight={false}
                       >
                         <TouchableOpacity
-                          style={[styles.groupRow, !active && styles.groupRowInactive]}
+                          style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
                           onPress={() => handleGroupPress(group.id)}
+                          activeOpacity={0.8}
                         >
-                          {/* Creator Avatar */}
-                          <View style={styles.groupCreatorAvatar}>
-                            {creator?.profilePhoto ? (
-                              <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
-                            ) : (
-                              <View style={styles.groupCreatorPlaceholder}>
-                                <Ionicons name="person" size={12} color="#666" />
-                              </View>
-                            )}
-                          </View>
+                          <LinearGradient
+                            colors={['#d8f434', '#b3f425', '#93f478']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.groupRow}
+                          >
+                            {/* Creator Avatar */}
+                            <View style={styles.groupCreatorAvatar}>
+                              {creator?.profilePhoto ? (
+                                <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
+                              ) : (
+                                <View style={styles.groupCreatorPlaceholder}>
+                                  <Ionicons name="person" size={12} color="#666" />
+                                </View>
+                              )}
+                            </View>
 
-                          {/* Group Name */}
-                          <Text style={styles.groupName} numberOfLines={1}>{group.name || '------'}</Text>
+                            {/* Group Name */}
+                            <Text style={styles.groupName} numberOfLines={1}>{group.name || '------'}</Text>
 
-                          {/* Activity Dot */}
-                          {active && <View style={styles.activityDot} />}
-
-                          {/* Arrow */}
-                          <Ionicons name="chevron-forward" size={16} color={colors.textDark} style={{ marginLeft: 8 }} />
+                            {/* Arrow */}
+                            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
+                          </LinearGradient>
                         </TouchableOpacity>
                       </Swipeable>
                     );
@@ -598,7 +687,8 @@ const DashboardScreen = ({ navigation }) => {
                 </View>
               </View>
           </View>
-        </View>
+          </View>
+        </BlurView>
 
         {/* ==================== MY PUBLIC COLLECTIVE ==================== */}
         <View style={[styles.sectionContainer, !userProfile?.everyoneNetworkEnabled && { opacity: 0.35 }]}>
@@ -606,11 +696,15 @@ const DashboardScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>My Public Collective</Text>
             {userProfile?.everyoneNetworkEnabled && (
               <TouchableOpacity
-                style={styles.usersButton}
                 onPress={() => navigation.navigate('ActiveUsers')}
+                activeOpacity={0.8}
               >
-                <Text style={styles.usersButtonText}>{formatUserCount(networkUserCount)} users</Text>
-                <Ionicons name="arrow-forward" size={12} color={colors.textDark} />
+                <BlurView intensity={10} tint="dark" style={styles.usersButton}>
+                  <View style={styles.usersButtonInner}>
+                    <Text style={styles.usersButtonText}>{formatUserCount(networkUserCount)} users</Text>
+                    <Ionicons name="arrow-forward" size={12} color="#ffffff" />
+                  </View>
+                </BlurView>
               </TouchableOpacity>
             )}
           </View>
@@ -632,18 +726,30 @@ const DashboardScreen = ({ navigation }) => {
             <View style={styles.cyberLoungeHeader}>
               <Text style={styles.subSectionTitle}>Cyber Lounge {'>'}</Text>
               <TouchableOpacity
-                style={styles.addChatButton}
+                style={styles.addChatButtonOuter}
                 onPress={() => navigation.navigate('CyberLoungeCreate')}
+                activeOpacity={0.8}
               >
-                <Ionicons name="add" size={12} color={colors.textDark} />
-                <Text style={styles.addChatButtonText}>Chat</Text>
+                <LinearGradient
+                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addChatButton}
+                >
+                  <LinearGradient
+                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                    style={styles.addChatButtonHighlight}
+                  />
+                  <Ionicons name="add" size={12} color={colors.textDark} />
+                  <Text style={styles.addChatButtonText}>Chat</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
 
             {/* Rooms Preview */}
             <View style={styles.roomsScrollContainer}>
               {rooms.length === 0 ? (
-                <View style={styles.roomsScrollView}>
+                <View style={styles.roomsEmptyContainer}>
                   <Text style={styles.roomsEmptyText}>No active chatrooms</Text>
                 </View>
               ) : (
@@ -653,7 +759,7 @@ const DashboardScreen = ({ navigation }) => {
                     showsVerticalScrollIndicator={false}
                     style={[
                       styles.roomsScrollView,
-                      rooms.slice(0, 10).length > 2 && { maxHeight: 98 },
+                      rooms.slice(0, 10).length > 2 && { maxHeight: 170 },
                     ]}
                     scrollEnabled={rooms.slice(0, 10).length > 2}
                     onScroll={handleRoomsScroll}
@@ -706,45 +812,55 @@ const DashboardScreen = ({ navigation }) => {
           </View>
 
           {/* ---- Confluence ---- */}
-          <TouchableOpacity
-            style={styles.confluenceContainer}
-            onPress={() => navigation.navigate('ConfluenceLanding')}
-          >
-            <Text style={styles.subSectionTitleLight}>Confluence {'>'}</Text>
-            <View style={styles.confluenceImagesRow}>
-              {confluencePosts.length > 0 ? (
-                <>
-                  <View style={styles.confluenceImageFrame}>
-                    <Image
-                      source={{ uri: confluencePosts[0]?.imageUrl }}
-                      style={styles.confluenceImage}
-                    />
-                  </View>
-                  {confluencePosts.length > 1 && (
+          <BlurView intensity={10} tint="dark" style={styles.confluenceGlass}>
+            <TouchableOpacity
+              style={styles.confluenceContainer}
+              onPress={() => navigation.navigate('ConfluenceLanding')}
+            >
+              <Text style={styles.subSectionTitleLight}>Confluence {'>'}</Text>
+              <View style={styles.confluenceImagesRow}>
+                {confluencePosts.length > 0 ? (
+                  <>
                     <View style={styles.confluenceImageFrame}>
                       <Image
-                        source={{ uri: confluencePosts[1]?.imageUrl }}
+                        source={{ uri: confluencePosts[0]?.imageUrl }}
                         style={styles.confluenceImage}
                       />
                     </View>
-                  )}
-                </>
-              ) : (
-                <Text style={styles.confluenceEmptyText}>No posts yet</Text>
-              )}
-            </View>
-          </TouchableOpacity>
+                    {confluencePosts.length > 1 && (
+                      <View style={styles.confluenceImageFrame}>
+                        <Image
+                          source={{ uri: confluencePosts[1]?.imageUrl }}
+                          style={styles.confluenceImage}
+                        />
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.confluenceEmptyText}>No posts yet</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </BlurView>
 
           {/* ---- Mutual Aid & Resources ---- */}
           <TouchableOpacity
-            style={styles.mutualAidButton}
+            style={styles.mutualAidButtonOuter}
             onPress={() => navigation.navigate('MutualAidLanding')}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
-            <Text style={styles.mutualAidButtonText}>Mutual Aid & Resources {'>'}</Text>
+            <LinearGradient
+              colors={['#d8f434', '#b3f425', '#93f478']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.mutualAidButton}
+            >
+              <Text style={styles.mutualAidButtonText}>Mutual Aid & Resources {'>'}</Text>
+            </LinearGradient>
           </TouchableOpacity>
 
           {/* ---- Events ---- */}
+          <BlurView intensity={10} tint="dark" style={styles.eventsGlass}>
           <TouchableOpacity
             style={styles.eventsContainer}
             onPress={() => navigation.navigate('EventsLanding')}
@@ -787,6 +903,7 @@ const DashboardScreen = ({ navigation }) => {
               </View>
             )}
           </TouchableOpacity>
+          </BlurView>
           </>
           )}
         </View>
@@ -841,21 +958,44 @@ const styles = StyleSheet.create({
   headerSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 12,
     marginBottom: 20,
   },
   avatarWrapper: {
+    flex: 1,
     position: 'relative',
   },
+  glassContainer: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderTopColor: 'rgba(255, 255, 255, 0.35)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.25)',
+    height: 200,
+    shadowColor: 'rgba(255, 255, 255, 0.15)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  glassInner: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+  },
   avatarContainer: {
-    width: 180,
-    height: 190,
-    borderRadius: 35,
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#333',
-    borderWidth: 2,
-    borderColor: colors.textDark,
-    marginBottom: 4,
   },
   avatarImage: {
     width: '100%',
@@ -888,16 +1028,58 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   logoImage: {
-    width: 220,
-    height: 220,
-    marginLeft: -20,
+    width: '100%',
+    height: '100%',
+  },
+  diamondIndicator: {
+    position: 'absolute',
+    bottom: -5,
+    right: 8,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 6,
+    zIndex: 10,
+  },
+  starSpikeV: {
+    position: 'absolute',
+    width: 4,
+    height: 18,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  starSpikeH: {
+    position: 'absolute',
+    width: 18,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
   },
 
   // ---- Section Container ----
-  privateGroupsSection: {
+  privateGroupsGlass: {
     marginBottom: 16,
-    marginTop: -25,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderTopColor: 'rgba(255, 255, 255, 0.35)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: 'rgba(255, 255, 255, 0.15)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+  },
+  privateGroupsSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   privateGroupsTitle: {
     fontSize: 18,
@@ -945,22 +1127,41 @@ const styles = StyleSheet.create({
   },
   // ---- Add Button ----
   addButton: {
+    borderRadius: 14,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  addButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.tertiary,
-    paddingVertical: 3,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    gap: 4,
     borderWidth: 1,
-    borderTopColor: '#B0ABAB',
-    borderLeftColor: '#B0ABAB',
-    borderBottomColor: '#EFEFEF',
-    borderRightColor: '#EFEFEF',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  addButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   addButtonText: {
     fontSize: 12,
     fontFamily: fonts.medium,
-    color: colors.textDark,
+    color: '#1a1a1a',
     marginLeft: 2,
   },
   addButtonDisabled: {
@@ -977,9 +1178,10 @@ const styles = StyleSheet.create({
 
   // ---- Groups Container ----
   groupsContainer: {
-    backgroundColor: '#222222',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 16,
     padding: 6,
+    paddingBottom: 2,
     marginTop: 4,
   },
   groupsScrollRow: {
@@ -1002,17 +1204,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#aaaaaa',
     borderRadius: 2,
   },
+  groupRowOuter: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
   groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.tertiary,
-    borderRadius: 8,
-    paddingVertical: 9,
+    borderRadius: 16,
+    paddingVertical: 5,
     paddingHorizontal: 10,
-    marginBottom: 6,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.8)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
   },
   groupRowInactive: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   groupCreatorAvatar: {
     width: 20,
@@ -1036,7 +1250,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontFamily: fonts.medium,
-    color: colors.textDark,
+    color: '#1a1a1a',
   },
   activityDot: {
     width: 8,
@@ -1079,19 +1293,37 @@ const styles = StyleSheet.create({
   },
 
   // ---- Add Chat Button (matches addButton sizing) ----
+  addChatButtonOuter: {
+    borderRadius: 14,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   addChatButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1acc0a',
-    paddingVertical: 3,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    borderRadius: 14,
     gap: 4,
     borderWidth: 1,
-    borderTopColor: '#0f9900',
-    borderLeftColor: '#0f9900',
-    borderBottomColor: '#55ff3f',
-    borderRightColor: '#55ff3f',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  addChatButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   addChatButtonText: {
     fontSize: 12,
@@ -1101,23 +1333,30 @@ const styles = StyleSheet.create({
 
   // ---- Users Button ----
   usersButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#ffffff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  usersButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1acc0a',
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    gap: 4,
-    borderWidth: 1,
-    borderTopColor: '#0f9900',
-    borderLeftColor: '#0f9900',
-    borderBottomColor: '#55ff3f',
-    borderRightColor: '#55ff3f',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    gap: 6,
   },
   usersButtonText: {
     fontSize: 10,
     fontFamily: fonts.mono,
-    color: colors.textDark,
+    color: '#ffffff',
   },
 
   // ---- Cyber Lounge ----
@@ -1138,10 +1377,11 @@ const styles = StyleSheet.create({
     borderColor: '#383838',
     borderRadius: 12,
     overflow: 'hidden',
+    minHeight: 100,
   },
   roomsScrollRow: {
     flexDirection: 'row',
-    maxHeight: 98,
+    maxHeight: 170,
   },
   roomsScrollView: {
     flex: 1,
@@ -1166,7 +1406,7 @@ const styles = StyleSheet.create({
   roomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 5,
     paddingHorizontal: 6,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(34, 255, 10, 0.15)',
@@ -1207,43 +1447,62 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.textPrimary
   },
+  roomsEmptyContainer: {
+    flex: 1,
+    minHeight: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   roomsEmptyText: {
     fontSize: 11,
     fontFamily: fonts.italic,
     color: colors.offline,
     textAlign: 'center',
-    paddingVertical: 16,
   },
 
   // ---- Mutual Aid Button ----
+  mutualAidButtonOuter: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
   mutualAidButton: {
-    backgroundColor: '#1acc0a',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderTopColor: '#0f9900',
-    borderLeftColor: '#0f9900',
-    borderBottomColor: '#55ff3f',
-    borderRightColor: '#55ff3f',
+    borderTopColor: 'rgba(255, 255, 255, 0.8)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
   },
   mutualAidButtonText: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: colors.textDark,
+    color: '#1a1a1a',
   },
 
   // ---- Confluences ----
-  confluenceContainer: {
+  confluenceGlass: {
+    borderRadius: 20,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 16,
-    padding: 12,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderTopColor: 'rgba(255, 255, 255, 0.35)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: 'rgba(255, 255, 255, 0.15)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
     marginBottom: 16,
     marginTop: 2,
+  },
+  confluenceContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 20,
+    padding: 12,
   },
   subSectionTitle: {
     fontSize: 14,
@@ -1282,10 +1541,21 @@ const styles = StyleSheet.create({
   },
 
   // ---- Events ----
-  eventsContainer: {
+  eventsGlass: {
+    borderRadius: 20,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 16,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderTopColor: 'rgba(255, 255, 255, 0.35)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.25)',
+    shadowColor: 'rgba(255, 255, 255, 0.15)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+  },
+  eventsContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 20,
     padding: 12,
   },
   eventPreviewRow: {

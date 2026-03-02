@@ -18,6 +18,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
@@ -226,15 +227,26 @@ const CreateGroupScreen = ({ navigation }) => {
 
             {/* Publish Button */}
             <TouchableOpacity
-              style={[styles.publishButton, loading && styles.publishButtonDisabled]}
+              style={[styles.publishButtonOuter, loading && styles.publishButtonDisabled]}
               onPress={handlePublish}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color={colors.textDark} />
-              ) : (
-                <Text style={styles.publishText}>Publish</Text>
-              )}
+              <LinearGradient
+                colors={['#cafb6c', '#71f200', '#23ff0d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.publishButton}
+              >
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                  style={styles.publishButtonHighlight}
+                />
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.textDark} />
+                ) : (
+                  <Text style={styles.publishText}>Publish</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Bottom Logo Watermark */}
@@ -399,15 +411,38 @@ const styles = StyleSheet.create({
   },
 
   // Publish
+  publishButtonOuter: {
+    borderRadius: 24,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    shadowColor: '#23ff0d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   publishButton: {
-    backgroundColor: colors.primary,
     borderRadius: 24,
     paddingVertical: 14,
     paddingHorizontal: 32,
-    alignSelf: 'flex-start',
     minWidth: 140,
     alignItems: 'center',
-    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  publishButtonHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   publishButtonDisabled: {
     opacity: 0.6,
