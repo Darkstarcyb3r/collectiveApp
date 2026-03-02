@@ -38,6 +38,7 @@ import {
   subscribeToNotifications,
   markAllNotificationsRead,
 } from '../../services/notificationHistoryService';
+import { subscribeToConversations } from '../../services/messageService';
 import { NotificationListModal } from '../../components/notifications';
 import { ConfirmModal } from '../../components/common';
 import { db } from '../../config/firebase';
@@ -90,6 +91,7 @@ const DashboardScreen = ({ navigation }) => {
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadDMCount, setUnreadDMCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [notificationModalVisible, setNotificationModalVisible] = useState(false);
   const [allNetworkUsers, setAllNetworkUsers] = useState([]);
@@ -264,20 +266,25 @@ const DashboardScreen = ({ navigation }) => {
       setUnreadCount(notifs.filter((n) => !n.read).length);
     });
 
+    const unsubConversations = subscribeToConversations(user.uid, (convos) => {
+      setUnreadDMCount(convos.filter((c) => c[`unread_${user.uid}`] === true).length);
+    });
+
     return () => {
       unsubRooms();
       unsubConfluence();
       unsubEvents();
       unsubNotifications();
+      unsubConversations();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, allNetworkUsers]);
 
-  // Sync iOS app icon badge with actual unread notification count
+  // Sync iOS app icon badge with unread notifications + unread DMs
   useEffect(() => {
-    Notifications.setBadgeCountAsync(unreadCount)
+    Notifications.setBadgeCountAsync(unreadCount + unreadDMCount)
       .catch(() => {}); // silently ignore on simulators / Android without support
-  }, [unreadCount]);
+  }, [unreadCount, unreadDMCount]);
 
   // Fetch participant profiles for chatroom avatar banners (max 4 per room)
   // Dependency uses JSON.stringify of participant arrays so it re-fetches

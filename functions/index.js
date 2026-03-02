@@ -150,6 +150,32 @@ async function checkRateLimit(userId, counterField, limit, resetPeriod) {
 }
 
 // =============================================================
+// BADGE COUNT HELPER
+// =============================================================
+/**
+ * Get the total badge count for a user's iOS app icon.
+ * Combines: unread notification history + unread DM conversations.
+ * Uses Firestore count() aggregation (lightweight — doesn't download docs).
+ */
+async function getUnreadNotificationCount(userId) {
+  try {
+    const [notifSnapshot, convosSnapshot] = await Promise.all([
+      // Unread in-app notifications (comments, reactions, follows, invites, etc.)
+      db.collection("users").doc(userId)
+        .collection("notifications").where("read", "==", false).count().get(),
+      // Unread DM conversations
+      db.collection("conversations")
+        .where("participants", "array-contains", userId)
+        .where(`unread_${userId}`, "==", true).count().get(),
+    ]);
+    return notifSnapshot.data().count + convosSnapshot.data().count;
+  } catch (error) {
+    logger.error(`getUnreadNotificationCount error for ${userId}:`, error);
+    return 0;
+  }
+}
+
+// =============================================================
 // FUNCTION 1: Signed Cloudinary Uploads (+ daily upload limit)
 // =============================================================
 exports.getCloudinarySignature = onCall(async (request) => {
@@ -528,6 +554,7 @@ exports.onMessageCreate = onDocumentCreated(
       if (!pushToken) return;
 
       const fetch = require("node-fetch");
+      const badgeCount = await getUnreadNotificationCount(recipientId);
       const response = await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: {
@@ -541,6 +568,7 @@ exports.onMessageCreate = onDocumentCreated(
           title: senderName,
           body: notifBody,
           data: notifData,
+          badge: badgeCount,
         }),
       });
 
@@ -1431,12 +1459,14 @@ exports.onMutualAidGroupCreate = onDocumentCreated(
           .collection("private").doc("tokens").get();
         const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
         if (pushToken) {
+          const badgeCount = await getUnreadNotificationCount(followerDoc.id);
           pushMessages.push({
             to: pushToken,
             sound: "default",
             title: notifTitle,
             body: notifBody,
             data: notifData,
+            badge: badgeCount,
           });
         }
       }
@@ -1717,12 +1747,14 @@ exports.onCyberLoungeRoomCreate = onDocumentCreated(
           .collection("private").doc("tokens").get();
         const subPushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
         if (subPushToken) {
+          const badgeCount = await getUnreadNotificationCount(subDoc.id);
           pushMessages.push({
             to: subPushToken,
             sound: "default",
             title: notifTitle,
             body: notifBody,
             data: notifData,
+            badge: badgeCount,
           });
         }
       }
@@ -1956,6 +1988,7 @@ exports.onConversationCreate = onDocumentCreated(
       if (!pushToken) return;
 
       const fetch = require("node-fetch");
+      const badgeCount = await getUnreadNotificationCount(recipientId);
       await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: {
@@ -1969,6 +2002,7 @@ exports.onConversationCreate = onDocumentCreated(
           title: initiatorName,
           body: `${initiatorName} wants to start a chat with you`,
           data: { type: "chat_request", conversationId, senderId: initiatorId },
+          badge: badgeCount,
         }),
       });
 
@@ -2029,6 +2063,7 @@ exports.onConversationStatusChange = onDocumentUpdated(
       if (!pushToken) return;
 
       const fetch = require("node-fetch");
+      const badgeCount = await getUnreadNotificationCount(requesterId);
       await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: {
@@ -2042,6 +2077,7 @@ exports.onConversationStatusChange = onDocumentUpdated(
           title: notifTitle,
           body: notifBody,
           data: { type: notifType, conversationId },
+          badge: badgeCount,
         }),
       });
 
@@ -2278,6 +2314,7 @@ exports.onEventCommentReaction = onDocumentUpdated(
           if (!pushToken) continue;
 
           const fetch = require("node-fetch");
+          const badgeCount = await getUnreadNotificationCount(commentAuthorId);
           await fetch("https://exp.host/--/api/v2/push/send", {
             method: "POST",
             headers: {
@@ -2291,6 +2328,7 @@ exports.onEventCommentReaction = onDocumentUpdated(
               title: "Comment Reaction",
               body: `${reactorName} reacted ${emoji} to your comment`,
               data: { type: "eventCommentReaction", eventId },
+              badge: badgeCount,
             }),
           });
         } catch (error) {
@@ -2350,6 +2388,7 @@ exports.onGroupCommentReaction = onDocumentUpdated(
           if (!pushToken) continue;
 
           const fetch = require("node-fetch");
+          const badgeCount = await getUnreadNotificationCount(commentAuthorId);
           await fetch("https://exp.host/--/api/v2/push/send", {
             method: "POST",
             headers: {
@@ -2363,6 +2402,7 @@ exports.onGroupCommentReaction = onDocumentUpdated(
               title: "Comment Reaction",
               body: `${reactorName} reacted ${emoji} to your comment`,
               data: { type: "groupCommentReaction", groupId, postId },
+              badge: badgeCount,
             }),
           });
         } catch (error) {
@@ -2422,6 +2462,7 @@ exports.onMutualAidCommentReaction = onDocumentUpdated(
           if (!pushToken) continue;
 
           const fetch = require("node-fetch");
+          const badgeCount = await getUnreadNotificationCount(commentAuthorId);
           await fetch("https://exp.host/--/api/v2/push/send", {
             method: "POST",
             headers: {
@@ -2435,6 +2476,7 @@ exports.onMutualAidCommentReaction = onDocumentUpdated(
               title: "Comment Reaction",
               body: `${reactorName} reacted ${emoji} to your comment`,
               data: { type: "mutualAidCommentReaction", groupId },
+              badge: badgeCount,
             }),
           });
         } catch (error) {
