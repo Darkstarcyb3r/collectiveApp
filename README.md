@@ -21,8 +21,8 @@ A community-focused mobile application built with React Native/Expo that enables
 
 ## Screenshots
 
-![Dashboard](assets/screenshots/dashboard.png)
-![Chatroom](assets/screenshots/chatroom.png)
+![Dashboard](assets/screenshots/Dashboard.png)
+![Chatroom](assets/screenshots/Chatroom.png)
 ![Groups](assets/screenshots/Groups.png)
 
 ## Getting Started
