@@ -44,7 +44,11 @@
               "RNFBApp",
               "RNFBAuth",
               "RNFBFirestore",
-              "RNFBFunctions"
+              "RNFBFunctions",
+              "RNFBDatabase",
+              "RNFBMessaging",
+              "RNFBStorage",
+              "RNFBAppCheck"
             ]
           }
         }
