@@ -1,8 +1,9 @@
 // Everyone Service
 // Firestore operations for the Everyone section: active users, cyber lounge, events, mutual aid, confluence
+// Using @react-native-firebase native SDK
 
 
-import { db, firebase } from '../config/firebase';
+import { firestore } from '../config/firebase';
 import { validateText } from '../utils/validation';
 
 // ==================== ACTIVE USERS ====================
@@ -10,7 +11,7 @@ import { validateText } from '../utils/validation';
 // Get all currently online users (only those in the Everyone network)
 export const getActiveUsers = async () => {
   try {
-    const snapshot = await db.collection('users')
+    const snapshot = await firestore().collection('users')
       .where('isOnline', '==', true)
       .where('profileSetup', '==', true)
       .where('everyoneNetworkEnabled', '==', true)
@@ -31,7 +32,7 @@ export const getActiveUsers = async () => {
 
 // Subscribe to active users in real-time (only those in the Everyone network)
 export const subscribeToActiveUsers = (callback) => {
-  return db.collection('users')
+  return firestore().collection('users')
     .where('isOnline', '==', true)
     .where('profileSetup', '==', true)
     .where('everyoneNetworkEnabled', '==', true)
@@ -51,8 +52,8 @@ export const subscribeToActiveUsers = (callback) => {
 // Subscribe to ALL users with everyoneNetworkEnabled (regardless of online status)
 // Used to build the full network graph via follow connections
 export const subscribeToNetworkUsers = (callback) => {
-  
-  return db.collection('users')
+
+  return firestore().collection('users')
     .where('profileSetup', '==', true)
     .where('everyoneNetworkEnabled', '==', true)
     .limit(500)
@@ -91,7 +92,7 @@ const CHATROOM_DURATION_HOURS = 4;
 // Get the number of active rooms hosted by a specific user
 export const getHostRoomCount = async (hostId) => {
   try {
-    const snapshot = await db.collection('cyberLoungeRooms')
+    const snapshot = await firestore().collection('cyberLoungeRooms')
       .where('hostId', '==', hostId)
       .where('isActive', '==', true)
       .get();
@@ -105,7 +106,7 @@ export const getHostRoomCount = async (hostId) => {
 export const createChatroom = async (hostId, hostName, hostPhoto, roomName, vibe = 'none', stickers = [], background = 'none') => {
   try {
     // Check active room count
-    const activeRooms = await db.collection('cyberLoungeRooms')
+    const activeRooms = await firestore().collection('cyberLoungeRooms')
       .where('isActive', '==', true)
       .get();
 
@@ -123,7 +124,7 @@ export const createChatroom = async (hostId, hostName, hostPhoto, roomName, vibe
     let freshHostName = hostName;
     let freshHostPhoto = hostPhoto;
     try {
-      const hostDoc = await db.collection('users').doc(hostId).get();
+      const hostDoc = await firestore().collection('users').doc(hostId).get();
       if (hostDoc.exists) {
         const data = hostDoc.data();
         freshHostName = data.name || hostName;
@@ -135,13 +136,13 @@ export const createChatroom = async (hostId, hostName, hostPhoto, roomName, vibe
     const now = new Date();
     const expiresAt = new Date(now.getTime() + CHATROOM_DURATION_HOURS * 60 * 60 * 1000);
 
-    const docRef = await db.collection('cyberLoungeRooms').add({
+    const docRef = await firestore().collection('cyberLoungeRooms').add({
       name: validateText(roomName, 'chatroomName'),
       hostId,
       hostName: freshHostName,
       hostPhoto: freshHostPhoto,
-      createdAt: firebase.firestore.Timestamp.fromDate(now),
-      expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt),
+      createdAt: firestore.Timestamp.fromDate(now),
+      expiresAt: firestore.Timestamp.fromDate(expiresAt),
       participants: [hostId],
       participantCount: 1,
       isActive: true,
@@ -162,7 +163,7 @@ export const createChatroom = async (hostId, hostName, hostPhoto, roomName, vibe
 // Sorts client-side by createdAt descending
 // Filters out expired rooms and auto-deletes them from Firestore
 export const subscribeToActiveRooms = (callback) => {
-  return db.collection('cyberLoungeRooms')
+  return firestore().collection('cyberLoungeRooms')
     .where('isActive', '==', true)
     .onSnapshot((snapshot) => {
       const now = new Date();
@@ -211,7 +212,7 @@ export const subscribeToActiveRooms = (callback) => {
 // Get active room count
 export const getActiveRoomCount = async () => {
   try {
-    const snapshot = await db.collection('cyberLoungeRooms')
+    const snapshot = await firestore().collection('cyberLoungeRooms')
       .where('isActive', '==', true)
       .get();
     return snapshot.size;
@@ -223,7 +224,7 @@ export const getActiveRoomCount = async () => {
 // Join a chatroom
 export const joinChatroom = async (roomId, userId) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
     const roomDoc = await roomRef.get();
 
     if (!roomDoc.exists || !roomDoc.data().isActive) {
@@ -239,12 +240,12 @@ export const joinChatroom = async (roomId, userId) => {
       await roomRef.update({
         participants: [...participants, userId],
         participantCount: participants.length + 1,
-        [`heartbeats.${userId}`]: firebase.firestore.Timestamp.now(),
+        [`heartbeats.${userId}`]: firestore.Timestamp.now(),
       });
     } else {
       // Already a participant — just refresh heartbeat
       await roomRef.update({
-        [`heartbeats.${userId}`]: firebase.firestore.Timestamp.now(),
+        [`heartbeats.${userId}`]: firestore.Timestamp.now(),
       });
     }
 
@@ -258,7 +259,7 @@ export const joinChatroom = async (roomId, userId) => {
 // Leave a chatroom
 export const leaveChatroom = async (roomId, userId) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
     const roomDoc = await roomRef.get();
 
     if (!roomDoc.exists) return { success: false };
@@ -269,7 +270,7 @@ export const leaveChatroom = async (roomId, userId) => {
     await roomRef.update({
       participants: updated,
       participantCount: updated.length,
-      [`heartbeats.${userId}`]: firebase.firestore.FieldValue.delete(),
+      [`heartbeats.${userId}`]: firestore.FieldValue.delete(),
     });
 
     return { success: true };
@@ -281,11 +282,11 @@ export const leaveChatroom = async (roomId, userId) => {
 // Send heartbeat for active presence tracking + prune stale participants
 export const sendHeartbeat = async (roomId, userId) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
 
     // Write this user's heartbeat
     await roomRef.update({
-      [`heartbeats.${userId}`]: firebase.firestore.Timestamp.now(),
+      [`heartbeats.${userId}`]: firestore.Timestamp.now(),
     });
 
     // Prune stale participants
@@ -326,7 +327,7 @@ export const sendHeartbeat = async (roomId, userId) => {
 // Update the vibe (background music track) for a chatroom — host only
 export const updateRoomVibe = async (roomId, vibeId) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
     await roomRef.update({ vibe: vibeId });
     return { success: true };
   } catch (error) {
@@ -338,7 +339,7 @@ export const updateRoomVibe = async (roomId, vibeId) => {
 // Update the background for a chatroom — host only
 export const updateRoomBackground = async (roomId, backgroundId) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
     await roomRef.update({ background: backgroundId });
     return { success: true };
   } catch (error) {
@@ -350,7 +351,7 @@ export const updateRoomBackground = async (roomId, backgroundId) => {
 // Update the stickers for a chatroom — host only
 export const updateRoomStickers = async (roomId, stickers) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
     await roomRef.update({ stickers: stickers });
     return { success: true };
   } catch (error) {
@@ -362,7 +363,7 @@ export const updateRoomStickers = async (roomId, stickers) => {
 // End a chatroom (host only) — permanently deletes room and messages from Firestore
 export const endChatroom = async (roomId, hostId) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
     const roomDoc = await roomRef.get();
 
     if (!roomDoc.exists) return { success: false, error: 'Room not found.' };
@@ -370,7 +371,7 @@ export const endChatroom = async (roomId, hostId) => {
 
     // Delete all messages in the subcollection first
     const messagesSnapshot = await roomRef.collection('messages').get();
-    const batch = db.batch();
+    const batch = firestore().batch();
     messagesSnapshot.forEach((doc) => {
       batch.delete(doc.ref);
     });
@@ -387,12 +388,12 @@ export const endChatroom = async (roomId, hostId) => {
 // Delete an expired chatroom (any user can trigger when timer is up)
 export const deleteChatroom = async (roomId) => {
   try {
-    const roomRef = db.collection('cyberLoungeRooms').doc(roomId);
+    const roomRef = firestore().collection('cyberLoungeRooms').doc(roomId);
     const roomDoc = await roomRef.get();
     if (!roomDoc.exists) return { success: true };
 
     const messagesSnapshot = await roomRef.collection('messages').get();
-    const batch = db.batch();
+    const batch = firestore().batch();
     messagesSnapshot.forEach((doc) => {
       batch.delete(doc.ref);
     });
@@ -407,7 +408,7 @@ export const deleteChatroom = async (roomId) => {
 
 // Subscribe to chatroom data (single room)
 export const subscribeToChatroom = (roomId, callback) => {
-  return db.collection('cyberLoungeRooms').doc(roomId)
+  return firestore().collection('cyberLoungeRooms').doc(roomId)
     .onSnapshot((doc) => {
       if (doc.exists) {
         callback({ id: doc.id, ...doc.data() });
@@ -428,7 +429,7 @@ export const sendChatroomMessage = async (roomId, senderId, senderName, senderPh
       senderName,
       senderPhoto,
       text: text || '',
-      createdAt: firebase.firestore.Timestamp.fromDate(new Date()),
+      createdAt: firestore.Timestamp.fromDate(new Date()),
     };
 
     if (imageUrl) {
@@ -440,7 +441,7 @@ export const sendChatroomMessage = async (roomId, senderId, senderName, senderPh
       }
     }
 
-    await db.collection('cyberLoungeRooms').doc(roomId)
+    await firestore().collection('cyberLoungeRooms').doc(roomId)
       .collection('messages').add(messageData);
     return { success: true };
   } catch (error) {
@@ -452,7 +453,7 @@ export const sendChatroomMessage = async (roomId, senderId, senderName, senderPh
 // Writes the full reactions map to avoid Firestore dot-notation issues with emoji keys
 export const toggleChatroomReaction = async (roomId, messageId, userId, emoji) => {
   try {
-    const messageRef = db.collection('cyberLoungeRooms')
+    const messageRef = firestore().collection('cyberLoungeRooms')
       .doc(roomId)
       .collection('messages')
       .doc(messageId);
@@ -489,7 +490,7 @@ export const toggleChatroomReaction = async (roomId, messageId, userId, emoji) =
 // Delete a chatroom message (sender or host only — enforced by Firestore rules)
 export const deleteChatroomMessage = async (roomId, messageId) => {
   try {
-    await db.collection('cyberLoungeRooms')
+    await firestore().collection('cyberLoungeRooms')
       .doc(roomId)
       .collection('messages')
       .doc(messageId)
@@ -503,7 +504,7 @@ export const deleteChatroomMessage = async (roomId, messageId) => {
 
 // Subscribe to chatroom messages
 export const subscribeToChatroomMessages = (roomId, callback) => {
-  return db.collection('cyberLoungeRooms').doc(roomId)
+  return firestore().collection('cyberLoungeRooms').doc(roomId)
     .collection('messages')
     .orderBy('createdAt', 'asc')
     .onSnapshot((snapshot) => {
@@ -527,7 +528,7 @@ const MAX_EVENTS_PER_MONTH = 20;
 // Resets to 0 on the 1st of each month (handled by cloud function + scheduled cleanup).
 export const getUserMonthlyEventCount = async (userId) => {
   try {
-    const doc = await db.collection('rateLimits').doc(userId).get();
+    const doc = await firestore().collection('rateLimits').doc(userId).get();
     if (!doc.exists) {
       return { success: true, count: 0 };
     }
@@ -569,7 +570,7 @@ export const createEvent = async (eventData) => {
     // Fetch fresh author profile from Firestore to avoid stale photos
     let freshData = { ...eventData };
     try {
-      const authorDoc = await db.collection('users').doc(eventData.authorId).get();
+      const authorDoc = await firestore().collection('users').doc(eventData.authorId).get();
       if (authorDoc.exists) {
         const data = authorDoc.data();
         freshData.authorName = data.name || eventData.authorName || '';
@@ -578,7 +579,7 @@ export const createEvent = async (eventData) => {
     } catch (_err) {
     }
 
-    const docRef = await db.collection('events').add({
+    const docRef = await firestore().collection('events').add({
       ...freshData,
       createdAt: new Date(),
     });
@@ -597,7 +598,7 @@ export const subscribeToEvents = (callback) => {
   const sixWeeksOut = new Date(today);
   sixWeeksOut.setDate(sixWeeksOut.getDate() + 42);
 
-  return db.collection('events')
+  return firestore().collection('events')
     .where('date', '>=', today)
     .where('date', '<=', sixWeeksOut)
     .orderBy('date', 'asc')
@@ -616,7 +617,7 @@ export const subscribeToEvents = (callback) => {
 // Get a single event
 export const getEvent = async (eventId) => {
   try {
-    const doc = await db.collection('events').doc(eventId).get();
+    const doc = await firestore().collection('events').doc(eventId).get();
     if (doc.exists) {
       return { success: true, data: { id: doc.id, ...doc.data() } };
     }
@@ -629,7 +630,7 @@ export const getEvent = async (eventId) => {
 // Update an event
 export const updateEvent = async (eventId, updates) => {
   try {
-    await db.collection('events').doc(eventId).update(updates);
+    await firestore().collection('events').doc(eventId).update(updates);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -639,7 +640,7 @@ export const updateEvent = async (eventId, updates) => {
 // Delete an event
 export const deleteEvent = async (eventId) => {
   try {
-    await db.collection('events').doc(eventId).delete();
+    await firestore().collection('events').doc(eventId).delete();
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -652,11 +653,11 @@ export const deleteExpiredEvents = async () => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // start of today
 
-    const snapshot = await db.collection('events')
+    const snapshot = await firestore().collection('events')
       .where('date', '<', today)
       .get();
 
-    const batch = db.batch();
+    const batch = firestore().batch();
     snapshot.forEach((doc) => batch.delete(doc.ref));
     await batch.commit();
 
@@ -671,18 +672,18 @@ export const deleteExpiredEvents = async () => {
 // Add a comment to an event
 export const addEventComment = async (eventId, userId, content, parentCommentId = null) => {
   try {
-    const commentRef = await db.collection('events').doc(eventId)
+    const commentRef = await firestore().collection('events').doc(eventId)
       .collection('comments').add({
         content: validateText(content, 'comment'),
         authorId: userId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firestore.FieldValue.serverTimestamp(),
         parentCommentId: parentCommentId || null,
       });
 
     // Update event comment count
-    const eventDoc = await db.collection('events').doc(eventId).get();
+    const eventDoc = await firestore().collection('events').doc(eventId).get();
     if (eventDoc.exists) {
-      await db.collection('events').doc(eventId).update({
+      await firestore().collection('events').doc(eventId).update({
         commentCount: (eventDoc.data().commentCount || 0) + 1,
       });
 
@@ -698,7 +699,7 @@ export const addEventComment = async (eventId, userId, content, parentCommentId 
 // Get comments for an event (with author info)
 export const getEventComments = async (eventId) => {
   try {
-    const querySnapshot = await db.collection('events').doc(eventId)
+    const querySnapshot = await firestore().collection('events').doc(eventId)
       .collection('comments')
       .orderBy('createdAt', 'asc')
       .get();
@@ -709,7 +710,7 @@ export const getEventComments = async (eventId) => {
       const commentData = docSnapshot.data();
 
       // Get author info
-      const authorDoc = await db.collection('users').doc(commentData.authorId).get();
+      const authorDoc = await firestore().collection('users').doc(commentData.authorId).get();
       const authorData = authorDoc.exists ? authorDoc.data() : null;
 
       comments.push({
@@ -734,7 +735,7 @@ export const getEventComments = async (eventId) => {
 // Toggle an emoji reaction on an event comment (add or remove)
 export const toggleEventCommentReaction = async (eventId, commentId, userId, emoji) => {
   try {
-    const commentRef = db.collection('events').doc(eventId)
+    const commentRef = firestore().collection('events').doc(eventId)
       .collection('comments').doc(commentId);
 
     const commentDoc = await commentRef.get();
@@ -766,14 +767,14 @@ export const toggleEventCommentReaction = async (eventId, commentId, userId, emo
 // Delete a comment from an event
 export const deleteEventComment = async (eventId, commentId) => {
   try {
-    await db.collection('events').doc(eventId)
+    await firestore().collection('events').doc(eventId)
       .collection('comments').doc(commentId)
       .delete();
 
-    const eventDoc = await db.collection('events').doc(eventId).get();
+    const eventDoc = await firestore().collection('events').doc(eventId).get();
     if (eventDoc.exists) {
       const currentCount = eventDoc.data().commentCount || 0;
-      await db.collection('events').doc(eventId).update({
+      await firestore().collection('events').doc(eventId).update({
         commentCount: Math.max(0, currentCount - 1),
       });
     }
@@ -797,7 +798,7 @@ export const createMutualAidGroup = async (groupData) => {
     // Fetch fresh author profile from Firestore to avoid stale photos
     let freshData = { ...groupData };
     try {
-      const authorDoc = await db.collection('users').doc(groupData.authorId).get();
+      const authorDoc = await firestore().collection('users').doc(groupData.authorId).get();
       if (authorDoc.exists) {
         const data = authorDoc.data();
         freshData.authorName = data.name || groupData.authorName || '';
@@ -812,7 +813,7 @@ export const createMutualAidGroup = async (groupData) => {
     // Remove the UI-only flag before writing to Firestore
     const { vetByAuthor: _vetByAuthor, ...dataToStore } = freshData;
 
-    const docRef = await db.collection('mutualAidGroups').add({
+    const docRef = await firestore().collection('mutualAidGroups').add({
       ...dataToStore,
       vettedBy: initialVettedBy,
       createdAt: new Date(),
@@ -826,7 +827,7 @@ export const createMutualAidGroup = async (groupData) => {
 // Get mutual aid groups by category (one-time fetch, client-side sort to avoid index requirement)
 export const getMutualAidGroupsByCategory = async (category) => {
   try {
-    const snapshot = await db.collection('mutualAidGroups')
+    const snapshot = await firestore().collection('mutualAidGroups')
       .where('category', '==', category)
       .get();
 
@@ -851,7 +852,7 @@ export const getMutualAidGroupsByCategory = async (category) => {
 
 // Subscribe to mutual aid groups by category
 export const subscribeToMutualAidGroups = (category, callback) => {
-  return db.collection('mutualAidGroups')
+  return firestore().collection('mutualAidGroups')
     .where('category', '==', category)
     .orderBy('createdAt', 'desc')
     .onSnapshot((snapshot) => {
@@ -869,7 +870,7 @@ export const subscribeToMutualAidGroups = (category, callback) => {
 // Get a single mutual aid group
 export const getMutualAidGroup = async (groupId) => {
   try {
-    const doc = await db.collection('mutualAidGroups').doc(groupId).get();
+    const doc = await firestore().collection('mutualAidGroups').doc(groupId).get();
     if (doc.exists) {
       return { success: true, data: { id: doc.id, ...doc.data() } };
     }
@@ -882,7 +883,7 @@ export const getMutualAidGroup = async (groupId) => {
 // Update a mutual aid group
 export const updateMutualAidGroup = async (groupId, updates) => {
   try {
-    await db.collection('mutualAidGroups').doc(groupId).update(updates);
+    await firestore().collection('mutualAidGroups').doc(groupId).update(updates);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -892,7 +893,7 @@ export const updateMutualAidGroup = async (groupId, updates) => {
 // Delete a mutual aid group
 export const deleteMutualAidGroup = async (groupId) => {
   try {
-    await db.collection('mutualAidGroups').doc(groupId).delete();
+    await firestore().collection('mutualAidGroups').doc(groupId).delete();
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -902,7 +903,7 @@ export const deleteMutualAidGroup = async (groupId) => {
 // Toggle vet status for a mutual aid group
 export const toggleVet = async (groupId, userId) => {
   try {
-    const docRef = db.collection('mutualAidGroups').doc(groupId);
+    const docRef = firestore().collection('mutualAidGroups').doc(groupId);
     const doc = await docRef.get();
 
     if (!doc.exists) return { success: false, error: 'Group not found.' };
@@ -929,7 +930,7 @@ export const toggleVet = async (groupId, userId) => {
 // Get vetted members for a group
 export const getVettedMembers = async (groupId) => {
   try {
-    const doc = await db.collection('mutualAidGroups').doc(groupId).get();
+    const doc = await firestore().collection('mutualAidGroups').doc(groupId).get();
     if (!doc.exists) return { success: false, error: 'Group not found.' };
 
     const vettedBy = doc.data().vettedBy || [];
@@ -937,7 +938,7 @@ export const getVettedMembers = async (groupId) => {
 
     // Fetch user profiles for each vetted userId
     for (const uid of vettedBy) {
-      const userDoc = await db.collection('users').doc(uid).get();
+      const userDoc = await firestore().collection('users').doc(uid).get();
       if (userDoc.exists) {
         members.push({ id: userDoc.id, ...userDoc.data() });
       }
@@ -952,17 +953,17 @@ export const getVettedMembers = async (groupId) => {
 // Add a comment to a mutual aid group
 export const addMutualAidComment = async (groupId, userId, content, parentCommentId = null) => {
   try {
-    const commentRef = await db.collection('mutualAidGroups').doc(groupId)
+    const commentRef = await firestore().collection('mutualAidGroups').doc(groupId)
       .collection('comments').add({
         content: validateText(content, 'comment'),
         authorId: userId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firestore.FieldValue.serverTimestamp(),
         parentCommentId: parentCommentId || null,
       });
 
-    const groupDoc = await db.collection('mutualAidGroups').doc(groupId).get();
+    const groupDoc = await firestore().collection('mutualAidGroups').doc(groupId).get();
     if (groupDoc.exists) {
-      await db.collection('mutualAidGroups').doc(groupId).update({
+      await firestore().collection('mutualAidGroups').doc(groupId).update({
         commentCount: (groupDoc.data().commentCount || 0) + 1,
       });
 
@@ -978,7 +979,7 @@ export const addMutualAidComment = async (groupId, userId, content, parentCommen
 // Get comments for a mutual aid group (with author info)
 export const getMutualAidComments = async (groupId) => {
   try {
-    const querySnapshot = await db.collection('mutualAidGroups').doc(groupId)
+    const querySnapshot = await firestore().collection('mutualAidGroups').doc(groupId)
       .collection('comments')
       .orderBy('createdAt', 'asc')
       .get();
@@ -988,7 +989,7 @@ export const getMutualAidComments = async (groupId) => {
     for (const docSnapshot of querySnapshot.docs) {
       const commentData = docSnapshot.data();
 
-      const authorDoc = await db.collection('users').doc(commentData.authorId).get();
+      const authorDoc = await firestore().collection('users').doc(commentData.authorId).get();
       const authorData = authorDoc.exists ? authorDoc.data() : null;
 
       comments.push({
@@ -1013,7 +1014,7 @@ export const getMutualAidComments = async (groupId) => {
 // Toggle an emoji reaction on a mutual aid comment (add or remove)
 export const toggleMutualAidCommentReaction = async (groupId, commentId, userId, emoji) => {
   try {
-    const commentRef = db.collection('mutualAidGroups').doc(groupId)
+    const commentRef = firestore().collection('mutualAidGroups').doc(groupId)
       .collection('comments').doc(commentId);
 
     const commentDoc = await commentRef.get();
@@ -1045,14 +1046,14 @@ export const toggleMutualAidCommentReaction = async (groupId, commentId, userId,
 // Delete a comment from a mutual aid group
 export const deleteMutualAidComment = async (groupId, commentId) => {
   try {
-    await db.collection('mutualAidGroups').doc(groupId)
+    await firestore().collection('mutualAidGroups').doc(groupId)
       .collection('comments').doc(commentId)
       .delete();
 
-    const groupDoc = await db.collection('mutualAidGroups').doc(groupId).get();
+    const groupDoc = await firestore().collection('mutualAidGroups').doc(groupId).get();
     if (groupDoc.exists) {
       const currentCount = groupDoc.data().commentCount || 0;
-      await db.collection('mutualAidGroups').doc(groupId).update({
+      await firestore().collection('mutualAidGroups').doc(groupId).update({
         commentCount: Math.max(0, currentCount - 1),
       });
     }
@@ -1075,7 +1076,7 @@ export const createBarterPost = async (postData) => {
     // Fetch fresh author profile from Firestore to avoid stale photos
     let freshData = { ...postData };
     try {
-      const authorDoc = await db.collection('users').doc(postData.authorId).get();
+      const authorDoc = await firestore().collection('users').doc(postData.authorId).get();
       if (authorDoc.exists) {
         const data = authorDoc.data();
         freshData.authorName = data.name || postData.authorName || '';
@@ -1088,7 +1089,7 @@ export const createBarterPost = async (postData) => {
     const postDate = freshData.date ? new Date(freshData.date) : new Date();
     const expiresAt = new Date(postDate.getTime() + 60 * 24 * 60 * 60 * 1000);
 
-    const docRef = await db.collection('barterMarketPosts').add({
+    const docRef = await firestore().collection('barterMarketPosts').add({
       ...freshData,
       date: postDate,
       expiresAt,
@@ -1105,7 +1106,7 @@ export const createBarterPost = async (postData) => {
 
 // Subscribe to barter market posts
 export const subscribeToBarterPosts = (callback) => {
-  return db.collection('barterMarketPosts')
+  return firestore().collection('barterMarketPosts')
     .orderBy('createdAt', 'desc')
     .onSnapshot((snapshot) => {
       const posts = [];
@@ -1122,7 +1123,7 @@ export const subscribeToBarterPosts = (callback) => {
 // Get all barter posts (one-time fetch, client-side sort)
 export const getBarterPosts = async () => {
   try {
-    const snapshot = await db.collection('barterMarketPosts')
+    const snapshot = await firestore().collection('barterMarketPosts')
       .get();
 
     const posts = [];
@@ -1146,7 +1147,7 @@ export const getBarterPosts = async () => {
 // Get a single barter post
 export const getBarterPost = async (postId) => {
   try {
-    const doc = await db.collection('barterMarketPosts').doc(postId).get();
+    const doc = await firestore().collection('barterMarketPosts').doc(postId).get();
     if (doc.exists) {
       return { success: true, data: { id: doc.id, ...doc.data() } };
     }
@@ -1165,7 +1166,7 @@ export const updateBarterPost = async (postId, updates) => {
       updates.date = postDate;
       updates.expiresAt = new Date(postDate.getTime() + 60 * 24 * 60 * 60 * 1000);
     }
-    await db.collection('barterMarketPosts').doc(postId).update(updates);
+    await firestore().collection('barterMarketPosts').doc(postId).update(updates);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1175,7 +1176,7 @@ export const updateBarterPost = async (postId, updates) => {
 // Delete a barter post
 export const deleteBarterPost = async (postId) => {
   try {
-    await db.collection('barterMarketPosts').doc(postId).delete();
+    await firestore().collection('barterMarketPosts').doc(postId).delete();
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1192,7 +1193,7 @@ export const createConfluencePost = async (postData) => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const allUserPosts = await db.collection('confluencePosts')
+    const allUserPosts = await firestore().collection('confluencePosts')
       .where('authorId', '==', postData.authorId)
       .get();
 
@@ -1213,15 +1214,15 @@ export const createConfluencePost = async (postData) => {
     // Validate text fields
     postData.caption = validateText(postData.caption, 'confluenceCaption');
 
-    const docRef = await db.collection('confluencePosts').add({
+    const docRef = await firestore().collection('confluencePosts').add({
       ...postData,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firestore.FieldValue.serverTimestamp(),
     });
 
 
     // Increment lifetime confluence count on user document
-    await db.collection('users').doc(postData.authorId).update({
-      confluenceCount: firebase.firestore.FieldValue.increment(1),
+    await firestore().collection('users').doc(postData.authorId).update({
+      confluenceCount: firestore.FieldValue.increment(1),
     });
 
     return { success: true, postId: docRef.id };
@@ -1233,7 +1234,7 @@ export const createConfluencePost = async (postData) => {
 
 // Subscribe to confluence posts
 export const subscribeToConfluencePosts = (callback) => {
-  return db.collection('confluencePosts')
+  return firestore().collection('confluencePosts')
     .orderBy('createdAt', 'desc')
     .onSnapshot((snapshot) => {
       const posts = [];
@@ -1253,7 +1254,7 @@ export const getMonthlyConfluenceCount = async (userId) => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const snapshot = await db.collection('confluencePosts')
+    const snapshot = await firestore().collection('confluencePosts')
       .where('authorId', '==', userId)
       .get();
 
@@ -1276,7 +1277,7 @@ export const getMonthlyConfluenceCount = async (userId) => {
 // Report/flag a confluence post (stores a content snapshot for admin review)
 export const reportConfluencePost = async (reporterId, postId, authorId, reason, details = '', contentSnapshot = {}) => {
   try {
-    await db.collection('reports').add({
+    await firestore().collection('reports').add({
       reporterId,
       reportedUserId: authorId,
       contentType: 'confluence_post',
@@ -1289,7 +1290,7 @@ export const reportConfluencePost = async (reporterId, postId, authorId, reason,
         authorId: contentSnapshot.authorId || authorId,
         postedAt: contentSnapshot.postedAt || null,
       },
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firestore.FieldValue.serverTimestamp(),
       status: 'pending',
     });
     return { success: true };
@@ -1303,7 +1304,7 @@ export const reportConfluencePost = async (reporterId, postId, authorId, reason,
 // Resolved reports (status !== 'pending') don't block new reports
 export const checkExistingConfluenceReport = async (reporterId, postId) => {
   try {
-    const snapshot = await db.collection('reports')
+    const snapshot = await firestore().collection('reports')
       .where('reporterId', '==', reporterId)
       .where('contentId', '==', postId)
       .where('status', '==', 'pending')

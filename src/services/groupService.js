@@ -1,4 +1,4 @@
-// Group Service - Using Firebase Compat mode
+// Group Service - Using @react-native-firebase
 // Handles group and post operations
 //
 // NOTE: user.groups array syncing is handled server-side by Cloud Functions
@@ -6,7 +6,7 @@
 // Client-side code only modifies groups/{groupId}.members — the Cloud Function
 // automatically keeps each user's groups array in sync.
 
-import { db, firebase } from '../config/firebase'
+import { firestore } from '../config/firebase'
 import { signedUpload } from '../utils/cloudinaryUpload'
 import { validateText } from '../utils/validation'
 
@@ -20,14 +20,14 @@ export const createGroup = async (creatorId, groupData) => {
   try {
     let bannerUrl = null
 
-    const groupRef = await db.collection('groups').add({
+    const groupRef = await firestore().collection('groups').add({
       name: validateText(groupData.name, 'groupName'),
       description: validateText(groupData.description, 'groupDescription'),
       bannerUrl: null,
       creatorId: creatorId,
       members: [creatorId],
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
       postCount: 0,
     })
 
@@ -41,7 +41,7 @@ export const createGroup = async (creatorId, groupData) => {
       )
       if (uploadResult.success) {
         bannerUrl = uploadResult.url
-        await db.collection('groups').doc(groupRef.id).update({ bannerUrl })
+        await firestore().collection('groups').doc(groupRef.id).update({ bannerUrl })
       } else {
         bannerFailed = true
         console.warn('[groupService] Banner upload failed during create:', uploadResult.error)
@@ -61,9 +61,9 @@ export const updateGroupBanner = async (groupId, imageUri, metadata = {}) => {
   try {
     const uploadResult = await uploadGroupBanner(groupId, imageUri, metadata)
     if (uploadResult.success) {
-      await db.collection('groups').doc(groupId).update({
+      await firestore().collection('groups').doc(groupId).update({
         bannerUrl: uploadResult.url,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       })
       return { success: true, url: uploadResult.url }
     }
@@ -76,7 +76,7 @@ export const updateGroupBanner = async (groupId, imageUri, metadata = {}) => {
 // Get group by ID
 export const getGroup = async (groupId) => {
   try {
-    const groupDoc = await db.collection('groups').doc(groupId).get()
+    const groupDoc = await firestore().collection('groups').doc(groupId).get()
     if (groupDoc.exists) {
       return { success: true, data: { id: groupId, ...groupDoc.data() } }
     }
@@ -89,12 +89,12 @@ export const getGroup = async (groupId) => {
 // Update group
 export const updateGroup = async (groupId, updates) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .update({
         ...updates,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       })
     return { success: true }
   } catch (error) {
@@ -106,15 +106,15 @@ export const updateGroup = async (groupId, updates) => {
 // user.groups cleanup handled by onGroupDelete Cloud Function
 export const deleteGroup = async (groupId, _creatorId) => {
   try {
-    const groupDoc = await db.collection('groups').doc(groupId).get()
+    const groupDoc = await firestore().collection('groups').doc(groupId).get()
     if (groupDoc.exists) {
       // Delete all posts in the group
-      const postsSnapshot = await db.collection('groups').doc(groupId).collection('posts').get()
+      const postsSnapshot = await firestore().collection('groups').doc(groupId).collection('posts').get()
       await Promise.all(postsSnapshot.docs.map((postDoc) => postDoc.ref.delete()))
 
       // Delete the group — onGroupDelete Cloud Function removes groupId
       // from all members' user.groups arrays
-      await db.collection('groups').doc(groupId).delete()
+      await firestore().collection('groups').doc(groupId).delete()
     }
 
     return { success: true }
@@ -127,11 +127,11 @@ export const deleteGroup = async (groupId, _creatorId) => {
 // user.groups sync handled by onGroupMembershipChange Cloud Function
 export const joinGroup = async (groupId, userId) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .update({
-        members: firebase.firestore.FieldValue.arrayUnion(userId),
+        members: firestore.FieldValue.arrayUnion(userId),
       })
 
     return { success: true }
@@ -144,11 +144,11 @@ export const joinGroup = async (groupId, userId) => {
 // user.groups sync handled by onGroupMembershipChange Cloud Function
 export const removeMember = async (groupId, userId) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .update({
-        members: firebase.firestore.FieldValue.arrayRemove(userId),
+        members: firestore.FieldValue.arrayRemove(userId),
       })
 
     return { success: true }
@@ -161,11 +161,11 @@ export const removeMember = async (groupId, userId) => {
 // user.groups sync handled by onGroupMembershipChange Cloud Function
 export const leaveGroup = async (groupId, userId) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .update({
-        members: firebase.firestore.FieldValue.arrayRemove(userId),
+        members: firestore.FieldValue.arrayRemove(userId),
       })
 
     return { success: true }
@@ -180,12 +180,12 @@ export const getUserGroups = async (userId) => {
     const groupMap = {}
 
     // Source 1: user's own groups array
-    const userDoc = await db.collection('users').doc(userId).get()
+    const userDoc = await firestore().collection('users').doc(userId).get()
     if (userDoc.exists) {
       const groupIds = userDoc.data().groups || []
       const userGroups = await Promise.all(
         groupIds.map(async (id) => {
-          const groupDoc = await db.collection('groups').doc(id).get()
+          const groupDoc = await firestore().collection('groups').doc(id).get()
           return groupDoc.exists ? { id, ...groupDoc.data() } : null
         })
       )
@@ -195,7 +195,7 @@ export const getUserGroups = async (userId) => {
     }
 
     // Source 2: groups where user is in the members array (catches out-of-sync cases)
-    const memberQuery = await db
+    const memberQuery = await firestore()
       .collection('groups')
       .where('members', 'array-contains', userId)
       .get()
@@ -217,7 +217,7 @@ export const getUserGroups = async (userId) => {
 // Get all public groups
 export const getAllGroups = async () => {
   try {
-    const querySnapshot = await db.collection('groups').orderBy('createdAt', 'desc').limit(50).get()
+    const querySnapshot = await firestore().collection('groups').orderBy('createdAt', 'desc').limit(50).get()
 
     const groups = []
     querySnapshot.forEach((doc) => {
@@ -233,7 +233,7 @@ export const getAllGroups = async () => {
 // Search groups
 export const searchGroups = async (searchQuery) => {
   try {
-    const querySnapshot = await db.collection('groups').orderBy('name').limit(50).get()
+    const querySnapshot = await firestore().collection('groups').orderBy('name').limit(50).get()
 
     const groups = []
     querySnapshot.forEach((doc) => {
@@ -252,7 +252,7 @@ export const searchGroups = async (searchQuery) => {
 // Get ALL member profiles for a group
 export const getGroupMembers = async (groupId) => {
   try {
-    const groupDoc = await db.collection('groups').doc(groupId).get()
+    const groupDoc = await firestore().collection('groups').doc(groupId).get()
     if (!groupDoc.exists) return { success: false, error: 'Group not found' }
 
     const memberIds = groupDoc.data().members || []
@@ -260,7 +260,7 @@ export const getGroupMembers = async (groupId) => {
 
     const profiles = await Promise.all(
       memberIds.map(async (id) => {
-        const userDoc = await db.collection('users').doc(id).get()
+        const userDoc = await firestore().collection('users').doc(id).get()
         if (userDoc.exists) {
           const data = userDoc.data()
           return { id, name: data.name, profilePhoto: data.profilePhoto }
@@ -280,7 +280,7 @@ export const getMemberProfiles = async (memberIds, limit = 4) => {
     const idsToFetch = memberIds.slice(0, limit)
     const profiles = await Promise.all(
       idsToFetch.map(async (id) => {
-        const userDoc = await db.collection('users').doc(id).get()
+        const userDoc = await firestore().collection('users').doc(id).get()
         if (userDoc.exists) {
           const data = userDoc.data()
           return { id, name: data.name, profilePhoto: data.profilePhoto }
@@ -298,11 +298,11 @@ export const getMemberProfiles = async (memberIds, limit = 4) => {
 // user.groups sync handled by onGroupMembershipChange Cloud Function
 export const inviteToGroup = async (groupId, userId) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .update({
-        members: firebase.firestore.FieldValue.arrayUnion(userId),
+        members: firestore.FieldValue.arrayUnion(userId),
       })
     return { success: true }
   } catch (error) {
@@ -333,7 +333,7 @@ export const createPost = async (groupId, userId, postData) => {
     const expiryDate = new Date()
     expiryDate.setDate(expiryDate.getDate() + 90)
 
-    const postRef = await db
+    const postRef = await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
@@ -343,20 +343,20 @@ export const createPost = async (groupId, userId, postData) => {
         imageUrl: imageUrl,
         authorId: userId,
         groupId: groupId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        expiresAt: firebase.firestore.Timestamp.fromDate(expiryDate),
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+        expiresAt: firestore.Timestamp.fromDate(expiryDate),
         commentCount: 0,
       })
 
     // Update group post count
-    const groupDoc = await db.collection('groups').doc(groupId).get()
-    await db
+    const groupDoc = await firestore().collection('groups').doc(groupId).get()
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .update({
         postCount: (groupDoc.data().postCount || 0) + 1,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       })
 
     return { success: true, postId: postRef.id }
@@ -373,7 +373,7 @@ export const uploadPostImage = async (groupId, imageUri, metadata = {}) => {
 // Get posts in a group (expired posts are permanently deleted)
 export const getGroupPosts = async (groupId) => {
   try {
-    const querySnapshot = await db
+    const querySnapshot = await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
@@ -395,7 +395,7 @@ export const getGroupPosts = async (groupId) => {
       }
 
       // Get author info
-      const authorDoc = await db.collection('users').doc(postData.authorId).get()
+      const authorDoc = await firestore().collection('users').doc(postData.authorId).get()
       const authorData = authorDoc.exists ? authorDoc.data() : null
 
       posts.push({
@@ -417,7 +417,7 @@ export const getGroupPosts = async (groupId) => {
         expiredIds.map(async (postId) => {
           try {
             // Delete comments subcollection first
-            const commentsSnap = await db
+            const commentsSnap = await firestore()
               .collection('groups')
               .doc(groupId)
               .collection('posts')
@@ -427,7 +427,7 @@ export const getGroupPosts = async (groupId) => {
             await Promise.all(commentsSnap.docs.map((c) => c.ref.delete()))
 
             // Delete the post
-            await db.collection('groups').doc(groupId).collection('posts').doc(postId).delete()
+            await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).delete()
           } catch (e) {
             console.warn(`[groupService] Failed to delete expired post ${postId}:`, e.message)
           }
@@ -435,13 +435,13 @@ export const getGroupPosts = async (groupId) => {
       )
         .then(() => {
           // Update post count
-          db.collection('groups')
+          firestore().collection('groups')
             .doc(groupId)
             .get()
             .then((groupDoc) => {
               if (groupDoc.exists) {
                 const currentCount = groupDoc.data().postCount || 0
-                db.collection('groups')
+                firestore().collection('groups')
                   .doc(groupId)
                   .update({
                     postCount: Math.max(0, currentCount - expiredIds.length),
@@ -461,12 +461,12 @@ export const getGroupPosts = async (groupId) => {
 // Get single post
 export const getPost = async (groupId, postId) => {
   try {
-    const postDoc = await db.collection('groups').doc(groupId).collection('posts').doc(postId).get()
+    const postDoc = await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).get()
     if (postDoc.exists) {
       const postData = postDoc.data()
 
       // Get author info
-      const authorDoc = await db.collection('users').doc(postData.authorId).get()
+      const authorDoc = await firestore().collection('users').doc(postData.authorId).get()
       const authorData = authorDoc.exists ? authorDoc.data() : null
 
       return {
@@ -493,14 +493,14 @@ export const getPost = async (groupId, postId) => {
 // Update post
 export const updatePost = async (groupId, postId, updates) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
       .doc(postId)
       .update({
         ...updates,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       })
     return { success: true }
   } catch (error) {
@@ -511,19 +511,19 @@ export const updatePost = async (groupId, postId, updates) => {
 // Delete post
 export const deletePost = async (groupId, postId) => {
   try {
-    const postDoc = await db.collection('groups').doc(groupId).collection('posts').doc(postId).get()
+    const postDoc = await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).get()
     if (postDoc.exists) {
       // Note: Cloudinary images are not deleted client-side (requires API secret)
       // They can be cleaned up via Cloudinary dashboard or server-side if needed
 
       // Delete the post
-      await db.collection('groups').doc(groupId).collection('posts').doc(postId).delete()
+      await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).delete()
 
       // Update group post count
-      const groupDoc = await db.collection('groups').doc(groupId).get()
+      const groupDoc = await firestore().collection('groups').doc(groupId).get()
       if (groupDoc.exists) {
         const currentCount = groupDoc.data().postCount || 0
-        await db
+        await firestore()
           .collection('groups')
           .doc(groupId)
           .update({
@@ -543,14 +543,14 @@ export const deletePost = async (groupId, postId) => {
 // Subscribe to post notifications (get notified on new comments)
 export const subscribeToPost = async (groupId, postId, userId) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
       .doc(postId)
       .set(
         {
-          subscribers: firebase.firestore.FieldValue.arrayUnion(userId),
+          subscribers: firestore.FieldValue.arrayUnion(userId),
         },
         { merge: true }
       )
@@ -564,14 +564,14 @@ export const subscribeToPost = async (groupId, postId, userId) => {
 // Unsubscribe from post notifications
 export const unsubscribeFromPost = async (groupId, postId, userId) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
       .doc(postId)
       .set(
         {
-          subscribers: firebase.firestore.FieldValue.arrayRemove(userId),
+          subscribers: firestore.FieldValue.arrayRemove(userId),
         },
         { merge: true }
       )
@@ -587,7 +587,7 @@ export const unsubscribeFromPost = async (groupId, postId, userId) => {
 // Add comment to post
 export const addComment = async (groupId, postId, userId, content, parentCommentId = null) => {
   try {
-    const commentRef = await db
+    const commentRef = await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
@@ -596,14 +596,14 @@ export const addComment = async (groupId, postId, userId, content, parentComment
       .add({
         content: validateText(content, 'comment'),
         authorId: userId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firestore.FieldValue.serverTimestamp(),
         parentCommentId: parentCommentId || null,
       })
 
     // Update post comment count
-    const postDoc = await db.collection('groups').doc(groupId).collection('posts').doc(postId).get()
+    const postDoc = await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).get()
     if (postDoc.exists) {
-      await db
+      await firestore()
         .collection('groups')
         .doc(groupId)
         .collection('posts')
@@ -624,7 +624,7 @@ export const addComment = async (groupId, postId, userId, content, parentComment
 // Get comments for a post
 export const getPostComments = async (groupId, postId) => {
   try {
-    const querySnapshot = await db
+    const querySnapshot = await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
@@ -639,7 +639,7 @@ export const getPostComments = async (groupId, postId) => {
       const commentData = docSnapshot.data()
 
       // Get author info
-      const authorDoc = await db.collection('users').doc(commentData.authorId).get()
+      const authorDoc = await firestore().collection('users').doc(commentData.authorId).get()
       const authorData = authorDoc.exists ? authorDoc.data() : null
 
       comments.push({
@@ -664,7 +664,7 @@ export const getPostComments = async (groupId, postId) => {
 // Toggle an emoji reaction on a group post comment (add or remove)
 export const toggleGroupCommentReaction = async (groupId, postId, commentId, userId, emoji) => {
   try {
-    const commentRef = db
+    const commentRef = firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
@@ -701,7 +701,7 @@ export const toggleGroupCommentReaction = async (groupId, postId, commentId, use
 // Delete comment
 export const deleteComment = async (groupId, postId, commentId) => {
   try {
-    await db
+    await firestore()
       .collection('groups')
       .doc(groupId)
       .collection('posts')
@@ -711,10 +711,10 @@ export const deleteComment = async (groupId, postId, commentId) => {
       .delete()
 
     // Update post comment count
-    const postDoc = await db.collection('groups').doc(groupId).collection('posts').doc(postId).get()
+    const postDoc = await firestore().collection('groups').doc(groupId).collection('posts').doc(postId).get()
     if (postDoc.exists) {
       const currentCount = postDoc.data().commentCount || 0
-      await db
+      await firestore()
         .collection('groups')
         .doc(groupId)
         .collection('posts')

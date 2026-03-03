@@ -42,7 +42,7 @@ import {
 import { subscribeToConversations } from '../../services/messageService';
 import { NotificationListModal } from '../../components/notifications';
 import { ConfirmModal } from '../../components/common';
-import { db } from '../../config/firebase';
+import { firestore } from '../../config/firebase';
 import * as Notifications from 'expo-notifications';
 
 const MAX_GROUPS = 50;
@@ -141,7 +141,7 @@ const DashboardScreen = ({ navigation }) => {
           await Promise.all(
             idsToFetch.map(async (id) => {
               try {
-                const doc = await db.collection('users').doc(id).get();
+                const doc = await firestore().collection('users').doc(id).get();
                 if (doc.exists) {
                   const data = doc.data();
                   newCreators[id] = { name: data.name || '', profilePhoto: data.profilePhoto || null };
@@ -364,9 +364,9 @@ const DashboardScreen = ({ navigation }) => {
       
       // Recalculate badge count
       const [notifSnapshot, convosSnapshot] = await Promise.all([
-        db.collection("users").doc(user.uid)
+        firestore().collection("users").doc(user.uid)
           .collection("notifications").where("read", "==", false).count().get(),
-        db.collection("conversations")
+        firestore().collection("conversations")
           .where("participants", "array-contains", user.uid)
           .where(`unread_${user.uid}`, "==", true).count().get(),
       ]);

@@ -1,7 +1,7 @@
-// Authentication Context - Using Firebase Compat mode
+// Authentication Context - Using @react-native-firebase
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
-import { auth, db } from '../config/firebase';
+import { auth, firestore } from '../config/firebase';
 import { registerForPushNotifications } from '../services/notificationService';
 import { registerAdminToken } from '../services/userService';
 
@@ -21,10 +21,10 @@ export const AuthProvider = ({ children }) => {
   // Track online presence via AppState
   useEffect(() => {
     const setOnlineStatus = async (isOnline) => {
-      const currentUser = auth.currentUser;
+      const currentUser = auth().currentUser;
       if (currentUser) {
         try {
-          await db.collection('users').doc(currentUser.uid).update({
+          await firestore().collection('users').doc(currentUser.uid).update({
             isOnline: isOnline,
           });
         } catch (error) {
@@ -57,17 +57,17 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }, 10000);
 
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsEmailVerified(firebaseUser.emailVerified || false);
         try {
           // Set user as online when they authenticate
-          await db.collection('users').doc(firebaseUser.uid).update({
+          await firestore().collection('users').doc(firebaseUser.uid).update({
             isOnline: true,
           }).catch(() => {}); // Ignore if doc doesn't exist yet (new signup)
 
-          const userDoc = await db.collection('users').doc(firebaseUser.uid).get();
+          const userDoc = await firestore().collection('users').doc(firebaseUser.uid).get();
           if (userDoc.exists) {
             const profileData = userDoc.data();
             profileData.isOnline = true; // Reflect the update we just made
@@ -108,10 +108,10 @@ export const AuthProvider = ({ children }) => {
 
   const refreshUserProfile = async () => {
     // Use the current Firebase auth user directly to avoid stale state
-    const currentUser = user || auth.currentUser;
+    const currentUser = user || auth().currentUser;
     if (currentUser) {
       try {
-        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userDoc = await firestore().collection('users').doc(currentUser.uid).get();
         if (userDoc.exists) {
           const profileData = userDoc.data();
           setUser(currentUser);
@@ -121,8 +121,8 @@ export const AuthProvider = ({ children }) => {
 
           // Refresh email verification status from Firebase Auth
           try {
-            await auth.currentUser?.reload();
-            setIsEmailVerified(auth.currentUser?.emailVerified || false);
+            await auth().currentUser?.reload();
+            setIsEmailVerified(auth().currentUser?.emailVerified || false);
           } catch (_reloadErr) {
           }
         }

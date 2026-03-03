@@ -1,12 +1,12 @@
-// Authentication Service - Using Firebase Compat mode
-import { auth, db, firebase, functions } from '../config/firebase'
+// Authentication Service - Using @react-native-firebase
+import { auth, firestore, functions } from '../config/firebase'
 
 export const signUp = async (email, password, phoneNumber) => {
   try {
-    const userCredential = await auth.createUserWithEmailAndPassword(email, password)
+    const userCredential = await auth().createUserWithEmailAndPassword(email, password)
     const user = userCredential.user
 
-    await db
+    await firestore()
       .collection('users')
       .doc(user.uid)
       .set({
@@ -18,8 +18,8 @@ export const signUp = async (email, password, phoneNumber) => {
         profilePhoto: null,
         profileSetup: false,
         isOnline: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
         subscribedUsers: [], // Firestore field name kept for backward compat (represents "following")
         hiddenUsers: [],
         blockedUsers: [],
@@ -44,12 +44,12 @@ export const signUp = async (email, password, phoneNumber) => {
 
 export const signIn = async (email, password) => {
   try {
-    const userCredential = await auth.signInWithEmailAndPassword(email, password)
+    const userCredential = await auth().signInWithEmailAndPassword(email, password)
 
     try {
-      await db.collection('users').doc(userCredential.user.uid).update({
+      await firestore().collection('users').doc(userCredential.user.uid).update({
         isOnline: true,
-        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSeen: firestore.FieldValue.serverTimestamp(),
       })
     } catch (_updateError) {}
 
@@ -62,18 +62,18 @@ export const signIn = async (email, password) => {
 
 export const logOut = async () => {
   try {
-    const user = auth.currentUser
+    const user = auth().currentUser
 
     if (user) {
       try {
-        await db.collection('users').doc(user.uid).update({
+        await firestore().collection('users').doc(user.uid).update({
           isOnline: false,
-          lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+          lastSeen: firestore.FieldValue.serverTimestamp(),
         })
       } catch (_updateError) {}
     }
 
-    await auth.signOut()
+    await auth().signOut()
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
@@ -82,7 +82,7 @@ export const logOut = async () => {
 
 export const sendResetEmail = async (email) => {
   try {
-    await auth.sendPasswordResetEmail(email)
+    await auth().sendPasswordResetEmail(email)
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
@@ -91,7 +91,7 @@ export const sendResetEmail = async (email) => {
 
 export const confirmReset = async (code, newPassword) => {
   try {
-    await auth.confirmPasswordReset(code, newPassword)
+    await auth().confirmPasswordReset(code, newPassword)
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
@@ -100,8 +100,8 @@ export const confirmReset = async (code, newPassword) => {
 
 export const changePassword = async (currentPassword, newPassword) => {
   try {
-    const user = auth.currentUser
-    const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword)
+    const user = auth().currentUser
+    const credential = auth.EmailAuthProvider.credential(user.email, currentPassword)
     await user.reauthenticateWithCredential(credential)
     await user.updatePassword(newPassword)
     return { success: true }
@@ -112,13 +112,13 @@ export const changePassword = async (currentPassword, newPassword) => {
 
 export const deleteAccount = async (password) => {
   try {
-    const user = auth.currentUser
+    const user = auth().currentUser
     if (!user) {
       return { success: false, error: 'No user is currently signed in.' }
     }
 
     // Re-authenticate before deleting (Firebase requires recent login)
-    const credential = firebase.auth.EmailAuthProvider.credential(user.email, password)
+    const credential = auth.EmailAuthProvider.credential(user.email, password)
     await user.reauthenticateWithCredential(credential)
 
     // Force-refresh the ID token after re-authentication
@@ -127,15 +127,14 @@ export const deleteAccount = async (password) => {
     // Call the deleteUserAccount Cloud Function (uses Admin SDK to bypass rules)
     // This handles: group cleanup, conversation cleanup, follower cleanup,
     // Firestore doc deletion, and Firebase Auth account deletion
-    const deleteUserAccount = functions.httpsCallable('deleteUserAccount')
-    const result = await deleteUserAccount()
+    const result = await functions().httpsCallable('deleteUserAccount')()
 
     if (!result.data.success) {
       return { success: false, error: 'Failed to delete account. Please try again.' }
     }
 
     // Sign out locally after server-side deletion
-    await auth.signOut()
+    await auth().signOut()
 
     return { success: true }
   } catch (error) {
@@ -148,12 +147,12 @@ export const deleteAccount = async (password) => {
 }
 
 export const getCurrentUser = () => {
-  return auth.currentUser
+  return auth().currentUser
 }
 
 export const resendVerificationEmail = async () => {
   try {
-    const user = auth.currentUser
+    const user = auth().currentUser
     if (!user) {
       return { success: false, error: 'No user is currently signed in.' }
     }
@@ -173,7 +172,7 @@ export const resendVerificationEmail = async () => {
 
 export const checkEmailVerified = async () => {
   try {
-    const user = auth.currentUser
+    const user = auth().currentUser
     if (!user) {
       return { verified: false, error: 'No user is currently signed in.' }
     }

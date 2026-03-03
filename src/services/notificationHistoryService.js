@@ -2,7 +2,7 @@
 // Persists notifications to Firestore subcollection: users/{userId}/notifications
 // Provides real-time subscription, mark-as-read, and delete functionality
 
-import { db } from '../config/firebase'
+import { firestore } from '../config/firebase'
 
 // Subscribe to real-time notifications for a user
 // Returns unsubscribe function
@@ -12,7 +12,7 @@ export const subscribeToNotifications = (userId, callback) => {
     return () => {}
   }
 
-  return db
+  return firestore()
     .collection('users')
     .doc(userId)
     .collection('notifications')
@@ -38,7 +38,7 @@ export const markAllNotificationsRead = async (userId) => {
   try {
     if (!userId) return
 
-    const snapshot = await db
+    const snapshot = await firestore()
       .collection('users')
       .doc(userId)
       .collection('notifications')
@@ -47,7 +47,7 @@ export const markAllNotificationsRead = async (userId) => {
 
     if (snapshot.empty) return
 
-    const batch = db.batch()
+    const batch = firestore().batch()
     snapshot.docs.forEach((doc) => {
       batch.update(doc.ref, { read: true })
     })
@@ -62,7 +62,7 @@ export const deleteNotification = async (userId, notificationId) => {
   try {
     if (!userId || !notificationId) return { success: false }
 
-    await db
+    await firestore()
       .collection('users')
       .doc(userId)
       .collection('notifications')

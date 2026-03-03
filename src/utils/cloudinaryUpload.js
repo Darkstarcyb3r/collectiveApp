@@ -1,5 +1,8 @@
 import { functions } from '../config/firebase'
 
+// Note: functions is the @react-native-firebase module default export.
+// Call as functions().httpsCallable('name') — not functions.httpsCallable('name').
+
 /**
  * Upload an image to Cloudinary using server-signed authentication.
  * Calls the getCloudinarySignature Cloud Function for a signature,
@@ -16,7 +19,7 @@ export const signedUpload = async (imageUri, folder, filenamePrefix = 'upload', 
     const { fileSize = null, mimeType = 'image/jpeg' } = metadata
 
     // 1. Get signed upload credentials from Cloud Function (includes server-side validation)
-    const getSignature = functions.httpsCallable('getCloudinarySignature')
+    const getSignature = functions().httpsCallable('getCloudinarySignature')
     const result = await getSignature({ folder, filenamePrefix, fileSize, mimeType })
 
     const { signature, timestamp, apiKey, cloudName } = result.data

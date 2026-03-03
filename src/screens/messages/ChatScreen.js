@@ -24,7 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
-import { db } from '../../config/firebase'
+import { firestore } from '../../config/firebase'
 import {
   getOrCreateConversation,
   subscribeToMessages,
@@ -96,7 +96,7 @@ const ChatScreen = ({ route, navigation }) => {
       if (conversationId) {
         // Verify the conversation is accepted
         try {
-          const convoDoc = await db.collection('conversations').doc(conversationId).get()
+          const convoDoc = await firestore().collection('conversations').doc(conversationId).get()
           if (convoDoc.exists) {
             const data = convoDoc.data()
             if (data.status === 'pending') {
@@ -149,7 +149,7 @@ const ChatScreen = ({ route, navigation }) => {
           }
           // Check if user previously cleared this thread
           try {
-            const convoDoc = await db.collection('conversations').doc(result.conversationId).get()
+            const convoDoc = await firestore().collection('conversations').doc(result.conversationId).get()
             if (convoDoc.exists) {
               const ts = convoDoc.data()?.[`clearedAt_${user.uid}`]
               if (ts) clearedAtRef.current = ts.toDate()

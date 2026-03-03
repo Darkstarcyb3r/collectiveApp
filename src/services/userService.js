@@ -1,13 +1,13 @@
-// User Service - Using Firebase Compat mode
+// User Service - Using @react-native-firebase
 // Handles user profile operations
 
-import { db, firebase } from '../config/firebase'
+import { firestore } from '../config/firebase'
 import { signedUpload } from '../utils/cloudinaryUpload'
 
 // Get user profile by ID
 export const getUserProfile = async (userId) => {
   try {
-    const userDoc = await db.collection('users').doc(userId).get()
+    const userDoc = await firestore().collection('users').doc(userId).get()
     if (userDoc.exists) {
       return { success: true, data: userDoc.data() }
     }
@@ -20,12 +20,12 @@ export const getUserProfile = async (userId) => {
 // Update user profile
 export const updateUserProfile = async (userId, updates) => {
   try {
-    await db
+    await firestore()
       .collection('users')
       .doc(userId)
       .update({
         ...updates,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       })
     return { success: true }
   } catch (error) {
@@ -59,7 +59,7 @@ export const setupProfile = async (
       profileSetup: true,
       isPrivate: isPrivate,
       everyoneNetworkEnabled: true,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
     }
 
     // Only update phoneNumber if explicitly provided (preserves the one from signup)
@@ -67,7 +67,7 @@ export const setupProfile = async (
       updateData.phoneNumber = phoneNumber
     }
 
-    await db.collection('users').doc(userId).update(updateData)
+    await firestore().collection('users').doc(userId).update(updateData)
 
     return { success: true }
   } catch (error) {
@@ -83,9 +83,9 @@ export const uploadProfilePhoto = async (userId, photoUri, metadata = {}) => {
 // Update quip (status)
 export const updateQuip = async (userId, quip) => {
   try {
-    await db.collection('users').doc(userId).update({
+    await firestore().collection('users').doc(userId).update({
       quip: quip,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
     })
     return { success: true }
   } catch (error) {
@@ -96,11 +96,11 @@ export const updateQuip = async (userId, quip) => {
 // Follow a user
 export const followUser = async (currentUserId, targetUserId, _followerName) => {
   try {
-    await db
+    await firestore()
       .collection('users')
       .doc(currentUserId)
       .update({
-        subscribedUsers: firebase.firestore.FieldValue.arrayUnion(targetUserId),
+        subscribedUsers: firestore.FieldValue.arrayUnion(targetUserId),
       })
 
     // Notification handled server-side by onFollowChange Cloud Function
@@ -114,12 +114,12 @@ export const followUser = async (currentUserId, targetUserId, _followerName) => 
 // Unfollow a user — also clean up notification preferences
 export const unfollowUser = async (currentUserId, targetUserId) => {
   try {
-    await db
+    await firestore()
       .collection('users')
       .doc(currentUserId)
       .update({
-        subscribedUsers: firebase.firestore.FieldValue.arrayRemove(targetUserId),
-        [`subscriptionPreferences.${targetUserId}`]: firebase.firestore.FieldValue.delete(),
+        subscribedUsers: firestore.FieldValue.arrayRemove(targetUserId),
+        [`subscriptionPreferences.${targetUserId}`]: firestore.FieldValue.delete(),
       })
     return { success: true }
   } catch (error) {
@@ -130,7 +130,7 @@ export const unfollowUser = async (currentUserId, targetUserId) => {
 // Update subscription notification preferences for a specific user
 export const updateSubscriptionPreferences = async (currentUserId, targetUserId, preferences) => {
   try {
-    await db
+    await firestore()
       .collection('users')
       .doc(currentUserId)
       .update({
@@ -145,11 +145,11 @@ export const updateSubscriptionPreferences = async (currentUserId, targetUserId,
 // Hide user
 export const hideUser = async (currentUserId, targetUserId) => {
   try {
-    await db
+    await firestore()
       .collection('users')
       .doc(currentUserId)
       .update({
-        hiddenUsers: firebase.firestore.FieldValue.arrayUnion(targetUserId),
+        hiddenUsers: firestore.FieldValue.arrayUnion(targetUserId),
       })
     return { success: true }
   } catch (error) {
@@ -160,11 +160,11 @@ export const hideUser = async (currentUserId, targetUserId) => {
 // Unhide user
 export const unhideUser = async (currentUserId, targetUserId) => {
   try {
-    await db
+    await firestore()
       .collection('users')
       .doc(currentUserId)
       .update({
-        hiddenUsers: firebase.firestore.FieldValue.arrayRemove(targetUserId),
+        hiddenUsers: firestore.FieldValue.arrayRemove(targetUserId),
       })
     return { success: true }
   } catch (error) {
@@ -175,21 +175,21 @@ export const unhideUser = async (currentUserId, targetUserId) => {
 // Block user — two-way: severs all follow/following connections both directions
 export const blockUser = async (currentUserId, targetUserId) => {
   try {
-    const batch = db.batch()
+    const batch = firestore().batch()
 
     // Update the blocking user's document
-    const currentUserRef = db.collection('users').doc(currentUserId)
+    const currentUserRef = firestore().collection('users').doc(currentUserId)
     batch.update(currentUserRef, {
-      blockedUsers: firebase.firestore.FieldValue.arrayUnion(targetUserId),
-      subscribedUsers: firebase.firestore.FieldValue.arrayRemove(targetUserId),
-      hiddenUsers: firebase.firestore.FieldValue.arrayRemove(targetUserId),
+      blockedUsers: firestore.FieldValue.arrayUnion(targetUserId),
+      subscribedUsers: firestore.FieldValue.arrayRemove(targetUserId),
+      hiddenUsers: firestore.FieldValue.arrayRemove(targetUserId),
     })
 
     // Update the blocked user's document — mark as blockedBy and remove follows both ways
-    const targetUserRef = db.collection('users').doc(targetUserId)
+    const targetUserRef = firestore().collection('users').doc(targetUserId)
     batch.update(targetUserRef, {
-      blockedBy: firebase.firestore.FieldValue.arrayUnion(currentUserId),
-      subscribedUsers: firebase.firestore.FieldValue.arrayRemove(currentUserId),
+      blockedBy: firestore.FieldValue.arrayUnion(currentUserId),
+      subscribedUsers: firestore.FieldValue.arrayRemove(currentUserId),
     })
 
     await batch.commit()
@@ -197,7 +197,7 @@ export const blockUser = async (currentUserId, targetUserId) => {
     // Clean up follow preferences for the current user (own doc — always allowed)
     try {
       await currentUserRef.update({
-        [`subscriptionPreferences.${targetUserId}`]: firebase.firestore.FieldValue.delete(),
+        [`subscriptionPreferences.${targetUserId}`]: firestore.FieldValue.delete(),
       })
     } catch (_e) {
       /* preferences field may not exist yet */
@@ -214,16 +214,16 @@ export const blockUser = async (currentUserId, targetUserId) => {
 // Unblock user — removes from both directions
 export const unblockUser = async (currentUserId, targetUserId) => {
   try {
-    const batch = db.batch()
+    const batch = firestore().batch()
 
-    const currentUserRef = db.collection('users').doc(currentUserId)
+    const currentUserRef = firestore().collection('users').doc(currentUserId)
     batch.update(currentUserRef, {
-      blockedUsers: firebase.firestore.FieldValue.arrayRemove(targetUserId),
+      blockedUsers: firestore.FieldValue.arrayRemove(targetUserId),
     })
 
-    const targetUserRef = db.collection('users').doc(targetUserId)
+    const targetUserRef = firestore().collection('users').doc(targetUserId)
     batch.update(targetUserRef, {
-      blockedBy: firebase.firestore.FieldValue.arrayRemove(currentUserId),
+      blockedBy: firestore.FieldValue.arrayRemove(currentUserId),
     })
 
     await batch.commit()
@@ -236,14 +236,14 @@ export const unblockUser = async (currentUserId, targetUserId) => {
 // Get users you are following
 export const getFollowingUsers = async (userId) => {
   try {
-    const userDoc = await db.collection('users').doc(userId).get()
+    const userDoc = await firestore().collection('users').doc(userId).get()
     if (userDoc.exists) {
       const followingIds = userDoc.data().subscribedUsers || []
       if (followingIds.length === 0) return { success: true, data: [] }
 
       const users = await Promise.all(
         followingIds.map(async (id) => {
-          const userProfile = await db.collection('users').doc(id).get()
+          const userProfile = await firestore().collection('users').doc(id).get()
           return userProfile.exists ? { id, ...userProfile.data() } : null
         })
       )
@@ -259,14 +259,14 @@ export const getFollowingUsers = async (userId) => {
 // Get hidden users
 export const getHiddenUsers = async (userId) => {
   try {
-    const userDoc = await db.collection('users').doc(userId).get()
+    const userDoc = await firestore().collection('users').doc(userId).get()
     if (userDoc.exists) {
       const hiddenIds = userDoc.data().hiddenUsers || []
       if (hiddenIds.length === 0) return { success: true, data: [] }
 
       const users = await Promise.all(
         hiddenIds.map(async (id) => {
-          const userProfile = await db.collection('users').doc(id).get()
+          const userProfile = await firestore().collection('users').doc(id).get()
           return userProfile.exists ? { id, ...userProfile.data() } : null
         })
       )
@@ -282,14 +282,14 @@ export const getHiddenUsers = async (userId) => {
 // Get blocked users
 export const getBlockedUsers = async (userId) => {
   try {
-    const userDoc = await db.collection('users').doc(userId).get()
+    const userDoc = await firestore().collection('users').doc(userId).get()
     if (userDoc.exists) {
       const blockedIds = userDoc.data().blockedUsers || []
       if (blockedIds.length === 0) return { success: true, data: [] }
 
       const users = await Promise.all(
         blockedIds.map(async (id) => {
-          const userProfile = await db.collection('users').doc(id).get()
+          const userProfile = await firestore().collection('users').doc(id).get()
           return userProfile.exists ? { id, ...userProfile.data() } : null
         })
       )
@@ -305,7 +305,7 @@ export const getBlockedUsers = async (userId) => {
 // Get users who follow you (your followers)
 export const getFollowers = async (userId) => {
   try {
-    const querySnapshot = await db
+    const querySnapshot = await firestore()
       .collection('users')
       .where('subscribedUsers', 'array-contains', userId)
       .get()
@@ -328,11 +328,11 @@ export const removeFollower = async (currentUserId, followerUserId) => {
   try {
     // Only update subscribedUsers — security rules only allow non-owners
     // to modify blockedBy, subscribedUsers, and groups on another user's doc
-    await db
+    await firestore()
       .collection('users')
       .doc(followerUserId)
       .update({
-        subscribedUsers: firebase.firestore.FieldValue.arrayRemove(currentUserId),
+        subscribedUsers: firestore.FieldValue.arrayRemove(currentUserId),
       })
     return { success: true }
   } catch (error) {
@@ -344,7 +344,7 @@ export const removeFollower = async (currentUserId, followerUserId) => {
 // Search users by name
 export const searchUsers = async (searchQuery, currentUserId) => {
   try {
-    const currentUserDoc = await db.collection('users').doc(currentUserId).get()
+    const currentUserDoc = await firestore().collection('users').doc(currentUserId).get()
     const currentUserData = currentUserDoc.exists ? currentUserDoc.data() : {}
     const blockedUsers = currentUserData.blockedUsers || []
     const blockedBy = currentUserData.blockedBy || []
@@ -353,7 +353,7 @@ export const searchUsers = async (searchQuery, currentUserId) => {
     // Try with orderBy first (requires composite index: profileSetup + name)
     let querySnapshot
     try {
-      querySnapshot = await db
+      querySnapshot = await firestore()
         .collection('users')
         .where('profileSetup', '==', true)
         .orderBy('name')
@@ -361,7 +361,7 @@ export const searchUsers = async (searchQuery, currentUserId) => {
         .get()
     } catch (_indexError) {
       // Composite index missing — fallback to query without orderBy
-      querySnapshot = await db.collection('users').where('profileSetup', '==', true).limit(50).get()
+      querySnapshot = await firestore().collection('users').where('profileSetup', '==', true).limit(50).get()
     }
 
     const queryLower = searchQuery.toLowerCase()
@@ -410,7 +410,7 @@ export const searchUserByPhone = async (phoneNumber) => {
     }
 
     // Try exact match first (10-digit format)
-    let querySnapshot = await db
+    let querySnapshot = await firestore()
       .collection('users')
       .where('phoneNumber', '==', normalized)
       .limit(1)
@@ -418,7 +418,7 @@ export const searchUserByPhone = async (phoneNumber) => {
 
     // If no match, try with country code in case DB stored it that way
     if (querySnapshot.empty) {
-      querySnapshot = await db
+      querySnapshot = await firestore()
         .collection('users')
         .where('phoneNumber', '==', '1' + normalized)
         .limit(1)
@@ -440,7 +440,7 @@ export const searchUserByPhone = async (phoneNumber) => {
 // Get total user count
 export const getTotalUserCount = async () => {
   try {
-    const querySnapshot = await db.collection('users').where('profileSetup', '==', true).get()
+    const querySnapshot = await firestore().collection('users').where('profileSetup', '==', true).get()
     return { success: true, count: querySnapshot.size }
   } catch (error) {
     return { success: false, error: error.message }
@@ -450,7 +450,7 @@ export const getTotalUserCount = async () => {
 // Toggle everyone network participation
 export const toggleEveryoneNetwork = async (userId, enabled) => {
   try {
-    await db.collection('users').doc(userId).update({
+    await firestore().collection('users').doc(userId).update({
       everyoneNetworkEnabled: enabled,
     })
     return { success: true }
@@ -462,12 +462,12 @@ export const toggleEveryoneNetwork = async (userId, enabled) => {
 // Report/flag a user
 export const reportUser = async (reporterId, reportedUserId, reason, details = '') => {
   try {
-    await db.collection('reports').add({
+    await firestore().collection('reports').add({
       reporterId,
       reportedUserId,
       reason,
       details,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firestore.FieldValue.serverTimestamp(),
       status: 'pending',
     })
     return { success: true }
@@ -481,7 +481,7 @@ export const reportUser = async (reporterId, reportedUserId, reason, details = '
 // Resolved reports (status !== 'pending') don't block new reports
 export const checkExistingReport = async (reporterId, reportedUserId) => {
   try {
-    const snapshot = await db
+    const snapshot = await firestore()
       .collection('reports')
       .where('reporterId', '==', reporterId)
       .where('reportedUserId', '==', reportedUserId)
@@ -503,7 +503,7 @@ export const checkExistingReport = async (reporterId, reportedUserId) => {
 export const setActiveScreen = async (userId, screenType, screenId) => {
   try {
     if (!userId) return
-    await db
+    await firestore()
       .collection('users')
       .doc(userId)
       .update({
@@ -518,8 +518,8 @@ export const setActiveScreen = async (userId, screenType, screenId) => {
 export const clearActiveScreen = async (userId) => {
   try {
     if (!userId) return
-    await db.collection('users').doc(userId).update({
-      activeScreen: firebase.firestore.FieldValue.delete(),
+    await firestore().collection('users').doc(userId).update({
+      activeScreen: firestore.FieldValue.delete(),
     })
   } catch (error) {
     console.log('🔴 clearActiveScreen error:', error.message)
@@ -529,11 +529,11 @@ export const clearActiveScreen = async (userId) => {
 export const registerAdminToken = async (userId, pushToken) => {
   try {
     if (!userId || !pushToken) return
-    await db.collection('adminTokens').doc(userId).set(
+    await firestore().collection('adminTokens').doc(userId).set(
       {
         userId,
         pushToken,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }
     )

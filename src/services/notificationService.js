@@ -9,7 +9,7 @@ import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
-import { db, firebase } from '../config/firebase'
+import { firestore } from '../config/firebase'
 
 // Register for push notifications and save token to Firestore
 export const registerForPushNotifications = async (userId) => {
@@ -86,10 +86,10 @@ export const registerForPushNotifications = async (userId) => {
     // Save token to private subcollection (not readable by other users).
     // Cloud Functions read from this subcollection using admin SDK.
     if (userId && pushToken) {
-      await db.collection('users').doc(userId).collection('private').doc('tokens').set(
+      await firestore().collection('users').doc(userId).collection('private').doc('tokens').set(
         {
           pushToken: pushToken,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
       )

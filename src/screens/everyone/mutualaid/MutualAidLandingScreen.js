@@ -18,6 +18,7 @@ import { colors } from '../../../theme'
 import { fonts } from '../../../theme/typography'
 import { useAuth } from '../../../contexts/AuthContext'
 import { functions } from '../../../config/firebase'
+// Note: functions is @react-native-firebase module — call as functions().httpsCallable('name')
 import LightTabBar from '../../../components/navigation/LightTabBar'
 
 const CATEGORIES = [
@@ -65,7 +66,7 @@ const MutualAidLandingScreen = ({ navigation }) => {
     if (requestingChat) return
     setRequestingChat(true)
     try {
-      const requestCategoryChat = functions.httpsCallable('requestCategoryChat')
+      const requestCategoryChat = functions().httpsCallable('requestCategoryChat')
       const result = await requestCategoryChat()
       const { conversationId, status, creatorUid, alreadySent } = result.data
 

@@ -1,10 +1,9 @@
-// Message Service - Using Firebase Compat mode
+// Message Service - Using @react-native-firebase
 // Handles conversations and messaging operations
 
-import { db, firebase } from '../config/firebase'
+import { firestore, functions } from '../config/firebase'
 import { validateText } from '../utils/validation'
 import * as Notifications from 'expo-notifications';
-import { functions } from '../config/firebase'; // Make sure this is imported
 
 // Helper: generate deterministic conversation ID from two user IDs
 const getConversationId = (uid1, uid2) => {
@@ -21,7 +20,7 @@ export const sendChatRequest = async (
 ) => {
   try {
     // Check if either user has blocked the other
-    const otherUserDoc = await db.collection('users').doc(otherUserId).get()
+    const otherUserDoc = await firestore().collection('users').doc(otherUserId).get()
     if (otherUserDoc.exists) {
       const otherData = otherUserDoc.data()
       if ((otherData.blockedUsers || []).includes(currentUserId)) {
@@ -30,7 +29,7 @@ export const sendChatRequest = async (
     }
 
     const conversationId = getConversationId(currentUserId, otherUserId)
-    const conversationRef = db.collection('conversations').doc(conversationId)
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
 
     // Check if conversation already exists
     // Wrap in try/catch — Firestore rules may deny .get() on non-existent docs
@@ -52,7 +51,7 @@ export const sendChatRequest = async (
         // If this user previously deleted the conversation, un-delete it
         if (existingDoc[`deleted_${currentUserId}`]) {
           await conversationRef.update({
-            [`deleted_${currentUserId}`]: firebase.firestore.FieldValue.delete(),
+            [`deleted_${currentUserId}`]: firestore.FieldValue.delete(),
           })
         }
         return { success: true, conversationId, status: 'accepted' }
@@ -66,7 +65,7 @@ export const sendChatRequest = async (
     let freshCurrentProfile = currentUserProfile
     let freshOtherProfile = otherUserProfile
     try {
-      const currentUserDoc = await db.collection('users').doc(currentUserId).get()
+      const currentUserDoc = await firestore().collection('users').doc(currentUserId).get()
       if (currentUserDoc.exists) {
         const data = currentUserDoc.data()
         freshCurrentProfile = {
@@ -102,9 +101,9 @@ export const sendChatRequest = async (
         },
       },
       lastMessage: null,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastMessageAt: firestore.FieldValue.serverTimestamp(),
+      createdAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
       status: 'pending',
       initiatedBy: currentUserId,
     })
@@ -127,7 +126,7 @@ export const getOrCreateConversation = async (
 ) => {
   try {
     const conversationId = getConversationId(currentUserId, otherUserId)
-    const conversationRef = db.collection('conversations').doc(conversationId)
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
 
     let docExists = false
     let existingStatus = null
@@ -139,7 +138,7 @@ export const getOrCreateConversation = async (
         // If this user previously deleted the conversation, un-delete it so it shows in the list again
         if (doc.data()?.[`deleted_${currentUserId}`]) {
           await conversationRef.update({
-            [`deleted_${currentUserId}`]: firebase.firestore.FieldValue.delete(),
+            [`deleted_${currentUserId}`]: firestore.FieldValue.delete(),
           })
         }
       }
@@ -153,7 +152,7 @@ export const getOrCreateConversation = async (
       let freshCurrentProfile = currentUserProfile
       let freshOtherProfile = otherUserProfile
       try {
-        const currentUserDoc = await db.collection('users').doc(currentUserId).get()
+        const currentUserDoc = await firestore().collection('users').doc(currentUserId).get()
         if (currentUserDoc.exists) {
           const data = currentUserDoc.data()
           freshCurrentProfile = {
@@ -164,7 +163,7 @@ export const getOrCreateConversation = async (
         }
       } catch (_err) {}
       try {
-        const otherUserDoc = await db.collection('users').doc(otherUserId).get()
+        const otherUserDoc = await firestore().collection('users').doc(otherUserId).get()
         if (otherUserDoc.exists) {
           const data = otherUserDoc.data()
           freshOtherProfile = {
@@ -189,9 +188,9 @@ export const getOrCreateConversation = async (
           },
         },
         lastMessage: null,
-        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastMessageAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
         status: 'accepted',
         initiatedBy: currentUserId,
       })
@@ -213,7 +212,7 @@ export const subscribeToConversations = (userId, onUpdate) => {
     return conversations.filter((c) => !c[`deleted_${userId}`])
   }
 
-  return db
+  return firestore()
     .collection('conversations')
     .where('participants', 'array-contains', userId)
     .orderBy('lastMessageAt', 'desc')
@@ -228,7 +227,8 @@ export const subscribeToConversations = (userId, onUpdate) => {
       (error) => {
         // If error is about missing index, try without ordering as fallback
         if (error.message?.includes('index')) {
-          db.collection('conversations')
+          firestore()
+            .collection('conversations')
             .where('participants', 'array-contains', userId)
             .onSnapshot(
               (fallbackSnapshot) => {
@@ -258,7 +258,7 @@ export const subscribeToConversations = (userId, onUpdate) => {
 
 // Subscribe to messages in a conversation (real-time)
 export const subscribeToMessages = (conversationId, onUpdate, messageLimit = 50) => {
-  return db
+  return firestore()
     .collection('conversations')
     .doc(conversationId)
     .collection('messages')
@@ -295,14 +295,14 @@ export const sendMessage = async (
   imageDimensions = null
 ) => {
   try {
-    const batch = db.batch()
-    const now = firebase.firestore.FieldValue.serverTimestamp()
+    const batch = firestore().batch()
+    const now = firestore.FieldValue.serverTimestamp()
 
     // Fetch fresh sender profile from Firestore to avoid stale photos
     let freshSenderName = senderName
     let freshSenderPhoto = senderPhoto
     try {
-      const senderDoc = await db.collection('users').doc(senderId).get()
+      const senderDoc = await firestore().collection('users').doc(senderId).get()
       if (senderDoc.exists) {
         const data = senderDoc.data()
         freshSenderName = data.name || senderName || ''
@@ -311,7 +311,7 @@ export const sendMessage = async (
     } catch (_err) {}
 
     // Add message to subcollection
-    const messageRef = db
+    const messageRef = firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('messages')
@@ -337,12 +337,12 @@ export const sendMessage = async (
     batch.set(messageRef, messageData)
 
     // Get the conversation to find the recipient
-    const convoDoc = await db.collection('conversations').doc(conversationId).get()
+    const convoDoc = await firestore().collection('conversations').doc(conversationId).get()
     const participants = convoDoc.exists ? convoDoc.data()?.participants || [] : []
     const recipientId = participants.find((id) => id !== senderId)
 
     // Update conversation with last message + mark unread for recipient
-    const conversationRef = db.collection('conversations').doc(conversationId)
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
     const lastMessageText = imageUrl ? text?.trim() || '📷 Photo' : text.trim()
     const updateData = {
       lastMessage: {
@@ -376,20 +376,20 @@ export const sendMessage = async (
 export const markConversationAsRead = async (conversationId, userId) => {
   try {
     // Your existing Firestore update
-    await db.collection('conversations').doc(conversationId).update({
+    await firestore().collection('conversations').doc(conversationId).update({
       [`unread_${userId}`]: false
     });
-    
+
     // FORCE badge to 0 on device immediately
     await Notifications.setBadgeCountAsync(0);
-    
+
     // Call cloud function to recalc and set correct badge
-    const resetBadge = functions.httpsCallable('resetBadgeCount');
+    const resetBadge = functions().httpsCallable('resetBadgeCount');
     const result = await resetBadge();
-    
+
     // Set to the actual count from server
     await Notifications.setBadgeCountAsync(result.data.badgeCount);
-    
+
     return { success: true };
   } catch (error) {
     console.log('Error marking conversation as read:', error);
@@ -400,7 +400,7 @@ export const markConversationAsRead = async (conversationId, userId) => {
 // Load earlier messages (pagination)
 export const loadEarlierMessages = async (conversationId, beforeTimestamp, limit = 20) => {
   try {
-    const snapshot = await db
+    const snapshot = await firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('messages')
@@ -454,7 +454,7 @@ export const sendGroupInvitation = async (
     let freshName = currentUserProfile?.name || ''
     let freshPhoto = currentUserProfile?.profilePhoto || null
     try {
-      const senderDoc = await db.collection('users').doc(currentUserId).get()
+      const senderDoc = await firestore().collection('users').doc(currentUserId).get()
       if (senderDoc.exists) {
         const data = senderDoc.data()
         freshName = data.name || freshName
@@ -463,11 +463,11 @@ export const sendGroupInvitation = async (
     } catch (_err) {}
 
     const conversationId = convoResult.conversationId
-    const batch = db.batch()
-    const now = firebase.firestore.FieldValue.serverTimestamp()
+    const batch = firestore().batch()
+    const now = firestore.FieldValue.serverTimestamp()
 
     // Add invitation message to subcollection
-    const messageRef = db
+    const messageRef = firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('messages')
@@ -488,7 +488,7 @@ export const sendGroupInvitation = async (
     })
 
     // Update conversation with last message + mark unread
-    const conversationRef = db.collection('conversations').doc(conversationId)
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
     batch.update(conversationRef, {
       lastMessage: {
         text: inviteText,
@@ -537,7 +537,7 @@ export const sendChatroomInvitation = async (
     let freshName = currentUserProfile?.name || ''
     let freshPhoto = currentUserProfile?.profilePhoto || null
     try {
-      const senderDoc = await db.collection('users').doc(currentUserId).get()
+      const senderDoc = await firestore().collection('users').doc(currentUserId).get()
       if (senderDoc.exists) {
         const data = senderDoc.data()
         freshName = data.name || freshName
@@ -546,11 +546,11 @@ export const sendChatroomInvitation = async (
     } catch (_err) {}
 
     const conversationId = convoResult.conversationId
-    const batch = db.batch()
-    const now = firebase.firestore.FieldValue.serverTimestamp()
+    const batch = firestore().batch()
+    const now = firestore.FieldValue.serverTimestamp()
 
     // Add invitation message to subcollection
-    const messageRef = db
+    const messageRef = firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('messages')
@@ -571,7 +571,7 @@ export const sendChatroomInvitation = async (
     })
 
     // Update conversation with last message + mark unread
-    const conversationRef = db.collection('conversations').doc(conversationId)
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
     batch.update(conversationRef, {
       lastMessage: {
         text: inviteText,
@@ -599,12 +599,12 @@ export const deleteConversation = async (conversationId, userId) => {
   try {
     // Mark as deleted for this user + record when they cleared the thread
     // The other user can still see the conversation
-    await db
+    await firestore()
       .collection('conversations')
       .doc(conversationId)
       .update({
         [`deleted_${userId}`]: true,
-        [`clearedAt_${userId}`]: firebase.firestore.FieldValue.serverTimestamp(),
+        [`clearedAt_${userId}`]: firestore.FieldValue.serverTimestamp(),
       })
 
     return { success: true }
@@ -617,9 +617,9 @@ export const deleteConversation = async (conversationId, userId) => {
 // Accept a message request — changes status from 'pending' to 'accepted'
 export const acceptMessageRequest = async (conversationId) => {
   try {
-    await db.collection('conversations').doc(conversationId).update({
+    await firestore().collection('conversations').doc(conversationId).update({
       status: 'accepted',
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
     })
 
     // Notification handled server-side by onConversationStatusChange Cloud Function
@@ -634,12 +634,12 @@ export const acceptMessageRequest = async (conversationId) => {
 // Decline a message request — marks as declined (triggers server-side notification), then deletes
 export const declineMessageRequest = async (conversationId) => {
   try {
-    const conversationRef = db.collection('conversations').doc(conversationId)
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
 
     // Set status to 'declined' — triggers Cloud Function 19 for notification
     await conversationRef.update({
       status: 'declined',
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firestore.FieldValue.serverTimestamp(),
     })
 
     // Brief delay so the Cloud Function can read the doc before deletion
@@ -647,7 +647,7 @@ export const declineMessageRequest = async (conversationId) => {
 
     // Delete all messages in subcollection
     const messagesSnapshot = await conversationRef.collection('messages').get()
-    const batch = db.batch()
+    const batch = firestore().batch()
     messagesSnapshot.forEach((doc) => {
       batch.delete(doc.ref)
     })
@@ -665,7 +665,7 @@ export const declineMessageRequest = async (conversationId) => {
 // Toggle an emoji reaction on a message (add or remove)
 export const toggleReaction = async (conversationId, messageId, userId, emoji) => {
   try {
-    const messageRef = db
+    const messageRef = firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('messages')
@@ -705,7 +705,7 @@ export const toggleReaction = async (conversationId, messageId, userId, emoji) =
 // Delete a single message from a conversation
 export const deleteMessage = async (conversationId, messageId) => {
   try {
-    await db
+    await firestore()
       .collection('conversations')
       .doc(conversationId)
       .collection('messages')

@@ -29,7 +29,7 @@ import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
 import { searchUserByPhone, followUser, updateUserProfile, getFollowingUsers, getUserProfile } from '../../services/userService'
-import { firebase } from '../../config/firebase'
+import { firestore } from '../../config/firebase'
 
 const { width, height } = Dimensions.get('window')
 
@@ -730,7 +730,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
               setInvitedPhones((prev) => new Set([...prev, contact.normalizedPhone]))
               if (user?.uid) {
                 updateUserProfile(user.uid, {
-                  invitedPhones: firebase.firestore.FieldValue.arrayUnion(contact.normalizedPhone),
+                  invitedPhones: firestore.FieldValue.arrayUnion(contact.normalizedPhone),
                 })
               }
             }

@@ -20,7 +20,7 @@ import { fonts } from '../../theme/typography'
 import CustomToggle from '../common/CustomToggle'
 import { deleteNotification } from '../../services/notificationHistoryService'
 import { useAuth } from '../../contexts/AuthContext'
-import { db } from '../../config/firebase'
+import { firestore } from '../../config/firebase'
 
 // Icon mapping by notification type
 const getNotificationIcon = (type) => {
@@ -252,7 +252,7 @@ const NotificationListModal = ({ visible, notifications, onClose, userId, onNavi
   const handleToggleNotifications = async (value) => {
     setNotificationsEnabled(value)
     try {
-      await db.collection('users').doc(userId).update({
+      await firestore().collection('users').doc(userId).update({
         notificationsMuted: !value,
       })
       await refreshUserProfile()

@@ -64,8 +64,8 @@ const LoginScreen = ({ navigation }) => {
         navigation.navigate('EmailVerification', { fromLogin: true })
       } else {
         // Email is verified — check if profile is set up
-        const { db } = require('../../config/firebase')
-        const userDoc = await db.collection('users').doc(result.user.uid).get()
+        const { firestore } = require('../../config/firebase')
+        const userDoc = await firestore().collection('users').doc(result.user.uid).get()
         const data = userDoc.exists ? userDoc.data() : null
         if (!data?.profileSetup) {
           navigation.navigate('ProfileSetup')

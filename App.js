@@ -1,7 +1,7 @@
 // Collective App
 // Main entry point
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, LogBox } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -87,19 +87,17 @@ export default function App() {
         fonts.mono = 'System';
       } finally {
         setAppIsReady(true);
+        // Hide splash screen directly here — more reliable than onLayout
+        // which can fail to fire in some SafeAreaProvider/release build edge cases
+        try {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await SplashScreen.hideAsync();
+        } catch (_e) {}
       }
     }
 
     prepare();
   }, []);
-
-  const onLayoutRootView = useCallback(async () => {
-    if (appIsReady) {
-      // Add a tiny delay to ensure first screen is fully painted
-    await new Promise(resolve => setTimeout(resolve, 100));
-    await SplashScreen.hideAsync();
-    }
-  }, [appIsReady]);
 
   if (!appIsReady) {
     return null;
@@ -109,7 +107,7 @@ export default function App() {
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <AuthProvider>
-          <View style={styles.container} onLayout={onLayoutRootView}>
+          <View style={styles.container}>
             <StatusBar style="light" />
             <RootNavigator />
           </View>
