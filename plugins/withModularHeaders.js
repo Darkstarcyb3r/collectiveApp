@@ -1,35 +1,15 @@
 // Custom Expo config plugin to fix Firebase + gRPC CocoaPods build conflict.
 //
-// Two problems at once:
-// 1. Firebase Swift pods need modular headers on their ObjC dependencies
-//    (GoogleUtilities, FirebaseAuthInterop, etc.) — without them, pod install fails.
-// 2. gRPC pods can't generate module maps under use_frameworks! :linkage => :static —
-//    with global use_modular_headers!, the Xcode build fails.
+// Problem: Firebase Swift pods need use_modular_headers! for pod install to succeed.
+// But gRPC pods can't generate module maps under use_frameworks! :linkage => :static,
+// causing Xcode build to fail with "gRPC-Core.modulemap not found".
 //
-// Fix: Targeted modular headers for Firebase deps only + force gRPC as static library.
+// Fix: Keep use_modular_headers! globally (required for pod install) but force gRPC
+// pods to build as static libraries so they skip module map generation entirely.
 
 const { withDangerousMod } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
-
-// Pods that Firebase Swift code depends on that don't define modules by default.
-// These need :modular_headers => true to generate module maps.
-const PODS_NEEDING_MODULAR_HEADERS = [
-  'GoogleUtilities',
-  'FirebaseAuthInterop',
-  'FirebaseAppCheckInterop',
-  'FirebaseCoreInternal',
-  'FirebaseCoreExtension',
-  'FirebaseFirestoreInternal',
-  'FirebaseMessagingInterop',
-  'FirebaseSharedSwift',
-  'RecaptchaInterop',
-  'GTMSessionFetcher',
-  'nanopb',
-  'leveldb-library',
-  'abseil',
-  'PromisesObjC',
-];
 
 function withModularHeaders(config) {
   return withDangerousMod(config, [
@@ -42,16 +22,23 @@ function withModularHeaders(config) {
 
       let podfileContents = fs.readFileSync(podfilePath, 'utf-8');
 
-      // Remove any leftover global use_modular_headers!
-      podfileContents = podfileContents.replace(/^use_modular_headers!\n/gm, '');
+      // 1. Ensure use_modular_headers! is present (Firebase Swift pods need it for pod install)
+      if (!podfileContents.includes('use_modular_headers!')) {
+        podfileContents = podfileContents.replace(
+          /(platform :ios.*\n)/,
+          `$1use_modular_headers!\n`
+        );
+      }
 
-      // 1. Add pre_install hook to force gRPC pods to build as static libraries.
+      // 2. Add pre_install hook to force gRPC + BoringSSL pods to build as static libraries.
+      //    This prevents them from trying to generate module maps in framework mode,
+      //    which is what causes the "gRPC-Core.modulemap not found" Xcode build error.
       const preInstallBlock = `
 # Force gRPC pods to build as static libraries — they cannot generate
 # module maps when use_frameworks! :linkage => :static is active.
 pre_install do |installer|
   installer.pod_targets.each do |pod|
-    if pod.name.start_with?('gRPC')
+    if pod.name.start_with?('gRPC') || pod.name == 'BoringSSL-GRPC'
       def pod.build_type
         Pod::BuildType.static_library
       end
@@ -68,30 +55,12 @@ end
         );
       }
 
-      // 2. Add targeted modular headers for Firebase dependencies inside target block.
-      const modularHeaderLines = PODS_NEEDING_MODULAR_HEADERS
-        .map(pod => `  pod '${pod}', :modular_headers => true`)
-        .join('\n');
-
-      const modularHeadersBlock = `
-  # Firebase Swift pods need these ObjC deps to define modules
-${modularHeaderLines}
-
-`;
-
-      if (!podfileContents.includes(':modular_headers => true')) {
-        podfileContents = podfileContents.replace(
-          /(use_expo_modules!\n)/,
-          `$1${modularHeadersBlock}`
-        );
-      }
-
-      // 3. Add gRPC build settings fix inside the existing post_install block
+      // 3. Add post_install fix for gRPC build settings as safety net
       const postInstallFix = `
 
-    # Fix gRPC build settings
+    # Fix gRPC build settings — disable module definition and allow non-modular includes
     installer.pods_project.targets.each do |target|
-      if target.name.start_with?('gRPC')
+      if target.name.start_with?('gRPC') || target.name == 'BoringSSL-GRPC'
         target.build_configurations.each do |bc|
           bc.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
           bc.build_settings['DEFINES_MODULE'] = 'NO'
