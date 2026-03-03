@@ -25,6 +25,7 @@ export const signUp = async (email, password, phoneNumber) => {
         blockedUsers: [],
         blockedBy: [],
         groups: [],
+        addFriendsComplete: false,
       })
 
     // Send email verification link

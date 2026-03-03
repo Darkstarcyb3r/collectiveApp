@@ -112,7 +112,7 @@ const VerifyCodeScreen = ({ navigation, route }) => {
           {/* Verify Button */}
           <Button
             title="Verify"
-            variant="lime"
+            variant="gradient"
             size="large"
             loading={loading}
             onPress={handleVerify}

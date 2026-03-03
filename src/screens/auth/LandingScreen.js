@@ -30,7 +30,7 @@ const LandingScreen = ({ navigation }) => {
         <View style={styles.buttonContainer}>
           <Button
             title="Login"
-            variant="lime"
+            variant="gradient"
             size="large"
             onPress={() => navigation.navigate('Login')}
             style={styles.button}
@@ -38,7 +38,7 @@ const LandingScreen = ({ navigation }) => {
 
           <Button
             title="Sign Up"
-            variant="lime"
+            variant="gradient"
             size="large"
             onPress={() => navigation.navigate('SignUp')}
             style={styles.button}

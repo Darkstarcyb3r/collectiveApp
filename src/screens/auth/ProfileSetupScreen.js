@@ -128,7 +128,9 @@ const ProfileSetupScreen = ({ navigation }) => {
 
     if (result.success) {
       await refreshUserProfile()
-      // Navigation will be handled by AuthContext when profile is setup
+      // Replace ProfileSetup with AddFriends so there's no back-stack
+      // to return to after contacts permission dialog
+      navigation.replace('AddFriends')
     } else {
       Alert.alert('Error', result.error)
     }
@@ -197,7 +199,7 @@ const ProfileSetupScreen = ({ navigation }) => {
           {/* Done Button */}
           <Button
             title="done"
-            variant="lime"
+            variant="gradient"
             size="medium"
             loading={loading}
             onPress={handleDone}

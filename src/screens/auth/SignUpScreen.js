@@ -179,7 +179,7 @@ const SignUpScreen = ({ navigation }) => {
           {/* Sign Up Button */}
           <Button
             title="Sign Up"
-            variant="lime"
+            variant="gradient"
             size="large"
             loading={loading}
             disabled={!ageConfirmed}

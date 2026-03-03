@@ -7,6 +7,7 @@ export { default as VerifyCodeScreen } from './VerifyCodeScreen'
 export { default as ResetPasswordScreen } from './ResetPasswordScreen'
 export { default as EmailVerificationScreen } from './EmailVerificationScreen'
 export { default as ProfileSetupScreen } from './ProfileSetupScreen'
+export { default as AddFriendsScreen } from './AddFriendsScreen'
 export {
   default as SuccessScreen,
   PasswordResetSuccessScreen,

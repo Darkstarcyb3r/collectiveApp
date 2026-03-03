@@ -15,7 +15,7 @@ import {
 } from '../services/notificationService'
 
 const RootNavigator = () => {
-  const { user, loading, isProfileSetup, isEmailVerified } = useAuth()
+  const { user, loading, isProfileSetup, isEmailVerified, isAddFriendsComplete } = useAuth()
   const navigationRef = useRef(null)
   const notificationListener = useRef()
   const responseListener = useRef()
@@ -96,12 +96,12 @@ const RootNavigator = () => {
   return (
     <NavigationContainer ref={navigationRef} theme={DarkTheme}>
       {user ? (
-        isEmailVerified && isProfileSetup ? (
+        isEmailVerified && isProfileSetup && isAddFriendsComplete ? (
           <TabBarProvider>
             <MainNavigator />
           </TabBarProvider>
         ) : (
-          // User is logged in but email not verified or profile not set up
+          // User is logged in but hasn't completed all setup steps
           <AuthNavigator />
         )
       ) : (

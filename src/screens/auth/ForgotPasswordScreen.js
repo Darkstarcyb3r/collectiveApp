@@ -93,7 +93,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
           {/* Login Button */}
           <Button
             title="Login"
-            variant="lime"
+            variant="gradient"
             size="large"
             onPress={handleBackToLogin}
             style={styles.loginButton}
@@ -151,7 +151,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
           {/* Submit Button */}
           <Button
             title="Submit"
-            variant="lime"
+            variant="gradient"
             size="large"
             loading={loading}
             onPress={handleSubmit}

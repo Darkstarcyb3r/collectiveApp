@@ -109,7 +109,7 @@ const ResetPasswordScreen = ({ navigation, route }) => {
           {/* Reset Button */}
           <Button
             title="Reset Password"
-            variant="lime"
+            variant="gradient"
             size="large"
             loading={loading}
             onPress={handleResetPassword}

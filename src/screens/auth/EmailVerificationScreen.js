@@ -156,7 +156,7 @@ const EmailVerificationScreen = ({ navigation, route }) => {
         {/* I've Verified Button */}
         <Button
           title="I've Verified"
-          variant="lime"
+          variant="gradient"
           size="large"
           loading={checking}
           onPress={() => handleCheckVerification(false)}

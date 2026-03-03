@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isProfileSetup, setIsProfileSetup] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isAddFriendsComplete, setIsAddFriendsComplete] = useState(true); // default true for existing users
   const appState = useRef(AppState.currentState);
 
   // Track online presence via AppState
@@ -72,6 +73,8 @@ export const AuthProvider = ({ children }) => {
             profileData.isOnline = true; // Reflect the update we just made
             setUserProfile(profileData);
             setIsProfileSetup(profileData.profileSetup || false);
+            // addFriendsComplete: undefined/null → true (existing users), false → false (new users)
+            setIsAddFriendsComplete(profileData.addFriendsComplete !== false);
 
             // Register for push notifications
             registerForPushNotifications(firebaseUser.uid)
@@ -84,6 +87,7 @@ export const AuthProvider = ({ children }) => {
               .catch(() => {});
           } else {
             setIsProfileSetup(false);
+            setIsAddFriendsComplete(true);
           }
         } catch (error) {
           console.error('🔴 Error fetching profile:', error);
@@ -93,6 +97,7 @@ export const AuthProvider = ({ children }) => {
         setUserProfile(null);
         setIsProfileSetup(false);
         setIsEmailVerified(false);
+        setIsAddFriendsComplete(true);
       }
       clearTimeout(safetyTimeout);
       setLoading(false);
@@ -112,6 +117,7 @@ export const AuthProvider = ({ children }) => {
           setUser(currentUser);
           setUserProfile(profileData);
           setIsProfileSetup(profileData.profileSetup || false);
+          setIsAddFriendsComplete(profileData.addFriendsComplete !== false);
 
           // Refresh email verification status from Firebase Auth
           try {
@@ -135,6 +141,8 @@ export const AuthProvider = ({ children }) => {
       setIsProfileSetup,
       isEmailVerified,
       setIsEmailVerified,
+      isAddFriendsComplete,
+      setIsAddFriendsComplete,
       refreshUserProfile,
     }}>
       {children}

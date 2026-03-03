@@ -20,14 +20,12 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
 import { useFocusEffect } from '@react-navigation/native'
-import * as Contacts from 'expo-contacts'
 import * as ImagePicker from 'expo-image-picker'
 import { validateImageAsset } from '../../utils/imageValidation'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTabBar } from '../../contexts/TabBarContext'
 import { logOut, deleteAccount } from '../../services/authService'
 import {
-  searchUserByPhone,
   toggleEveryoneNetwork,
   updateUserProfile,
   uploadProfilePhoto,
@@ -237,63 +235,8 @@ const ProfileScreen = ({ navigation }) => {
     setNameSaving(false)
   }
 
-  const handleSearchContact = async () => {
-    try {
-      const { status } = await Contacts.requestPermissionsAsync()
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission needed',
-          'Please grant access to your contacts to search for friends.'
-        )
-        return
-      }
-
-      const contact = await Contacts.presentContactPickerAsync()
-
-      if (!contact) return // User cancelled
-
-      // Extract phone number from contact
-      const phoneNumbers = contact.phoneNumbers
-      if (!phoneNumbers || phoneNumbers.length === 0) {
-        Alert.alert('No phone number', 'This contact does not have a phone number.')
-        return
-      }
-
-      const rawNumber = phoneNumbers[0].number || phoneNumbers[0].digits
-      if (!rawNumber) {
-        Alert.alert('No phone number', "Could not read this contact's phone number.")
-        return
-      }
-
-      // Search Firestore for this number
-      const result = await searchUserByPhone(rawNumber)
-
-      if (!result.success) {
-        Alert.alert('Error', 'Something went wrong. Please try again.')
-        return
-      }
-
-      if (result.data) {
-        // User found — navigate to their profile
-        navigation.navigate('UserProfile', { userId: result.data.id })
-      } else {
-        // Not found — offer to invite
-        const cleanNumber = rawNumber.replace(/\D/g, '')
-        Alert.alert(
-          'Not on Collective yet',
-          `${contact.name || 'This contact'} isn't on Collective. Want to invite them?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Invite via SMS',
-              onPress: () => Linking.openURL(`sms:${cleanNumber}&body=Join me on Collective! Download the app here: https://apps.apple.com/us/app/collective-network/id6759182429`),
-            },
-          ]
-        )
-      }
-    } catch (_error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.')
-    }
+  const handleSearchContact = () => {
+    navigation.navigate('FindFriends', { mode: 'profile' })
   }
 
   const handleScroll = (event) => {

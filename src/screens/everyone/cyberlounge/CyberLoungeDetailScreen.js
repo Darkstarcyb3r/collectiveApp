@@ -267,27 +267,43 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.expiresAt])
 
+  // Set up audio mode once on mount so iOS silent switch doesn't block playback
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    }).catch((err) => console.log('Audio mode error:', err.message))
+  }, [])
+
   // Audio playback — load and loop the selected vibe track
+  // Re-fires whenever the room's vibe changes (real-time via Firestore listener)
   useEffect(() => {
     let cancelled = false
+    const currentVibe = room?.vibe
 
     const loadAndPlay = async () => {
       // Unload any existing sound first
       if (soundRef.current) {
-        await soundRef.current.unloadAsync()
+        try {
+          await soundRef.current.unloadAsync()
+        } catch (e) {
+          console.log('Audio unload warning:', e.message)
+        }
         soundRef.current = null
       }
 
-      const vibe = getVibeById(room?.vibe)
-      if (!vibe.source) return // "No Music" selected
+      const vibe = getVibeById(currentVibe)
+      if (!vibe || !vibe.source) {
+        // "No Music" selected or invalid vibe — reset playback state
+        setPlaybackPosition(0)
+        setPlaybackDuration(0)
+        return
+      }
+
+      if (cancelled) return
 
       try {
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
-        })
-
         const { sound } = await Audio.Sound.createAsync(vibe.source, {
           isLooping: true,
           volume: isMuted ? 0 : 0.5,
@@ -303,19 +319,58 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
 
         // Track playback position for the seek bar
         sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded) {
+          if (status.isLoaded && !cancelled) {
             setPlaybackPosition(status.positionMillis || 0)
             setPlaybackDuration(status.durationMillis || 0)
           }
         })
+
+        // Verify playback actually started; if not, force play
+        const status = await sound.getStatusAsync()
+        if (status.isLoaded && !status.isPlaying && !cancelled) {
+          await sound.playAsync()
+        }
       } catch (error) {
         console.log('Audio load error:', error.message)
+        // Retry once after a short delay
+        if (!cancelled) {
+          setTimeout(async () => {
+            if (cancelled) return
+            try {
+              const vibe2 = getVibeById(currentVibe)
+              if (!vibe2?.source) return
+              const { sound } = await Audio.Sound.createAsync(vibe2.source, {
+                isLooping: true,
+                volume: isMuted ? 0 : 0.5,
+                shouldPlay: true,
+              })
+              if (cancelled) {
+                await sound.unloadAsync()
+                return
+              }
+              soundRef.current = sound
+              sound.setOnPlaybackStatusUpdate((s) => {
+                if (s.isLoaded && !cancelled) {
+                  setPlaybackPosition(s.positionMillis || 0)
+                  setPlaybackDuration(s.durationMillis || 0)
+                }
+              })
+            } catch (retryErr) {
+              console.log('Audio retry failed:', retryErr.message)
+            }
+          }, 500)
+        }
       }
     }
 
-    if (room?.vibe) {
+    if (currentVibe && currentVibe !== 'none') {
       loadAndPlay()
     } else {
+      // No music — clean up any existing audio
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {})
+        soundRef.current = null
+      }
       setPlaybackPosition(0)
       setPlaybackDuration(0)
     }
@@ -323,7 +378,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
     return () => {
       cancelled = true
       if (soundRef.current) {
-        soundRef.current.unloadAsync()
+        soundRef.current.unloadAsync().catch(() => {})
         soundRef.current = null
       }
     }

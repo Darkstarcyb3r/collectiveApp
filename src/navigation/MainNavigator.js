@@ -14,6 +14,7 @@ import {
   UserListScreen,
   EditQuipScreen,
 } from '../screens/profile'
+import { AddFriendsScreen } from '../screens/auth'
 
 // Group screens
 import {
@@ -71,6 +72,7 @@ const MainNavigator = () => {
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       <Stack.Screen name="EditQuip" component={EditQuipScreen} />
+      <Stack.Screen name="FindFriends" component={AddFriendsScreen} />
       <Stack.Screen
         name="FollowingUsers"
         component={UserListScreen}

@@ -21,7 +21,7 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false, // Badge managed manually in DashboardScreen (presence-only, no number)
+    shouldSetBadge: true, // Allow badge count to update from push notifications (standard counter)
   }),
 });
 

@@ -2,13 +2,14 @@
 // Matches the Figma design with rounded buttons
 
 import React from 'react'
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native'
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../theme'
 
 const Button = ({
   title,
   onPress,
-  variant = 'primary', // primary, secondary, outline, light, lime
+  variant = 'primary', // primary, secondary, outline, light, lime, gradient
   size = 'medium', // small, medium, large
   disabled = false,
   loading = false,
@@ -33,6 +34,9 @@ const Button = ({
         break
       case 'lime':
         baseStyle.push(styles.lime)
+        break
+      case 'gradient':
+        // No background — handled by LinearGradient wrapper
         break
       default:
         baseStyle.push(styles.primary)
@@ -64,6 +68,9 @@ const Button = ({
       case 'lime':
         baseTextStyle.push(styles.limeText)
         break
+      case 'gradient':
+        baseTextStyle.push(styles.gradientText)
+        break
       default:
         baseTextStyle.push(styles.primaryText)
     }
@@ -75,6 +82,36 @@ const Button = ({
     return baseTextStyle
   }
 
+  const content = loading ? (
+    <ActivityIndicator
+      color={variant === 'outline' ? colors.primary : colors.textDark}
+      size="small"
+    />
+  ) : (
+    <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
+  )
+
+  // Gradient variant wraps with LinearGradient
+  if (variant === 'gradient') {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        activeOpacity={0.8}
+        style={[disabled && styles.disabled, style]}
+      >
+        <LinearGradient
+          colors={['#cafb6c', '#71f200', '#23ff0d']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.base, styles[size], styles.gradientInner]}
+        >
+          {content}
+        </LinearGradient>
+      </TouchableOpacity>
+    )
+  }
+
   return (
     <TouchableOpacity
       style={[...getButtonStyle(), style]}
@@ -82,14 +119,7 @@ const Button = ({
       disabled={disabled || loading}
       activeOpacity={0.8}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'outline' ? colors.primary : colors.textDark}
-          size="small"
-        />
-      ) : (
-        <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
-      )}
+      {content}
     </TouchableOpacity>
   )
 }
@@ -133,6 +163,9 @@ const styles = StyleSheet.create({
   lime: {
     backgroundColor: colors.secondary, // #d8ff1b - Lime
   },
+  gradientInner: {
+    overflow: 'hidden',
+  },
 
   // Disabled
   disabled: {
@@ -167,6 +200,9 @@ const styles = StyleSheet.create({
     color: colors.textDark,
   },
   limeText: {
+    color: colors.textDark,
+  },
+  gradientText: {
     color: colors.textDark,
   },
   disabledText: {

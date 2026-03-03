@@ -140,7 +140,7 @@ const LoginScreen = ({ navigation }) => {
           {/* Login Button */}
           <Button
             title="Login"
-            variant="lime"
+            variant="gradient"
             size="large"
             loading={loading}
             onPress={handleLogin}

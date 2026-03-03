@@ -59,7 +59,7 @@ const SuccessScreen = ({ navigation, route }) => {
         {/* Continue Button */}
         <Button
           title={buttonText}
-          variant="lime"
+          variant="gradient"
           size="large"
           onPress={handleContinue}
           style={styles.continueButton}
@@ -110,7 +110,7 @@ export const PasswordResetSuccessScreen = ({ navigation }) => {
         {/* Login Button */}
         <Button
           title="Login"
-          variant="lime"
+          variant="gradient"
           size="large"
           onPress={handleLogin}
           style={styles.continueButton}
@@ -162,7 +162,7 @@ export const AccountSetupSuccessScreen = ({ navigation }) => {
         {/* Login Button */}
         <Button
           title="Login"
-          variant="light"
+          variant="gradient"
           size="large"
           onPress={handleLogin}
           style={styles.continueButton}
