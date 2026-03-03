@@ -52,47 +52,58 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // Safety timeout — if auth takes longer than 10 seconds, stop loading
+    console.log('[Auth] Starting auth state listener...');
+
+    // Safety timeout — if auth takes longer than 5 seconds, stop loading
     const safetyTimeout = setTimeout(() => {
+      console.warn('[Auth] SAFETY TIMEOUT — forcing loading=false after 5s');
       setLoading(false);
-    }, 10000);
+    }, 5000);
 
     const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+      console.log('[Auth] onAuthStateChanged fired, user:', firebaseUser ? firebaseUser.uid : 'null');
       if (firebaseUser) {
         setUser(firebaseUser);
         setIsEmailVerified(firebaseUser.emailVerified || false);
         try {
-          // Set user as online when they authenticate
-          await firestore().collection('users').doc(firebaseUser.uid).update({
+          // Set user as online — fire-and-forget (don't block loading)
+          firestore().collection('users').doc(firebaseUser.uid).update({
             isOnline: true,
           }).catch(() => {}); // Ignore if doc doesn't exist yet (new signup)
 
-          const userDoc = await firestore().collection('users').doc(firebaseUser.uid).get();
+          // Fetch user profile with a 4-second timeout
+          console.log('[Auth] Fetching user profile...');
+          const userDoc = await Promise.race([
+            firestore().collection('users').doc(firebaseUser.uid).get(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 4000)),
+          ]);
+
           if (userDoc.exists) {
             const profileData = userDoc.data();
-            profileData.isOnline = true; // Reflect the update we just made
+            profileData.isOnline = true;
             setUserProfile(profileData);
             setIsProfileSetup(profileData.profileSetup || false);
-            // addFriendsComplete: undefined/null → true (existing users), false → false (new users)
             setIsAddFriendsComplete(profileData.addFriendsComplete !== false);
+            console.log('[Auth] Profile loaded, profileSetup:', profileData.profileSetup);
 
-            // Register for push notifications
+            // Register for push notifications — fire-and-forget
             registerForPushNotifications(firebaseUser.uid)
               .then((token) => {
-                // If user is admin, also save token to adminTokens collection
                 if (token && profileData.isAdmin) {
                   registerAdminToken(firebaseUser.uid, token);
                 }
               })
               .catch(() => {});
           } else {
+            console.log('[Auth] No profile document found — new user');
             setIsProfileSetup(false);
             setIsAddFriendsComplete(true);
           }
         } catch (error) {
-          console.error('🔴 Error fetching profile:', error);
+          console.error('[Auth] Error fetching profile:', error.message);
         }
       } else {
+        console.log('[Auth] No user — showing login');
         setUser(null);
         setUserProfile(null);
         setIsProfileSetup(false);
@@ -100,6 +111,7 @@ export const AuthProvider = ({ children }) => {
         setIsAddFriendsComplete(true);
       }
       clearTimeout(safetyTimeout);
+      console.log('[Auth] Setting loading=false');
       setLoading(false);
     });
 

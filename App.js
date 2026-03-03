@@ -37,47 +37,54 @@ export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
+    console.log('[Splash] prepare() starting...');
+
+    // Emergency timeout — if ANYTHING hangs, force the splash to hide after 5 seconds
+    const emergencyTimeout = setTimeout(async () => {
+      console.warn('[Splash] EMERGENCY TIMEOUT — forcing splash hide after 5s');
+      try { await SplashScreen.hideAsync(); } catch (_) {}
+      setAppIsReady(true);
+    }, 5000);
+
     async function prepare() {
       try {
-        // Load custom fonts - IMPORTANT: Use RobotoMono since that's what you have
-        await Font.loadAsync({
-          // RobotoMono fonts (from your assets folder)
-          'RobotoMono-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
-          'RobotoMono-Bold': require('./src/assets/fonts/roboto-mono/RobotoMono-Bold.ttf'),
-          'RobotoMono-Medium': require('./src/assets/fonts/roboto-mono/RobotoMono-Medium.ttf'),
-          'RobotoMono-Italic': require('./src/assets/fonts/roboto-mono/RobotoMono-Italic.ttf'),
-          'RobotoMono-SemiBold': require('./src/assets/fonts/roboto-mono/RobotoMono-Medium.ttf'), // Add this if you have it
-          
-          // For now, use RobotoMono for everything since that's what you have
-          'PressStart2P-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
-          'FiraCode-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
-        });
+        // Load custom fonts with a 3-second timeout to prevent hanging
+        console.log('[Splash] Loading fonts...');
+        await Promise.race([
+          Font.loadAsync({
+            'RobotoMono-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
+            'RobotoMono-Bold': require('./src/assets/fonts/roboto-mono/RobotoMono-Bold.ttf'),
+            'RobotoMono-Medium': require('./src/assets/fonts/roboto-mono/RobotoMono-Medium.ttf'),
+            'RobotoMono-Italic': require('./src/assets/fonts/roboto-mono/RobotoMono-Italic.ttf'),
+            'RobotoMono-SemiBold': require('./src/assets/fonts/roboto-mono/RobotoMono-Medium.ttf'),
+            'PressStart2P-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
+            'FiraCode-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Font load timeout')), 3000)),
+        ]);
 
-        console.log('Custom fonts loaded successfully');
-        
-        // UPDATE: Use RobotoMono font names since that's what you're loading
+        console.log('[Splash] Fonts loaded successfully');
         fonts.regular = 'RobotoMono-Regular';
         fonts.bold = 'RobotoMono-Bold';
         fonts.medium = 'RobotoMono-Medium';
         fonts.italic = 'RobotoMono-Italic';
-        fonts.semiBold = 'RobotoMono-SemiBold' || 'RobotoMono-Bold'; // Fallback to Bold if no SemiBold
+        fonts.semiBold = 'RobotoMono-SemiBold' || 'RobotoMono-Bold';
         fonts.pixel = 'PressStart2P-Regular';
         fonts.mono = 'FiraCode-Regular';
 
-        // Request notification permissions early
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') {
-          await Notifications.requestPermissionsAsync();
-        }
-        console.log('📱 Notification permission status:', status);
-
-        // Optional delay for splash screen
-        await new Promise(resolve => setTimeout(resolve, 1500)); //increased delay for splash screen
+        // Request notification permissions — fire-and-forget (don't block startup)
+        console.log('[Splash] Checking notification permissions (non-blocking)...');
+        Notifications.getPermissionsAsync()
+          .then(({ status }) => {
+            console.log('[Splash] Notification permission status:', status);
+            if (status !== 'granted') {
+              Notifications.requestPermissionsAsync().catch(() => {});
+            }
+          })
+          .catch(() => {});
       } catch (e) {
-        console.warn('Error loading custom fonts:', e);
-        console.log('Using system fonts as fallback');
-        
-        // Fallback to system fonts if custom fonts fail
+        console.warn('[Splash] Error during prepare:', e.message);
+        // Fallback to system fonts if custom fonts fail or timeout
         fonts.regular = 'System';
         fonts.bold = 'System';
         fonts.medium = 'System';
@@ -86,13 +93,15 @@ export default function App() {
         fonts.pixel = 'System';
         fonts.mono = 'System';
       } finally {
+        clearTimeout(emergencyTimeout);
         setAppIsReady(true);
-        // Hide splash screen directly here — more reliable than onLayout
-        // which can fail to fire in some SafeAreaProvider/release build edge cases
+        console.log('[Splash] Hiding splash screen...');
         try {
-          await new Promise(resolve => setTimeout(resolve, 100));
           await SplashScreen.hideAsync();
-        } catch (_e) {}
+          console.log('[Splash] Splash hidden successfully');
+        } catch (_e) {
+          console.warn('[Splash] hideAsync failed:', _e.message);
+        }
       }
     }
 
