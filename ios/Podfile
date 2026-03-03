@@ -17,8 +17,21 @@ ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NET
 ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
 ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+use_modular_headers!
 
 prepare_react_native_project!
+
+# Force gRPC pods to build as static libraries — they cannot generate
+# module maps when use_frameworks! :linkage => :static is active.
+pre_install do |installer|
+  installer.pod_targets.each do |pod|
+    if pod.name.start_with?('gRPC') || pod.name == 'BoringSSL-GRPC'
+      def pod.build_type
+        Pod::BuildType.static_library
+      end
+    end
+  end
+end
 
 target 'Collective' do
   use_expo_modules!
@@ -59,5 +72,16 @@ target 'Collective' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Fix gRPC build settings — disable module definition so Xcode
+    # doesn't look for gRPC-Core.modulemap which can't be generated
+    installer.pods_project.targets.each do |target|
+      if target.name.start_with?('gRPC') || target.name == 'BoringSSL-GRPC'
+        target.build_configurations.each do |bc|
+          bc.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+          bc.build_settings['DEFINES_MODULE'] = 'NO'
+        end
+      end
+    end
   end
 end

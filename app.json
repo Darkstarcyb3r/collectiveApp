@@ -68,8 +68,7 @@
             "useFrameworks": "static"
           }
         }
-      ],
-      "./plugins/withModularHeaders"
+      ]
     ],
     "extra": {
       "eas": {
