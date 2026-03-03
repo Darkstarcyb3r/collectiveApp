@@ -23,11 +23,7 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#000000"
-      },
+   
       "package": "com.collectivenetwork.app",
       "permissions": [
         "android.permission.RECORD_AUDIO",
