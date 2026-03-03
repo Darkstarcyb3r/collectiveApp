@@ -21,7 +21,7 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: true, // Allow badge count to update from push notifications (standard counter)
+    shouldSetBadge: false, // Badge is managed server-side via push payload — no client override
   }),
 });
 

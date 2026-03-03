@@ -24,6 +24,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Contacts from 'expo-contacts'
+import * as SMS from 'expo-sms'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
@@ -656,7 +657,9 @@ const AddFriendsScreen = ({ navigation, route }) => {
     setStep(2)
   }, [selectedCollective, contactsOnCollective, user, isProfileMode])
 
-  // Send SMS invites to selected contacts
+  // Send SMS invites to selected contacts using expo-sms
+  // Sends individual texts (one per contact) so recipients don't see each other's numbers.
+  // Each SMS composer opens one at a time; after the last one the app navigates to dashboard.
   const handleSendInvites = useCallback(async () => {
     if (selectedInvite.size === 0) {
       completeFlow()
@@ -673,16 +676,13 @@ const AddFriendsScreen = ({ navigation, route }) => {
         .filter(Boolean)
 
       if (phones.length > 0) {
-        const message = encodeURIComponent(
-          'Hey! Join me on Collective - a new social network built for real community. Download it here: https://apps.apple.com/us/app/collective-network/id6759182429'
-        )
-        const recipients = phones.join(',')
-        const separator = Platform.OS === 'ios' ? '&' : '?'
-        const smsUrl = `sms:${recipients}${separator}body=${message}`
-
-        const canOpen = await Linking.canOpenURL(smsUrl)
-        if (canOpen) {
-          await Linking.openURL(smsUrl)
+        const isAvailable = await SMS.isAvailableAsync()
+        if (isAvailable) {
+          const message = 'Hey! Join me on Collective - a new social network built for real community. Download it here: https://apps.apple.com/us/app/collective-network/id6759182429'
+          // Send individual texts — one composer per person
+          for (const phone of phones) {
+            await SMS.sendSMSAsync([phone], message)
+          }
         } else {
           Alert.alert('SMS Not Available', 'SMS is not available on this device.')
         }
@@ -712,33 +712,34 @@ const AddFriendsScreen = ({ navigation, route }) => {
     })
   }, [isProfileMode, contactsOnCollective, navigation])
 
-  const toggleInvite = useCallback((id) => {
+  const toggleInvite = useCallback(async (id) => {
     if (isProfileMode) {
-      // In profile mode, tapping a contact opens SMS directly for that one person
+      // In profile mode, tapping a contact opens SMS composer for that one person
       const contact = contactsNotOnCollective.find((c) => c.id === id)
       if (contact?.phoneNumber) {
         // Skip if already invited
         if (invitedPhones.has(contact.normalizedPhone)) return
 
-        const message = encodeURIComponent(
-          'Hey! Join me on Collective - a new social network built for real community. Download it here: https://apps.apple.com/us/app/collective-network/id6759182429'
-        )
-        const separator = Platform.OS === 'ios' ? '&' : '?'
-        const smsUrl = `sms:${contact.phoneNumber}${separator}body=${message}`
-        Linking.openURL(smsUrl)
-          .then(() => {
-            // Mark as invited locally immediately
-            setInvitedPhones((prev) => new Set([...prev, contact.normalizedPhone]))
-            // Persist to Firestore so it survives app restarts
-            if (user?.uid) {
-              updateUserProfile(user.uid, {
-                invitedPhones: firebase.firestore.FieldValue.arrayUnion(contact.normalizedPhone),
-              })
+        try {
+          const isAvailable = await SMS.isAvailableAsync()
+          if (isAvailable) {
+            const message = 'Hey! Join me on Collective - a new social network built for real community. Download it here: https://apps.apple.com/us/app/collective-network/id6759182429'
+            const { result } = await SMS.sendSMSAsync([contact.phoneNumber], message)
+            // Only mark as invited if the user actually sent (not cancelled)
+            if (result === 'sent') {
+              setInvitedPhones((prev) => new Set([...prev, contact.normalizedPhone]))
+              if (user?.uid) {
+                updateUserProfile(user.uid, {
+                  invitedPhones: firebase.firestore.FieldValue.arrayUnion(contact.normalizedPhone),
+                })
+              }
             }
-          })
-          .catch(() => {
+          } else {
             Alert.alert('SMS Not Available', 'SMS is not available on this device.')
-          })
+          }
+        } catch (error) {
+          console.log('SMS error:', error)
+        }
       }
       return
     }
@@ -821,7 +822,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
             )}
 
             {/* Title */}
-            <Text style={styles.title}>{isProfileMode ? 'FIND FR13NDS' : 'ADD FR13NDS'}</Text>
+            <Text style={styles.title}>{isProfileMode ? 'FIND FR13NDS' : 'ADD FR13NDS ON C0LL3CTIVE'}</Text>
             <Text style={styles.subtitle}>
               {isProfileMode
                 ? step === 2

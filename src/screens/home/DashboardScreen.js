@@ -289,11 +289,8 @@ const DashboardScreen = ({ navigation }) => {
     };
   }, [user?.uid]);
 
-  // Sync iOS app icon badge with unread notifications + unread DMs
-  useEffect(() => {
-    Notifications.setBadgeCountAsync(unreadCount + unreadDMCount)
-      .catch(() => {}); // silently ignore on simulators / Android without support
-  }, [unreadCount, unreadDMCount]);
+  // Badge count is set server-side via the push notification payload.
+  // No client-side setBadgeCountAsync here — competing badge setters cause jumping.
 
   // Fetch participant profiles for chatroom avatar banners (max 4 per room)
   // Dependency uses JSON.stringify of participant arrays so it re-fetches

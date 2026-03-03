@@ -600,6 +600,21 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
     return snapshot.size;
   };
 
+  // Step 0: Soft-delete — immediately hide from all queries so the user
+  // vanishes from the public collective / active users screen even if later
+  // cleanup steps fail or time out.
+  try {
+    await db.collection("users").doc(userId).update({
+      profileSetup: false,
+      everyoneNetworkEnabled: false,
+      accountDeleted: true,
+    });
+    logger.info("Step 0 done: soft-deleted user (hidden from queries)");
+  } catch (err) {
+    logger.warn("Step 0 error (soft-delete):", err.message);
+    // Continue — the hard delete at Step 15 will remove the doc entirely
+  }
+
   // Step 1: Remove user from all group member arrays
   try {
     const groupsSnapshot = await db

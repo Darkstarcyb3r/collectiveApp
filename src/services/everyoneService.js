@@ -57,7 +57,10 @@ export const subscribeToNetworkUsers = (callback) => {
     .onSnapshot((snapshot) => {
       const users = [];
       snapshot.forEach((doc) => {
-        users.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        // Skip soft-deleted accounts that haven't been fully removed yet
+        if (data.accountDeleted) return;
+        users.push({ id: doc.id, ...data });
       });
       callback(users);
     }, (error) => {
