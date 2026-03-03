@@ -261,6 +261,19 @@ const DashboardScreen = ({ navigation }) => {
       setEvents(eventList.filter((e) => !excludedUsers.includes(e.authorId) && connectedUserIds.has(e.authorId)));
     });
 
+    return () => {
+      unsubRooms();
+      unsubConfluence();
+      unsubEvents();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, allNetworkUsers]);
+
+  // Notification & DM subscriptions — separate from content subscriptions
+  // so they don't restart when allNetworkUsers changes (prevents badge jumping)
+  useEffect(() => {
+    if (!user?.uid) return;
+
     const unsubNotifications = subscribeToNotifications(user.uid, (notifs) => {
       setNotifications(notifs);
       setUnreadCount(notifs.filter((n) => !n.read).length);
@@ -271,14 +284,10 @@ const DashboardScreen = ({ navigation }) => {
     });
 
     return () => {
-      unsubRooms();
-      unsubConfluence();
-      unsubEvents();
       unsubNotifications();
       unsubConversations();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid, allNetworkUsers]);
+  }, [user?.uid]);
 
   // Sync iOS app icon badge with unread notifications + unread DMs
   useEffect(() => {

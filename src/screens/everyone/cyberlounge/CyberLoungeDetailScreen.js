@@ -267,15 +267,6 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.expiresAt])
 
-  // Set up audio mode once on mount so iOS silent switch doesn't block playback
-  useEffect(() => {
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-      shouldDuckAndroid: true,
-    }).catch((err) => console.log('Audio mode error:', err.message))
-  }, [])
-
   // Audio playback — load and loop the selected vibe track
   // Re-fires whenever the room's vibe changes (real-time via Firestore listener)
   useEffect(() => {
@@ -283,6 +274,21 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
     const currentVibe = room?.vibe
 
     const loadAndPlay = async () => {
+      // Ensure audio mode is set BEFORE creating any sound
+      // (prevents race condition where createAsync runs before audio category is configured)
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+        })
+      } catch (err) {
+        console.log('Audio mode error:', err.message)
+      }
+
+      if (cancelled) return
+
       // Unload any existing sound first
       if (soundRef.current) {
         try {
@@ -304,6 +310,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
       if (cancelled) return
 
       try {
+        console.log('Audio: loading vibe', currentVibe)
         const { sound } = await Audio.Sound.createAsync(vibe.source, {
           isLooping: true,
           volume: isMuted ? 0 : 0.5,
@@ -327,7 +334,9 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
 
         // Verify playback actually started; if not, force play
         const status = await sound.getStatusAsync()
+        console.log('Audio: status after create', status.isLoaded, status.isPlaying)
         if (status.isLoaded && !status.isPlaying && !cancelled) {
+          console.log('Audio: forcing playAsync')
           await sound.playAsync()
         }
       } catch (error) {
@@ -337,8 +346,16 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
           setTimeout(async () => {
             if (cancelled) return
             try {
+              // Re-set audio mode before retry
+              await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                allowsRecordingIOS: false,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: true,
+              })
               const vibe2 = getVibeById(currentVibe)
               if (!vibe2?.source) return
+              console.log('Audio: retrying vibe', currentVibe)
               const { sound } = await Audio.Sound.createAsync(vibe2.source, {
                 isLooping: true,
                 volume: isMuted ? 0 : 0.5,
@@ -355,6 +372,11 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
                   setPlaybackDuration(s.durationMillis || 0)
                 }
               })
+              // Force play on retry too
+              const retryStatus = await sound.getStatusAsync()
+              if (retryStatus.isLoaded && !retryStatus.isPlaying && !cancelled) {
+                await sound.playAsync()
+              }
             } catch (retryErr) {
               console.log('Audio retry failed:', retryErr.message)
             }

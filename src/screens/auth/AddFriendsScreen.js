@@ -3,6 +3,7 @@
 // Appears after profile setup, before dashboard
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useFocusEffect } from '@react-navigation/native'
 import {
   View,
   Text,
@@ -26,7 +27,8 @@ import * as Contacts from 'expo-contacts'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
-import { searchUserByPhone, followUser, updateUserProfile } from '../../services/userService'
+import { searchUserByPhone, followUser, updateUserProfile, getFollowingUsers, getUserProfile } from '../../services/userService'
+import { firebase } from '../../config/firebase'
 
 const { width, height } = Dimensions.get('window')
 
@@ -300,31 +302,49 @@ const phoneStyles = StyleSheet.create({
 })
 
 // ── Contact Row Component ──
-const ContactRow = React.memo(({ item, selected, onToggle, showPhoto }) => {
+const ContactRow = React.memo(({ item, selected, onToggle, showPhoto, isFollowed, isInvited, onAvatarPress }) => {
   const initial = (item.displayName || item.name || '?')[0].toUpperCase()
 
+  const avatarContent = (
+    <View style={rowStyles.avatar}>
+      {showPhoto && item.profilePhoto ? (
+        <Image source={{ uri: item.profilePhoto }} style={rowStyles.avatarImage} />
+      ) : showPhoto && item.previewPhoto ? (
+        <Image source={item.previewPhoto} style={rowStyles.avatarImage} />
+      ) : (
+        <View style={rowStyles.avatarPlaceholder}>
+          <Text style={rowStyles.avatarInitial}>{initial}</Text>
+        </View>
+      )}
+    </View>
+  )
+
   return (
-    <TouchableOpacity style={rowStyles.container} onPress={() => onToggle(item.id)} activeOpacity={0.7}>
-      <View style={rowStyles.avatar}>
-        {showPhoto && item.profilePhoto ? (
-          <Image source={{ uri: item.profilePhoto }} style={rowStyles.avatarImage} />
-        ) : showPhoto && item.previewPhoto ? (
-          <Image source={item.previewPhoto} style={rowStyles.avatarImage} />
-        ) : (
-          <View style={rowStyles.avatarPlaceholder}>
-            <Text style={rowStyles.avatarInitial}>{initial}</Text>
-          </View>
-        )}
-      </View>
+    <TouchableOpacity
+      style={[rowStyles.container, (isFollowed || isInvited) && { opacity: 0.4 }]}
+      onPress={() => onToggle(item.id)}
+      activeOpacity={0.7}
+    >
+      {onAvatarPress && item.uid ? (
+        <TouchableOpacity onPress={() => onAvatarPress(item.uid)} activeOpacity={0.7}>
+          {avatarContent}
+        </TouchableOpacity>
+      ) : (
+        avatarContent
+      )}
       <View style={rowStyles.info}>
         <Text style={rowStyles.name} numberOfLines={1}>
           {item.displayName || item.name}
         </Text>
-        {item.phoneNumber ? (
+        {isFollowed ? (
+          <Text style={rowStyles.followedLabel}>following</Text>
+        ) : isInvited ? (
+          <Text style={rowStyles.invitedLabel}>invited</Text>
+        ) : item.phoneNumber ? (
           <Text style={rowStyles.phone} numberOfLines={1}>{item.phoneNumber}</Text>
         ) : null}
       </View>
-      {selected && <View style={rowStyles.greenDot} />}
+      {selected && !isFollowed && !isInvited && <View style={rowStyles.greenDot} />}
     </TouchableOpacity>
   )
 })
@@ -375,6 +395,20 @@ const rowStyles = StyleSheet.create({
     fontFamily: fonts.regular,
     marginTop: 2,
   },
+  followedLabel: {
+    color: colors.primary,
+    fontSize: 10,
+    fontFamily: fonts.regular,
+    opacity: 0.7,
+    marginTop: 2,
+  },
+  invitedLabel: {
+    color: '#888',
+    fontSize: 10,
+    fontFamily: fonts.regular,
+    opacity: 0.7,
+    marginTop: 2,
+  },
   greenDot: {
     width: 12,
     height: 12,
@@ -399,6 +433,8 @@ const AddFriendsScreen = ({ navigation, route }) => {
   const [selectedInvite, setSelectedInvite] = useState(new Set())
   const [searchCollective, setSearchCollective] = useState('')
   const [searchInvite, setSearchInvite] = useState('')
+  const [followingIds, setFollowingIds] = useState(new Set())
+  const [invitedPhones, setInvitedPhones] = useState(new Set())
 
   // Filter contacts by search text
   const filteredCollective = useMemo(() => {
@@ -462,6 +498,34 @@ const AddFriendsScreen = ({ navigation, route }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProfileMode])
+
+  // Fetch user's following list so we can dim already-followed contacts (profile mode)
+  // Uses useFocusEffect so the list refreshes when the user returns from a UserProfile
+  // after following someone — the newly-followed contact will appear dimmed immediately.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isProfileMode || !user?.uid) return
+      getFollowingUsers(user.uid).then((result) => {
+        if (result.success) {
+          setFollowingIds(new Set(result.data.map((u) => u.id)))
+        }
+      })
+    }, [isProfileMode, user?.uid])
+  )
+
+  // Fetch invited phone numbers from Firestore so already-invited contacts stay dimmed.
+  // Runs on focus so the list updates if a contact joins Collective (removing them from
+  // the not-on-collective list) or when the user returns after sending an SMS.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isProfileMode || !user?.uid) return
+      getUserProfile(user.uid).then((result) => {
+        if (result.success && result.data?.invitedPhones) {
+          setInvitedPhones(new Set(result.data.invitedPhones))
+        }
+      })
+    }, [isProfileMode, user?.uid])
+  )
 
   const handleAddContactsRef = useRef(null)
 
@@ -563,6 +627,12 @@ const AddFriendsScreen = ({ navigation, route }) => {
 
   // Follow selected contacts on Collective
   const handleFollowSelected = useCallback(async () => {
+    if (isProfileMode) {
+      // Profile mode: no mass follow — just advance to invite step
+      setStep(2)
+      return
+    }
+
     if (selectedCollective.size === 0) {
       setStep(2)
       return
@@ -584,7 +654,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
     }
     setLoading(false)
     setStep(2)
-  }, [selectedCollective, contactsOnCollective, user])
+  }, [selectedCollective, contactsOnCollective, user, isProfileMode])
 
   // Send SMS invites to selected contacts
   const handleSendInvites = useCallback(async () => {
@@ -626,25 +696,67 @@ const AddFriendsScreen = ({ navigation, route }) => {
 
   // Toggle selection
   const toggleCollective = useCallback((id) => {
+    if (isProfileMode) {
+      // In profile mode, tapping a Collective contact navigates to their profile
+      const contact = contactsOnCollective.find((c) => c.id === id)
+      if (contact?.uid) {
+        navigation.navigate('UserProfile', { userId: contact.uid })
+      }
+      return
+    }
     setSelectedCollective((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
-  }, [])
+  }, [isProfileMode, contactsOnCollective, navigation])
 
   const toggleInvite = useCallback((id) => {
+    if (isProfileMode) {
+      // In profile mode, tapping a contact opens SMS directly for that one person
+      const contact = contactsNotOnCollective.find((c) => c.id === id)
+      if (contact?.phoneNumber) {
+        // Skip if already invited
+        if (invitedPhones.has(contact.normalizedPhone)) return
+
+        const message = encodeURIComponent(
+          'Hey! Join me on Collective - a new social network built for real community. Download it here: https://apps.apple.com/us/app/collective-network/id6759182429'
+        )
+        const separator = Platform.OS === 'ios' ? '&' : '?'
+        const smsUrl = `sms:${contact.phoneNumber}${separator}body=${message}`
+        Linking.openURL(smsUrl)
+          .then(() => {
+            // Mark as invited locally immediately
+            setInvitedPhones((prev) => new Set([...prev, contact.normalizedPhone]))
+            // Persist to Firestore so it survives app restarts
+            if (user?.uid) {
+              updateUserProfile(user.uid, {
+                invitedPhones: firebase.firestore.FieldValue.arrayUnion(contact.normalizedPhone),
+              })
+            }
+          })
+          .catch(() => {
+            Alert.alert('SMS Not Available', 'SMS is not available on this device.')
+          })
+      }
+      return
+    }
     setSelectedInvite((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
-  }, [])
+  }, [isProfileMode, contactsNotOnCollective, invitedPhones, user])
+
+  // Navigate to a Collective user's profile (profile mode)
+  const handleAvatarPress = useCallback((uid) => {
+    navigation.navigate('UserProfile', { userId: uid })
+  }, [navigation])
 
   // Render the glass container with search bar + contact list
-  const renderContactList = (data, selectedSet, onToggle, showPhoto, searchValue, onSearchChange) => (
+  const renderContactList = (data, selectedSet, onToggle, showPhoto, searchValue, onSearchChange, options = {}) => (
     <View style={styles.glassContainer}>
       {/* Fixed search bar */}
       <View style={styles.searchBarContainer}>
@@ -669,6 +781,9 @@ const AddFriendsScreen = ({ navigation, route }) => {
             selected={selectedSet.has(item.id)}
             onToggle={onToggle}
             showPhoto={showPhoto}
+            isFollowed={options.showFollowState ? followingIds.has(item.uid) : false}
+            isInvited={options.showInviteState ? invitedPhones.has(item.normalizedPhone) : false}
+            onAvatarPress={options.onAvatarPress}
           />
         )}
         showsVerticalScrollIndicator={true}
@@ -708,7 +823,11 @@ const AddFriendsScreen = ({ navigation, route }) => {
             {/* Title */}
             <Text style={styles.title}>{isProfileMode ? 'FIND FR13NDS' : 'ADD FR13NDS'}</Text>
             <Text style={styles.subtitle}>
-              {isProfileMode ? 'Find friends from your contacts.' : 'Get started by inviting your network.'}
+              {isProfileMode
+                ? step === 2
+                  ? 'Tap a contact to send an invite.'
+                  : 'Tap a friend to view their profile & follow.'
+                : 'Get started by inviting your network.'}
             </Text>
 
             {/* Step content */}
@@ -727,8 +846,8 @@ const AddFriendsScreen = ({ navigation, route }) => {
               {step === 1 && (
                 <>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>On Collective Network</Text>
-                    {contactsOnCollective.length > 0 && (
+                    <Text style={styles.sectionTitle}>Follow Friends</Text>
+                    {!isProfileMode && contactsOnCollective.length > 0 && (
                       <TouchableOpacity onPress={handleSelectAllCollective} activeOpacity={0.7}>
                         <Text style={styles.selectAllText}>
                           {allCollectiveSelected ? 'deselect all' : 'select all'}
@@ -743,7 +862,10 @@ const AddFriendsScreen = ({ navigation, route }) => {
                       toggleCollective,
                       true,
                       searchCollective,
-                      setSearchCollective
+                      setSearchCollective,
+                      isProfileMode
+                        ? { showFollowState: true, onAvatarPress: handleAvatarPress }
+                        : {}
                     )
                   ) : (
                     <View style={styles.emptyState}>
@@ -758,7 +880,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
               {step === 2 && (
                 <>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Not on Collective Network yet</Text>
+                    <Text style={styles.sectionTitle}>Invite Contacts</Text>
                   </View>
                   {contactsNotOnCollective.length > 0 ? (
                     renderContactList(
@@ -767,7 +889,10 @@ const AddFriendsScreen = ({ navigation, route }) => {
                       toggleInvite,
                       false,
                       searchInvite,
-                      setSearchInvite
+                      setSearchInvite,
+                      isProfileMode
+                        ? { showInviteState: true }
+                        : {}
                     )
                   ) : (
                     <View style={styles.emptyState}>
@@ -785,35 +910,61 @@ const AddFriendsScreen = ({ navigation, route }) => {
 
       {/* Bottom buttons */}
       <View style={styles.bottomButtons}>
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipText}>{isProfileMode ? 'done' : 'skip'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.nextButton}
-          onPress={() => {
-            if (step === 0 && !isProfileMode) handleAddContacts()
-            else if (step === 1) handleFollowSelected()
-            else if (step === 2) handleSendInvites()
-          }}
-          disabled={loading || step === -1}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#cafb6c', '#71f200', '#23ff0d']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.nextGradient}
+        {/* Profile mode step 2: only "done" button */}
+        {isProfileMode && step === 2 ? (
+          <TouchableOpacity
+            style={styles.nextButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
           >
-            {loading ? (
-              <ActivityIndicator color="#000" size="small" />
-            ) : (
-              <Text style={styles.nextText}>
-                {step === 0 && !isProfileMode ? 'add contacts' : 'next'}
-              </Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['#cafb6c', '#71f200', '#23ff0d']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.nextGradient}
+            >
+              <Text style={styles.nextText}>done</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+              <Text style={styles.skipText}>{isProfileMode ? 'done' : 'skip'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.nextButton}
+              onPress={() => {
+                if (step === 0 && !isProfileMode) handleAddContacts()
+                else if (step === 1) handleFollowSelected()
+                else if (step === 2) handleSendInvites()
+              }}
+              disabled={loading || step === -1}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#cafb6c', '#71f200', '#23ff0d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.nextGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#000" size="small" />
+                ) : (
+                  <Text style={styles.nextText}>
+                    {step === 0 && !isProfileMode
+                      ? 'add contacts'
+                      : isProfileMode && step === 1
+                        ? 'add from contacts'
+                        : step === 1
+                          ? 'follow'
+                          : 'invite'}
+                  </Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </SafeAreaView>
   )
