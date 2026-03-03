@@ -3,6 +3,8 @@
 
 import { db, firebase } from '../config/firebase'
 import { validateText } from '../utils/validation'
+import * as Notifications from 'expo-notifications';
+import { functions } from '../config/firebase'; // Make sure this is imported
 
 // Helper: generate deterministic conversation ID from two user IDs
 const getConversationId = (uid1, uid2) => {
@@ -373,16 +375,27 @@ export const sendMessage = async (
 // Mark conversation as read for a user
 export const markConversationAsRead = async (conversationId, userId) => {
   try {
-    await db
-      .collection('conversations')
-      .doc(conversationId)
-      .update({
-        [`unread_${userId}`]: false,
-      })
+    // Your existing Firestore update
+    await db.collection('conversations').doc(conversationId).update({
+      [`unread_${userId}`]: false
+    });
+    
+    // FORCE badge to 0 on device immediately
+    await Notifications.setBadgeCountAsync(0);
+    
+    // Call cloud function to recalc and set correct badge
+    const resetBadge = functions.httpsCallable('resetBadgeCount');
+    const result = await resetBadge();
+    
+    // Set to the actual count from server
+    await Notifications.setBadgeCountAsync(result.data.badgeCount);
+    
+    return { success: true };
   } catch (error) {
-    console.log('🔴 markConversationAsRead error:', error.message)
+    console.log('Error marking conversation as read:', error);
+    return { success: false, error: error.message };
   }
-}
+};
 
 // Load earlier messages (pagination)
 export const loadEarlierMessages = async (conversationId, beforeTimestamp, limit = 20) => {

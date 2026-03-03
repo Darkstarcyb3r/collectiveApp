@@ -157,18 +157,29 @@ async function checkRateLimit(userId, counterField, limit, resetPeriod) {
  * Combines: unread notification history + unread DM conversations.
  * Uses Firestore count() aggregation (lightweight — doesn't download docs).
  */
-async function getUnreadNotificationCount(userId) {
+async function getUnreadNotificationCount(userId, useCache = false) {
+  // Optional simple in-memory cache to avoid hitting Firestore too often
+  if (useCache && badgeCache[userId] && Date.now() - badgeCache[userId].timestamp < 5000) {
+    return badgeCache[userId].count;
+  }
+  
   try {
     const [notifSnapshot, convosSnapshot] = await Promise.all([
-      // Unread in-app notifications (comments, reactions, follows, invites, etc.)
       db.collection("users").doc(userId)
         .collection("notifications").where("read", "==", false).count().get(),
-      // Unread DM conversations
       db.collection("conversations")
         .where("participants", "array-contains", userId)
         .where(`unread_${userId}`, "==", true).count().get(),
     ]);
-    return notifSnapshot.data().count + convosSnapshot.data().count;
+    
+    const count = notifSnapshot.data().count + convosSnapshot.data().count;
+    
+    // Cache the result
+    if (useCache) {
+      badgeCache[userId] = { count, timestamp: Date.now() };
+    }
+    
+    return count;
   } catch (error) {
     logger.error(`getUnreadNotificationCount error for ${userId}:`, error);
     return 0;
@@ -457,6 +468,21 @@ exports.onPostCreate = onDocumentCreated(
 // =============================================================
 // FUNCTION 4: Server-Side Push Notifications on New Message
 // =============================================================
+
+exports.resetBadgeCount = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in.");
+  }
+  
+  const userId = request.auth.uid;
+  
+  // Reuse your existing getUnreadNotificationCount function
+  const badgeCount = await getUnreadNotificationCount(userId);
+  
+  return { badgeCount };
+});
+
+
 exports.onMessageCreate = onDocumentCreated(
   "conversations/{conversationId}/messages/{messageId}",
   async (event) => {
@@ -645,21 +671,102 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
     logger.error(`Step 1 failed (groups cleanup):`, err);
   }
 
-  // Step 2: Mark conversations as deleted for this user
+  // Step 2: Clean up conversations and messages
   try {
     const conversationsSnapshot = await db
       .collection("conversations")
       .where("participants", "array-contains", userId)
       .get();
+    
+    let messagesDeleted = 0;
+    
     for (const convoDoc of conversationsSnapshot.docs) {
-      await convoDoc.ref.update({
-        [`deleted_${userId}`]: true,
-      });
+      const convoData = convoDoc.data();
+      const participants = convoData.participants || [];
+      
+      if (participants.length === 2) {
+        // If it's a 1-on-1 conversation between two users, check if the other user still exists
+        const otherUserId = participants.find(id => id !== userId);
+        
+        if (otherUserId) {
+          const otherUserDoc = await db.collection("users").doc(otherUserId).get();
+          
+          if (!otherUserDoc.exists) {
+            // OTHER USER IS ALSO DELETED! Delete the entire conversation and all messages
+            logger.info(`Both users deleted, deleting entire conversation ${convoDoc.id}`);
+            
+            // Delete all messages in this conversation
+            const messagesSnapshot = await convoDoc.ref.collection("messages").get();
+            for (const msgDoc of messagesSnapshot.docs) {
+              await msgDoc.ref.delete();
+              messagesDeleted++;
+            }
+            
+            // Delete the conversation document itself
+            await convoDoc.ref.delete();
+            continue; // Skip the rest of this loop iteration
+          }
+        }
+        
+        // Other user still exists - just mark as deleted for this user
+        await convoDoc.ref.update({
+          [`deleted_${userId}`]: true,
+        });
+        
+        // Optionally: Delete only this user's messages from the conversation
+        const userMessagesSnapshot = await convoDoc.ref
+          .collection("messages")
+          .where("senderId", "==", userId)
+          .get();
+        
+        for (const msgDoc of userMessagesSnapshot.docs) {
+          await msgDoc.ref.delete();
+          messagesDeleted++;
+        }
+        
+      } else {
+        // Group conversation (3+ participants) - just remove user and mark
+        await convoDoc.ref.update({
+          participants: FieldValue.arrayRemove(userId),
+          [`deleted_${userId}`]: true,
+        });
+        
+        // Delete this user's messages from group conversation
+        const userMessagesSnapshot = await convoDoc.ref
+          .collection("messages")
+          .where("senderId", "==", userId)
+          .get();
+        
+        for (const msgDoc of userMessagesSnapshot.docs) {
+          await msgDoc.ref.delete();
+          messagesDeleted++;
+        }
+      }
     }
-    logger.info(`Step 2 done: marked ${conversationsSnapshot.size} conversations deleted`);
+    
+    logger.info(`Step 2 done: cleaned ${conversationsSnapshot.size} conversations, deleted ${messagesDeleted} messages`);
   } catch (err) {
     logger.error(`Step 2 failed (conversations cleanup):`, err);
   }
+
+
+  // Step 2b: Delete any remaining messages by this user (safety net)
+  try {
+    const orphanedMessages = await db
+      .collectionGroup("messages")
+      .where("senderId", "==", userId)
+      .get();
+    
+    for (const msgDoc of orphanedMessages.docs) {
+      await msgDoc.ref.delete();
+    }
+    
+    logger.info(`Step 2b done: deleted ${orphanedMessages.size} orphaned messages`);
+  } catch (err) {
+    logger.error(`Step 2b failed (orphaned messages):`, err);
+  }
+
+
 
   // Step 3: Remove user from other users' subscribedUsers, hiddenUsers, blockedUsers, blockedBy
   try {

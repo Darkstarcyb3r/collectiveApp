@@ -2,6 +2,7 @@
 // Combines Private Groups + Public Network sections into one scrollable view
 // Replaces the old ProfileScreen home tab, Groups tab, and Everyone tab
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -188,6 +189,8 @@ const DashboardScreen = ({ navigation }) => {
     }
   };
 
+
+
   // --- Effects ---
 
   // Fetch on focus (and whenever user auth changes)
@@ -353,11 +356,23 @@ const DashboardScreen = ({ navigation }) => {
     Notifications.setBadgeCountAsync(0).catch(() => {});
   };
 
-  const handleCloseNotifications = () => {
+  const handleCloseNotifications = async () => {
     setNotificationModalVisible(false);
-    // Mark all as read immediately when user closes the modal
+    
     if (user?.uid && unreadCount > 0) {
-      markAllNotificationsRead(user.uid);
+      await markAllNotificationsRead(user.uid);
+      
+      // Recalculate badge count
+      const [notifSnapshot, convosSnapshot] = await Promise.all([
+        db.collection("users").doc(user.uid)
+          .collection("notifications").where("read", "==", false).count().get(),
+        db.collection("conversations")
+          .where("participants", "array-contains", user.uid)
+          .where(`unread_${user.uid}`, "==", true).count().get(),
+      ]);
+      
+      const totalUnread = notifSnapshot.data().count + convosSnapshot.data().count;
+      await Notifications.setBadgeCountAsync(totalUnread);
     }
   };
 
@@ -508,77 +523,74 @@ const DashboardScreen = ({ navigation }) => {
         }
       >
 
-        {/* ==================== HEADER ==================== */}
-        <View style={styles.headerSection}>
-          {/* Avatar + Bell in glass container */}
-          <View style={styles.avatarWrapper}>
-            <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
-              <View style={styles.glassInner}>
-                <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')} style={{ flex: 1, width: '100%' }}>
-                  <View style={styles.avatarContainer}>
-                    {userProfile?.profilePhoto ? (
-                      <Image
-                        source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
-                        style={styles.avatarImage}
-                      />
-                    ) : (
-                      <View style={styles.avatarPlaceholder}>
-                        <Ionicons name="person" size={32} color="#666" />
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
+       {/* ==================== HEADER ==================== */}
+<View style={styles.headerSection}>
+  {/* Avatar + Bell in glass container */}
+  <View style={styles.avatarWrapper}>
+    <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
+      <View style={styles.glassInner}>
+        <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')} style={{ flex: 1, width: '100%' }}>
+          <View style={styles.avatarContainer}>
+            {userProfile?.profilePhoto ? (
+              <Image
+                source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={32} color="#666" />
               </View>
-            </BlurView>
-            {/* Notification bell — always visible, opens notification modal */}
-            <TouchableOpacity
-              style={[styles.bellOverlay, unreadCount === 0 && styles.bellOverlayInactive]}
-              onPress={handleOpenNotifications}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="notifications" size={12} color={unreadCount > 0 ? '#000' : '#555'} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Logo — tappable, opens onboarding */}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Onboarding')}
-            activeOpacity={0.8}
-            style={{ flex: 1 }}
-          >
-            <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
-              <View style={[styles.glassInner, { padding: 0 }]}>
-                <Image
-                  source={require('../../assets/images/green-logo.png')}
-                  style={styles.logoImage}
-                  resizeMode="cover"
-                />
-              </View>
-            </BlurView>
-            {/* Pulsing 4-pointed star indicator — only shows before onboarding is complete */}
-            {!onboardingComplete && (
-              <Animated.View
-                style={[
-                  styles.diamondIndicator,
-                  {
-                    transform: [{ scale: diamondScale }],
-                    opacity: diamondOpacity,
-                  },
-                ]}
-              >
-                {/* Vertical spike */}
-                <View style={styles.starSpikeV} />
-                {/* Horizontal spike */}
-                <View style={styles.starSpikeH} />
-                {/* Diagonal spike (45°) */}
-                <View style={[styles.starSpikeV, { transform: [{ rotate: '45deg' }], opacity: 0.7, width: 3, height: 14 }]} />
-                {/* Diagonal spike (-45°) */}
-                <View style={[styles.starSpikeV, { transform: [{ rotate: '-45deg' }], opacity: 0.7, width: 3, height: 14 }]} />
-              </Animated.View>
             )}
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </BlurView>
+    {/* Notification bell */}
+    <TouchableOpacity
+      style={[styles.bellOverlay, unreadCount === 0 && styles.bellOverlayInactive]}
+      onPress={handleOpenNotifications}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      activeOpacity={0.7}
+    >
+      <Ionicons name="notifications" size={12} color={unreadCount > 0 ? '#000' : '#555'} />
+    </TouchableOpacity>
+  </View>
+
+  {/* Logo */}
+  <TouchableOpacity
+    onPress={() => navigation.navigate('Onboarding')}
+    activeOpacity={0.8}
+    style={{ flex: 1 }}
+  >
+    <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
+      <View style={[styles.glassInner, { padding: 0 }]}>
+        <Image
+          source={require('../../assets/images/green-logo.png')}
+          style={styles.logoImage}
+          resizeMode="cover"
+        />
+      </View>
+    </BlurView>
+    {/* Pulsing diamond indicator */}
+    {!onboardingComplete && (
+      <Animated.View
+        style={[
+          styles.diamondIndicator,
+          {
+            transform: [{ scale: diamondScale }],
+            opacity: diamondOpacity,
+          },
+        ]}
+      >
+        <View style={styles.starSpikeV} />
+        <View style={styles.starSpikeH} />
+        <View style={[styles.starSpikeV, { transform: [{ rotate: '45deg' }], opacity: 0.7, width: 3, height: 14 }]} />
+        <View style={[styles.starSpikeV, { transform: [{ rotate: '-45deg' }], opacity: 0.7, width: 3, height: 14 }]} />
+      </Animated.View>
+    )}
+  </TouchableOpacity>
+</View>
+
 
         {/* ==================== =MY PRIVATE GROUPS ==================== */}
         <BlurView intensity={10} tint="dark" style={styles.privateGroupsGlass}>
