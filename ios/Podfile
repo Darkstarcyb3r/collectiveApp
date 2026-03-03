@@ -17,17 +17,32 @@ ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NET
 ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
 ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
-use_modular_headers!
 
-# Only Firebase pods need to be static frameworks — NOT all pods globally.
-# use_frameworks! :linkage => :static breaks gRPC (can't generate module maps).
-# This variable tells react-native-firebase podspecs to use static_framework = true.
+# Firebase pods as static frameworks (without global use_frameworks!)
 $RNFirebaseAsStaticFramework = true
 
 prepare_react_native_project!
 
 target 'Collective' do
   use_expo_modules!
+
+  # Firebase Swift pods need these ObjC dependencies to define modules.
+  # Using per-pod modular headers instead of global use_modular_headers!
+  # because gRPC cannot generate module maps and crashes the Xcode build.
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseAuthInterop', :modular_headers => true
+  pod 'FirebaseAppCheckInterop', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseCoreExtension', :modular_headers => true
+  pod 'FirebaseFirestoreInternal', :modular_headers => true
+  pod 'FirebaseMessagingInterop', :modular_headers => true
+  pod 'FirebaseSharedSwift', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+  pod 'GTMSessionFetcher', :modular_headers => true
+  pod 'leveldb-library', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
+  pod 'abseil', :modular_headers => true
+  pod 'PromisesObjC', :modular_headers => true
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
