@@ -23,6 +23,7 @@ import { subscribeToNetworkUsers } from '../../services/everyoneService'
 import { buildConnectedUserIds } from '../../utils/networkGraph'
 import DarkTabBar from '../../components/navigation/DarkTabBar'
 
+
 const ActiveUsersScreen = ({ navigation }) => {
   const { user, userProfile } = useAuth()
   const [allNetworkUsers, setAllNetworkUsers] = useState([])
@@ -50,18 +51,23 @@ const ActiveUsersScreen = ({ navigation }) => {
   const myFollowingUsers = userProfile?.subscribedUsers || []
   const myUid = user?.uid
 
-  useEffect(() => {
-    if (!userProfile?.everyoneNetworkEnabled) {
-      navigation.goBack()
-      return
-    }
-    // Subscribe to ALL network-enabled users (toggle ON) — includes isOnline field
-    const unsubNetwork = subscribeToNetworkUsers((users) => {
-      setAllNetworkUsers(users)
-    })
-    return () => unsubNetwork()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+useEffect(() => {
+
+  // Only navigate away if the feature is disabled
+  if (userProfile?.everyoneNetworkEnabled === false) {
+    navigation.goBack();
+    return;
+  }
+  const unsubNetwork = subscribeToNetworkUsers((users) => {
+    setAllNetworkUsers(users);
+  });
+  
+
+
+  return () => {
+    if (unsubNetwork) unsubNetwork();
+  };
+}, [userProfile?.everyoneNetworkEnabled, navigation]);
 
   // Build 2-degree connection graph using shared utility
   const connectedUserIds = buildConnectedUserIds(

@@ -1,6 +1,7 @@
 // Everyone Service
 // Firestore operations for the Everyone section: active users, cyber lounge, events, mutual aid, confluence
 
+
 import { db, firebase } from '../config/firebase';
 import { validateText } from '../utils/validation';
 
@@ -50,21 +51,32 @@ export const subscribeToActiveUsers = (callback) => {
 // Subscribe to ALL users with everyoneNetworkEnabled (regardless of online status)
 // Used to build the full network graph via follow connections
 export const subscribeToNetworkUsers = (callback) => {
+  
   return db.collection('users')
     .where('profileSetup', '==', true)
     .where('everyoneNetworkEnabled', '==', true)
     .limit(500)
     .onSnapshot((snapshot) => {
+      console.log('SNAPSHOT - total docs:', snapshot.size);
+      
+      // THIS IS THE KEY - watch for removals
+      snapshot.docChanges().forEach(change => {
+        console.log(`${change.type.toUpperCase()}:`, change.doc.id);
+      });
+      
       const users = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        // Skip soft-deleted accounts that haven't been fully removed yet
-        if (data.accountDeleted) return;
+        if (data.accountDeleted) {
+          console.log('Skipping soft-deleted user:', doc.id);
+          return;
+        }
         users.push({ id: doc.id, ...data });
       });
+      
       callback(users);
     }, (error) => {
-      console.log('Error subscribing to network users:', error.message);
+      console.log('Listener error:', error.message);
       callback([]);
     });
 };

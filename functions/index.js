@@ -600,9 +600,7 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
     return snapshot.size;
   };
 
-  // Step 0: Soft-delete — immediately hide from all queries so the user
-  // vanishes from the public collective / active users screen even if later
-  // cleanup steps fail or time out.
+  // Step 0: Soft-delete — immediately hide from all queries
   try {
     await db.collection("users").doc(userId).update({
       profileSetup: false,
@@ -612,7 +610,23 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
     logger.info("Step 0 done: soft-deleted user (hidden from queries)");
   } catch (err) {
     logger.warn("Step 0 error (soft-delete):", err.message);
-    // Continue — the hard delete at Step 15 will remove the doc entirely
+    // Continue — we'll still try to hard delete
+  }
+
+  // STEP 0.5: HARD DELETE THE USER DOCUMENT NOW (CRITICAL)
+  // This ensures the document is gone even if subsequent steps fail
+  try {
+    const userDocRef = db.collection("users").doc(userId);
+    const userDoc = await userDocRef.get();
+    if (userDoc.exists) {
+      await userDocRef.delete();
+      logger.info(`Step 0.5 done: HARD DELETED user document for ${userId}`);
+    } else {
+      logger.info(`Step 0.5: no user document found for ${userId}`);
+    }
+  } catch (err) {
+    logger.error(`Step 0.5 failed (user doc hard delete):`, err);
+    // Don't throw - continue with cleanup, but log aggressively
   }
 
   // Step 1: Remove user from all group member arrays
@@ -853,19 +867,17 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
     logger.error(`Step 14 failed (reports cleanup):`, err);
   }
 
-  // Step 15: Delete the user's Firestore document (critical)
+  // Note: Step 15 (original user doc delete) is now handled in Step 0.5
+  // Keeping this as a safety net in case Step 0.5 failed
   try {
     const userDocRef = db.collection("users").doc(userId);
     const userDoc = await userDocRef.get();
     if (userDoc.exists) {
       await userDocRef.delete();
-      logger.info(`Step 15 done: deleted user document for ${userId}`);
-    } else {
-      logger.info(`Step 15: no user document found for ${userId}`);
+      logger.info(`Step 15 safety net: deleted user document for ${userId}`);
     }
   } catch (err) {
-    logger.error(`Step 15 failed (user doc delete):`, err);
-    throw new HttpsError("internal", `Failed to delete user document: ${err.message}`);
+    logger.error(`Step 15 safety net failed (user doc delete):`, err);
   }
 
   // Step 16: Delete the Firebase Auth account (critical)

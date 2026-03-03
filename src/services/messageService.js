@@ -224,12 +224,8 @@ export const subscribeToConversations = (userId, onUpdate) => {
         onUpdate(filterDeleted(conversations))
       },
       (error) => {
-        console.log('🔴 subscribeToConversations error:', error.message)
         // If error is about missing index, try without ordering as fallback
         if (error.message?.includes('index')) {
-          console.log(
-            '🔗 The error above usually includes a link to create the index — check the full error in your console.'
-          )
           db.collection('conversations')
             .where('participants', 'array-contains', userId)
             .onSnapshot(
