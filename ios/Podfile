@@ -7,7 +7,7 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 def ccache_enabled?(podfile_properties)
   # Environment variable takes precedence
   return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
-  
+
   # Fall back to Podfile properties
   podfile_properties['apple.ccacheEnabled'] == 'true'
 end
@@ -19,19 +19,12 @@ ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNati
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 use_modular_headers!
 
-prepare_react_native_project!
+# Only Firebase pods need to be static frameworks — NOT all pods globally.
+# use_frameworks! :linkage => :static breaks gRPC (can't generate module maps).
+# This variable tells react-native-firebase podspecs to use static_framework = true.
+$RNFirebaseAsStaticFramework = true
 
-# Force gRPC pods to build as static libraries — they cannot generate
-# module maps when use_frameworks! :linkage => :static is active.
-pre_install do |installer|
-  installer.pod_targets.each do |pod|
-    if pod.name.start_with?('gRPC') || pod.name == 'BoringSSL-GRPC'
-      def pod.build_type
-        Pod::BuildType.static_library
-      end
-    end
-  end
-end
+prepare_react_native_project!
 
 target 'Collective' do
   use_expo_modules!
@@ -54,9 +47,6 @@ target 'Collective' do
 
   config = use_native_modules!(config_command)
 
-  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
-  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
-
   use_react_native!(
     :path => config[:reactNativePath],
     :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
@@ -72,16 +62,5 @@ target 'Collective' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
-
-    # Fix gRPC build settings — disable module definition so Xcode
-    # doesn't look for gRPC-Core.modulemap which can't be generated
-    installer.pods_project.targets.each do |target|
-      if target.name.start_with?('gRPC') || target.name == 'BoringSSL-GRPC'
-        target.build_configurations.each do |bc|
-          bc.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-          bc.build_settings['DEFINES_MODULE'] = 'NO'
-        end
-      end
-    end
   end
 end
