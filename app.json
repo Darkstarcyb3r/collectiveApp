@@ -61,8 +61,14 @@
       ],
       "@react-native-firebase/app",
       "@react-native-firebase/app-check",
-      "./plugins/withModularHeaders",
-      "@react-native-firebase/auth"
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
