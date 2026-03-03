@@ -46,7 +46,6 @@
             "useFrameworks": "static",
             "forceStaticLinking": [
               "RNFBApp",
-              "RNFBAppCheck",
               "RNFBAuth",
               "RNFBFirestore",
               "RNFBFunctions"
@@ -74,8 +73,7 @@
           "color": "#22ff0a"
         }
       ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/app-check"
+      "@react-native-firebase/app"
     ],
     "extra": {
       "eas": {

@@ -14,7 +14,8 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { RootNavigator } from './src/navigation';
 import { colors } from './src/theme';
 import { fonts } from './src/theme/typography';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native'; 
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+
 
 // Configure foreground notification display
 Notifications.setNotificationHandler({

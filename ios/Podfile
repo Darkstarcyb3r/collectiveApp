@@ -7,7 +7,7 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 def ccache_enabled?(podfile_properties)
   # Environment variable takes precedence
   return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
-
+  
   # Fall back to Podfile properties
   podfile_properties['apple.ccacheEnabled'] == 'true'
 end
@@ -22,24 +22,6 @@ prepare_react_native_project!
 
 target 'Collective' do
   use_expo_modules!
-
-  # Firebase Swift pods need these ObjC dependencies to define modules.
-  # Using per-pod modular headers instead of global use_modular_headers!
-  # because gRPC cannot generate module maps and crashes the Xcode build.
-  pod 'GoogleUtilities', :modular_headers => true
-  pod 'FirebaseAuthInterop', :modular_headers => true
-  pod 'FirebaseAppCheckInterop', :modular_headers => true
-  pod 'FirebaseCoreInternal', :modular_headers => true
-  pod 'FirebaseCoreExtension', :modular_headers => true
-  pod 'FirebaseFirestoreInternal', :modular_headers => true
-  pod 'FirebaseMessagingInterop', :modular_headers => true
-  pod 'FirebaseSharedSwift', :modular_headers => true
-  pod 'RecaptchaInterop', :modular_headers => true
-  pod 'GTMSessionFetcher', :modular_headers => true
-  pod 'leveldb-library', :modular_headers => true
-  pod 'nanopb', :modular_headers => true
-  pod 'abseil', :modular_headers => true
-  pod 'PromisesObjC', :modular_headers => true
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
@@ -59,7 +41,8 @@ target 'Collective' do
 
   config = use_native_modules!(config_command)
 
-  use_frameworks! :linkage => :static
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
+  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -76,13 +59,5 @@ target 'Collective' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
-
-    # Allow non-modular headers in framework modules (React Native headers
-    # aren't modular, but use_frameworks! builds everything as frameworks)
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |bc|
-        bc.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      end
-    end
   end
 end
