@@ -30,7 +30,7 @@
  * Function 27: requestCategoryChat       — "Request another category" creates a DM request to the app creator (callable)
  */
 
-const { setGlobalOptions } = require("firebase-functions");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const {
   onDocumentCreated,
@@ -47,8 +47,15 @@ const logger = require("firebase-functions/logger");
 initializeApp();
 const db = getFirestore();
 
-// Global options for cost control
-setGlobalOptions({ maxInstances: 10, region: "us-central1" });
+// Global options for cost control + quota management
+// memory: "256MiB" and cpu: 1 reduce per-function resource allocation
+// to stay within Cloud Run's per-project CPU quota (27 functions)
+setGlobalOptions({
+  maxInstances: 5,
+  region: "us-central1",
+  memory: "256MiB",
+  cpu: 1,
+});
 
 // Cloudinary credentials (loaded from functions/.env)
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
@@ -162,8 +169,10 @@ async function getUnreadNotificationCount(userId, useCache = false) {
   if (useCache && badgeCache[userId] && Date.now() - badgeCache[userId].timestamp < 5000) {
     return badgeCache[userId].count;
   }
-  
+
   try {
+    // Badge = unread notification bell items + unread DM conversations.
+    // Client clears badge to 0 on app foreground so it won't appear "stuck".
     const [notifSnapshot, convosSnapshot] = await Promise.all([
       db.collection("users").doc(userId)
         .collection("notifications").where("read", "==", false).count().get(),
@@ -171,14 +180,14 @@ async function getUnreadNotificationCount(userId, useCache = false) {
         .where("participants", "array-contains", userId)
         .where(`unread_${userId}`, "==", true).count().get(),
     ]);
-    
+
     const count = notifSnapshot.data().count + convosSnapshot.data().count;
-    
+
     // Cache the result
     if (useCache) {
       badgeCache[userId] = { count, timestamp: Date.now() };
     }
-    
+
     return count;
   } catch (error) {
     logger.error(`getUnreadNotificationCount error for ${userId}:`, error);
@@ -1126,6 +1135,19 @@ exports.onReportCreate = onDocumentCreated(
 
       const result = await response.json();
       logger.info(`Admin report notification sent to ${tokens.length} admin(s):`, result);
+
+      // Store to notification history for each admin (for in-app bell + badge)
+      for (const adminDoc of adminTokensSnapshot.docs) {
+        await db.collection("users").doc(adminDoc.id)
+          .collection("notifications").add({
+            title: notifTitle,
+            body: notifBody,
+            type: "user_report",
+            data: { type: "user_report", reportId, reporterId, reportedUserId, reason },
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+      }
     } catch (error) {
       logger.error("onReportCreate error:", error);
     }
@@ -1196,6 +1218,42 @@ exports.onGroupCommentCreate = onDocumentCreated(
             read: false,
             createdAt: FieldValue.serverTimestamp(),
           });
+
+        // Push notification
+        const isMuted = authorDoc.data().notificationsMuted === true;
+        logger.info(`Group comment push: postAuthorId=${postAuthorId}, muted=${isMuted}`);
+        if (!isMuted) {
+          const tokenDoc = await db.collection("users").doc(postAuthorId)
+            .collection("private").doc("tokens").get();
+          const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+          logger.info(`Group comment push: tokenExists=${tokenDoc.exists}, pushToken=${pushToken ? "yes" : "null"}`);
+          if (pushToken) {
+            const fetch = require("node-fetch");
+            const badgeCount = await getUnreadNotificationCount(postAuthorId);
+            const pushResponse = await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: pushToken,
+                sound: "default",
+                title: "New Comment",
+                body: `${commenterName} commented on "${postTitle}"`,
+                data: { type: "groupPostComment", groupId, postId },
+                badge: badgeCount,
+              }),
+            });
+            const pushResult = await pushResponse.json();
+            logger.info("Group comment push result:", pushResult);
+          } else {
+            logger.warn(`Group comment push: NO push token for user ${postAuthorId}`);
+          }
+        } else {
+          logger.info(`Group comment push: skipped — user ${postAuthorId} has notifications muted`);
+        }
       } catch (error) {
         logger.error("Group comment notification error:", error);
       }
@@ -1366,6 +1424,33 @@ exports.onEventCommentCreate = onDocumentCreated(
             read: false,
             createdAt: FieldValue.serverTimestamp(),
           });
+
+        // Push notification
+        if (eventAuthorDoc.data().notificationsMuted !== true) {
+          const tokenDoc = await db.collection("users").doc(eventAuthorId)
+            .collection("private").doc("tokens").get();
+          const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+          if (pushToken) {
+            const fetch = require("node-fetch");
+            const badgeCount = await getUnreadNotificationCount(eventAuthorId);
+            await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: pushToken,
+                sound: "default",
+                title: "New Comment",
+                body: `${commenterName} commented on "${eventTitle}"`,
+                data: { type: "eventComment", eventId },
+                badge: badgeCount,
+              }),
+            });
+          }
+        }
       } catch (error) {
         logger.error("Event comment notification error:", error);
       }
@@ -1492,6 +1577,33 @@ exports.onMutualAidCommentCreate = onDocumentCreated(
             read: false,
             createdAt: FieldValue.serverTimestamp(),
           });
+
+        // Push notification
+        if (groupAuthorDoc.data().notificationsMuted !== true) {
+          const tokenDoc = await db.collection("users").doc(groupAuthorId)
+            .collection("private").doc("tokens").get();
+          const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+          if (pushToken) {
+            const fetch = require("node-fetch");
+            const badgeCount = await getUnreadNotificationCount(groupAuthorId);
+            await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: pushToken,
+                sound: "default",
+                title: "New Comment",
+                body: `${commenterName} commented on "${groupName}"`,
+                data: { type: "mutualAidComment", groupId },
+                badge: badgeCount,
+              }),
+            });
+          }
+        }
       } catch (error) {
         logger.error("Mutual aid comment notification error:", error);
       }

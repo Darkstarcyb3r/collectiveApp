@@ -1,8 +1,8 @@
 // Collective App
 // Main entry point
 
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, LogBox } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, View, StyleSheet, LogBox } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
@@ -23,7 +23,7 @@ Notifications.setNotificationHandler({
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
-    shouldSetBadge: false, // Badge is managed server-side via push payload — no client override
+    shouldSetBadge: true, // Let the push payload's badge field update the app icon badge
   }),
 });
 
@@ -37,6 +37,22 @@ SplashScreen.preventAutoHideAsync();
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
+
+  // Clear app icon badge whenever the app comes to the foreground.
+  // Badge is set server-side in push payloads (reflects total unread).
+  // When user opens the app, they can see everything — badge resets to 0.
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        Notifications.setBadgeCountAsync(0).catch(() => {});
+      }
+      appState.current = nextAppState;
+    });
+    // Also clear on initial mount (app just opened)
+    Notifications.setBadgeCountAsync(0).catch(() => {});
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     console.log('[Splash] prepare() starting...');

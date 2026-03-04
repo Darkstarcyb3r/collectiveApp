@@ -358,22 +358,13 @@ const DashboardScreen = ({ navigation }) => {
 
   const handleCloseNotifications = async () => {
     setNotificationModalVisible(false);
-    
+
     if (user?.uid && unreadCount > 0) {
       await markAllNotificationsRead(user.uid);
-      
-      // Recalculate badge count
-      const [notifSnapshot, convosSnapshot] = await Promise.all([
-        firestore().collection("users").doc(user.uid)
-          .collection("notifications").where("read", "==", false).count().get(),
-        firestore().collection("conversations")
-          .where("participants", "array-contains", user.uid)
-          .where(`unread_${user.uid}`, "==", true).count().get(),
-      ]);
-      
-      const totalUnread = notifSnapshot.data().count + convosSnapshot.data().count;
-      await Notifications.setBadgeCountAsync(totalUnread);
     }
+    // User just reviewed notifications — clear the badge.
+    // Next push notification will set the correct count server-side.
+    Notifications.setBadgeCountAsync(0).catch(() => {});
   };
 
   const handleScroll = (event) => {
