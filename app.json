@@ -70,8 +70,14 @@
       "eas": {
         "projectId": "d4d68e8d-25b9-440b-a71a-d70fc68c53e2"
       }
+    },
+    "android": {
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ],
+      "package": "com.collectivenetwork.app"
     }
-
-
   }
 }
