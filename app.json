@@ -23,7 +23,6 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
- 
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -71,7 +70,8 @@
       "eas": {
         "projectId": "d4d68e8d-25b9-440b-a71a-d70fc68c53e2"
       }
-    },
-    "owner": "darkstarcyb3r"
+    }
+
+
   }
 }
