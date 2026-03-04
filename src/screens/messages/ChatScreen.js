@@ -105,12 +105,32 @@ const ChatScreen = ({ route, navigation }) => {
               navigation.goBack()
               return
             }
-            // Fill in display name/photo from conversation doc if not provided via params
-            if (otherUserId && data.participantProfiles) {
-              const profile = data.participantProfiles[otherUserId]
-              if (profile) {
-                if (!otherUserName && profile.name) setDisplayName(profile.name)
-                if (!otherUserPhoto && profile.profilePhoto) setDisplayPhoto(profile.profilePhoto)
+            // Resolve the other user's ID — use param if available,
+            // otherwise extract from the conversation's participants array
+            let resolvedOtherUserId = otherUserId
+            if (!resolvedOtherUserId && user?.uid && data.participants) {
+              resolvedOtherUserId = data.participants.find((id) => id !== user.uid)
+            }
+
+            // Fetch LIVE profile from users collection (authoritative source)
+            // Falls back to conversation's participantProfiles if user doc unavailable
+            if (resolvedOtherUserId) {
+              try {
+                const otherUserDoc = await firestore().collection('users').doc(resolvedOtherUserId).get()
+                if (otherUserDoc.exists) {
+                  const liveProfile = otherUserDoc.data()
+                  if (liveProfile.name) setDisplayName(liveProfile.name)
+                  if (liveProfile.profilePhoto) setDisplayPhoto(liveProfile.profilePhoto)
+                }
+              } catch (_profileErr) {
+                // Fallback to stale participantProfiles from conversation doc
+                if (data.participantProfiles) {
+                  const profile = data.participantProfiles[resolvedOtherUserId]
+                  if (profile) {
+                    if (!otherUserName && profile.name) setDisplayName(profile.name)
+                    if (!otherUserPhoto && profile.profilePhoto) setDisplayPhoto(profile.profilePhoto)
+                  }
+                }
               }
             }
             // Check if user previously cleared this thread
@@ -155,6 +175,17 @@ const ChatScreen = ({ route, navigation }) => {
               if (ts) clearedAtRef.current = ts.toDate()
             }
           } catch (_e) {}
+          // Fetch live profile if name/photo not provided via params
+          if (!otherUserName || !otherUserPhoto) {
+            try {
+              const otherUserDoc = await firestore().collection('users').doc(otherUserId).get()
+              if (otherUserDoc.exists) {
+                const liveProfile = otherUserDoc.data()
+                if (liveProfile.name && !otherUserName) setDisplayName(liveProfile.name)
+                if (liveProfile.profilePhoto) setDisplayPhoto(liveProfile.profilePhoto)
+              }
+            } catch (_profileErr) {}
+          }
           setConversationId(result.conversationId)
           setInitReady(true)
         } else {

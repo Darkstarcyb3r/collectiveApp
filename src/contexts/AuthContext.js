@@ -78,9 +78,8 @@ export const AuthProvider = ({ children }) => {
             new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 4000)),
           ]);
 
-          if (userDoc.exists) {
-            const profileData = userDoc.data();
-            profileData.isOnline = true;
+          if (userDoc.exists && userDoc.data()) {
+            const profileData = { ...userDoc.data(), isOnline: true };
             setUserProfile(profileData);
             setIsProfileSetup(profileData.profileSetup || false);
             setIsAddFriendsComplete(profileData.addFriendsComplete !== false);

@@ -127,9 +127,9 @@ const ProfileSetupScreen = ({ navigation }) => {
     setLoading(false)
 
     if (result.success) {
-      await refreshUserProfile()
-      // Replace ProfileSetup with AddFriends so there's no back-stack
-      // to return to after contacts permission dialog
+      // Navigate first — don't refresh profile here because it triggers
+      // AuthNavigator to re-mount and reset the navigation stack.
+      // Profile state will be refreshed when AddFriends completes.
       navigation.replace('AddFriends')
     } else {
       Alert.alert('Error', result.error)

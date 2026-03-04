@@ -106,6 +106,7 @@ export const sendChatRequest = async (
       updatedAt: firestore.FieldValue.serverTimestamp(),
       status: 'pending',
       initiatedBy: currentUserId,
+      [`unread_${otherUserId}`]: true,
     })
 
     // Notification handled server-side by onConversationCreate Cloud Function

@@ -20,7 +20,8 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 // Configure foreground notification display
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false, // Badge is managed server-side via push payload — no client override
   }),

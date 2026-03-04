@@ -671,99 +671,104 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
     logger.error(`Step 1 failed (groups cleanup):`, err);
   }
 
-  // Step 2: Clean up conversations and messages
+  // Step 2: Clean up conversations and ALL messages
+  // Uses batched writes (max 500 ops per batch) for atomic, reliable deletion.
   try {
     const conversationsSnapshot = await db
       .collection("conversations")
       .where("participants", "array-contains", userId)
       .get();
-    
+
+    logger.info(`Step 2: found ${conversationsSnapshot.size} conversations for user ${userId}`);
+
     let messagesDeleted = 0;
-    
+    let conversationsDeleted = 0;
+
     for (const convoDoc of conversationsSnapshot.docs) {
       const convoData = convoDoc.data();
       const participants = convoData.participants || [];
-      
-      if (participants.length === 2) {
-        // If it's a 1-on-1 conversation between two users, check if the other user still exists
-        const otherUserId = participants.find(id => id !== userId);
-        
-        if (otherUserId) {
-          const otherUserDoc = await db.collection("users").doc(otherUserId).get();
-          
-          if (!otherUserDoc.exists) {
-            // OTHER USER IS ALSO DELETED! Delete the entire conversation and all messages
-            logger.info(`Both users deleted, deleting entire conversation ${convoDoc.id}`);
-            
-            // Delete all messages in this conversation
-            const messagesSnapshot = await convoDoc.ref.collection("messages").get();
-            for (const msgDoc of messagesSnapshot.docs) {
-              await msgDoc.ref.delete();
-              messagesDeleted++;
-            }
-            
-            // Delete the conversation document itself
-            await convoDoc.ref.delete();
-            continue; // Skip the rest of this loop iteration
+
+      logger.info(`Step 2: processing conversation ${convoDoc.id} (${participants.length} participants)`);
+
+      if (participants.length <= 2) {
+        // 1-on-1 conversation: delete ALL messages and the conversation itself
+        const messagesSnapshot = await convoDoc.ref.collection("messages").get();
+        logger.info(`Step 2: conversation ${convoDoc.id} has ${messagesSnapshot.size} messages to delete`);
+
+        // Batch delete in chunks of 490 (leave room for the conversation doc)
+        const msgDocs = messagesSnapshot.docs;
+        for (let i = 0; i < msgDocs.length; i += 490) {
+          const batch = db.batch();
+          const chunk = msgDocs.slice(i, i + 490);
+          for (const msgDoc of chunk) {
+            batch.delete(msgDoc.ref);
           }
+          // Include conversation doc delete in the last batch
+          if (i + 490 >= msgDocs.length) {
+            batch.delete(convoDoc.ref);
+          }
+          await batch.commit();
+          messagesDeleted += chunk.length;
         }
-        
-        // Other user still exists - just mark as deleted for this user
-        await convoDoc.ref.update({
-          [`deleted_${userId}`]: true,
-        });
-        
-        // Optionally: Delete only this user's messages from the conversation
-        const userMessagesSnapshot = await convoDoc.ref
-          .collection("messages")
-          .where("senderId", "==", userId)
-          .get();
-        
-        for (const msgDoc of userMessagesSnapshot.docs) {
-          await msgDoc.ref.delete();
-          messagesDeleted++;
+
+        // If no messages, still delete the conversation doc
+        if (msgDocs.length === 0) {
+          await convoDoc.ref.delete();
         }
-        
+        conversationsDeleted++;
       } else {
-        // Group conversation (3+ participants) - just remove user and mark
+        // Group conversation (3+ participants) — remove user, delete their messages
         await convoDoc.ref.update({
           participants: FieldValue.arrayRemove(userId),
           [`deleted_${userId}`]: true,
         });
-        
-        // Delete this user's messages from group conversation
+
         const userMessagesSnapshot = await convoDoc.ref
           .collection("messages")
           .where("senderId", "==", userId)
           .get();
-        
-        for (const msgDoc of userMessagesSnapshot.docs) {
-          await msgDoc.ref.delete();
-          messagesDeleted++;
+
+        const userMsgDocs = userMessagesSnapshot.docs;
+        for (let i = 0; i < userMsgDocs.length; i += 500) {
+          const batch = db.batch();
+          const chunk = userMsgDocs.slice(i, i + 500);
+          for (const msgDoc of chunk) {
+            batch.delete(msgDoc.ref);
+          }
+          await batch.commit();
+          messagesDeleted += chunk.length;
         }
       }
     }
-    
-    logger.info(`Step 2 done: cleaned ${conversationsSnapshot.size} conversations, deleted ${messagesDeleted} messages`);
+
+    logger.info(`Step 2 done: deleted ${conversationsDeleted} conversations, ${messagesDeleted} messages`);
   } catch (err) {
     logger.error(`Step 2 failed (conversations cleanup):`, err);
   }
 
-
   // Step 2b: Delete any remaining messages by this user (safety net)
+  // Requires collectionGroup index on messages.senderId — see firestore.indexes.json
   try {
     const orphanedMessages = await db
       .collectionGroup("messages")
       .where("senderId", "==", userId)
       .get();
-    
-    for (const msgDoc of orphanedMessages.docs) {
-      await msgDoc.ref.delete();
+
+    logger.info(`Step 2b: found ${orphanedMessages.size} orphaned messages`);
+
+    const orphanDocs = orphanedMessages.docs;
+    for (let i = 0; i < orphanDocs.length; i += 500) {
+      const batch = db.batch();
+      const chunk = orphanDocs.slice(i, i + 500);
+      for (const msgDoc of chunk) {
+        batch.delete(msgDoc.ref);
+      }
+      await batch.commit();
     }
-    
+
     logger.info(`Step 2b done: deleted ${orphanedMessages.size} orphaned messages`);
   } catch (err) {
-    logger.error(`Step 2b failed (orphaned messages):`, err);
+    logger.error(`Step 2b failed (orphaned messages — may need collectionGroup index):`, err);
   }
 
 
@@ -832,38 +837,50 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
   }
 
   // Step 6: Delete user's posts in OTHER groups (collectionGroup query)
+  // Requires collectionGroup index on posts.authorId — see firestore.indexes.json
   try {
     const userPosts = await db
       .collectionGroup("posts")
       .where("authorId", "==", userId)
       .get();
+    logger.info(`Step 6: found ${userPosts.size} posts by user in other groups`);
     let commentsDeleted = 0;
     for (const postDoc of userPosts.docs) {
       // Delete comments on this post
       const comments = await postDoc.ref.collection("comments").get();
+      const batch = db.batch();
       for (const commentDoc of comments.docs) {
-        await commentDoc.ref.delete();
+        batch.delete(commentDoc.ref);
         commentsDeleted++;
       }
-      await postDoc.ref.delete();
+      batch.delete(postDoc.ref);
+      await batch.commit();
     }
     logger.info(`Step 6 done: deleted ${userPosts.size} posts, ${commentsDeleted} comments`);
   } catch (err) {
-    logger.error(`Step 6 failed (user posts cleanup):`, err);
+    logger.error(`Step 6 failed (user posts cleanup — may need collectionGroup index):`, err);
   }
 
   // Step 7: Delete user's comments across all collections (collectionGroup)
+  // Requires collectionGroup index on comments.authorId — see firestore.indexes.json
   try {
     const userComments = await db
       .collectionGroup("comments")
       .where("authorId", "==", userId)
       .get();
-    for (const commentDoc of userComments.docs) {
-      await commentDoc.ref.delete();
+    logger.info(`Step 7: found ${userComments.size} comments by user`);
+    const commentDocs = userComments.docs;
+    for (let i = 0; i < commentDocs.length; i += 500) {
+      const batch = db.batch();
+      const chunk = commentDocs.slice(i, i + 500);
+      for (const commentDoc of chunk) {
+        batch.delete(commentDoc.ref);
+      }
+      await batch.commit();
     }
     logger.info(`Step 7 done: deleted ${userComments.size} comments`);
   } catch (err) {
-    logger.error(`Step 7 failed (user comments cleanup):`, err);
+    logger.error(`Step 7 failed (user comments cleanup — may need collectionGroup index):`, err);
   }
 
   // Step 8: Delete user's events
@@ -919,17 +936,27 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
   }
 
   // Step 12: Delete user's cyber lounge messages (collectionGroup)
+  // Requires collectionGroup index on messages.senderId — see firestore.indexes.json
+  // Note: Step 2b already handles this as a safety net. This step catches any that
+  // were created between Step 2b and now (shouldn't happen, but just in case).
   try {
     const userMessages = await db
       .collectionGroup("messages")
       .where("senderId", "==", userId)
       .get();
-    for (const msgDoc of userMessages.docs) {
-      await msgDoc.ref.delete();
+    logger.info(`Step 12: found ${userMessages.size} remaining messages by user`);
+    const msgDocs = userMessages.docs;
+    for (let i = 0; i < msgDocs.length; i += 500) {
+      const batch = db.batch();
+      const chunk = msgDocs.slice(i, i + 500);
+      for (const msgDoc of chunk) {
+        batch.delete(msgDoc.ref);
+      }
+      await batch.commit();
     }
     logger.info(`Step 12 done: deleted ${userMessages.size} lounge/chat messages`);
   } catch (err) {
-    logger.error(`Step 12 failed (messages cleanup):`, err);
+    logger.error(`Step 12 failed (messages cleanup — may need collectionGroup index):`, err);
   }
 
   // Step 12b: Delete user's Cyberlounge rooms (and their messages subcollections)
@@ -1187,7 +1214,7 @@ exports.onGroupCommentCreate = onDocumentCreated(
             const commenterDoc = await db.collection("users").doc(authorId).get();
             const commenterName = commenterDoc.exists ? commenterDoc.data().name : "Someone";
 
-            // In-app notification only (no push notification for replies)
+            // In-app notification
             await db.collection("users").doc(parentAuthorId)
               .collection("notifications").add({
                 title: "New Reply",
@@ -1197,6 +1224,34 @@ exports.onGroupCommentCreate = onDocumentCreated(
                 read: false,
                 createdAt: FieldValue.serverTimestamp(),
               });
+
+            // Push notification
+            const parentAuthorDoc = await db.collection("users").doc(parentAuthorId).get();
+            if (parentAuthorDoc.exists && parentAuthorDoc.data().notificationsMuted !== true) {
+              const tokenDoc = await db.collection("users").doc(parentAuthorId)
+                .collection("private").doc("tokens").get();
+              const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+              if (pushToken) {
+                const fetch = require("node-fetch");
+                const badgeCount = await getUnreadNotificationCount(parentAuthorId);
+                await fetch("https://exp.host/--/api/v2/push/send", {
+                  method: "POST",
+                  headers: {
+                    Accept: "application/json",
+                    "Accept-Encoding": "gzip, deflate",
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    to: pushToken,
+                    sound: "default",
+                    title: "New Reply",
+                    body: `${commenterName} replied to your comment`,
+                    data: { type: "groupPostCommentReply", groupId, postId },
+                    badge: badgeCount,
+                  }),
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -1328,7 +1383,7 @@ exports.onEventCommentCreate = onDocumentCreated(
             const commenterDoc = await db.collection("users").doc(authorId).get();
             const commenterName = commenterDoc.exists ? commenterDoc.data().name : "Someone";
 
-            // In-app notification only (no push notification for replies)
+            // In-app notification
             await db.collection("users").doc(parentAuthorId)
               .collection("notifications").add({
                 title: "New Reply",
@@ -1338,6 +1393,34 @@ exports.onEventCommentCreate = onDocumentCreated(
                 read: false,
                 createdAt: FieldValue.serverTimestamp(),
               });
+
+            // Push notification
+            const parentAuthorDoc = await db.collection("users").doc(parentAuthorId).get();
+            if (parentAuthorDoc.exists && parentAuthorDoc.data().notificationsMuted !== true) {
+              const tokenDoc = await db.collection("users").doc(parentAuthorId)
+                .collection("private").doc("tokens").get();
+              const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+              if (pushToken) {
+                const fetch = require("node-fetch");
+                const badgeCount = await getUnreadNotificationCount(parentAuthorId);
+                await fetch("https://exp.host/--/api/v2/push/send", {
+                  method: "POST",
+                  headers: {
+                    Accept: "application/json",
+                    "Accept-Encoding": "gzip, deflate",
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    to: pushToken,
+                    sound: "default",
+                    title: "New Reply",
+                    body: `${commenterName} replied to your comment`,
+                    data: { type: "eventCommentReply", eventId },
+                    badge: badgeCount,
+                  }),
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -1426,7 +1509,7 @@ exports.onMutualAidCommentCreate = onDocumentCreated(
             const commenterDoc = await db.collection("users").doc(authorId).get();
             const commenterName = commenterDoc.exists ? commenterDoc.data().name : "Someone";
 
-            // In-app notification only (no push notification for replies)
+            // In-app notification
             await db.collection("users").doc(parentAuthorId)
               .collection("notifications").add({
                 title: "New Reply",
@@ -1436,6 +1519,34 @@ exports.onMutualAidCommentCreate = onDocumentCreated(
                 read: false,
                 createdAt: FieldValue.serverTimestamp(),
               });
+
+            // Push notification
+            const parentAuthorDoc = await db.collection("users").doc(parentAuthorId).get();
+            if (parentAuthorDoc.exists && parentAuthorDoc.data().notificationsMuted !== true) {
+              const tokenDoc = await db.collection("users").doc(parentAuthorId)
+                .collection("private").doc("tokens").get();
+              const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+              if (pushToken) {
+                const fetch = require("node-fetch");
+                const badgeCount = await getUnreadNotificationCount(parentAuthorId);
+                await fetch("https://exp.host/--/api/v2/push/send", {
+                  method: "POST",
+                  headers: {
+                    Accept: "application/json",
+                    "Accept-Encoding": "gzip, deflate",
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    to: pushToken,
+                    sound: "default",
+                    title: "New Reply",
+                    body: `${commenterName} replied to your comment`,
+                    data: { type: "mutualAidCommentReply", groupId },
+                    badge: badgeCount,
+                  }),
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -1513,6 +1624,7 @@ exports.onBarterPostCreate = onDocumentCreated(
         const prefs = followerData.subscriptionPreferences?.[authorId];
         if (prefs && prefs.barterMarketPosts === false) continue;
 
+        // In-app notification
         await db.collection("users").doc(followerDoc.id)
           .collection("notifications").add({
             title: "New Barter Post",
@@ -1522,6 +1634,33 @@ exports.onBarterPostCreate = onDocumentCreated(
             read: false,
             createdAt: FieldValue.serverTimestamp(),
           });
+
+        // Push notification
+        if (followerData.notificationsMuted !== true) {
+          const tokenDoc = await db.collection("users").doc(followerDoc.id)
+            .collection("private").doc("tokens").get();
+          const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+          if (pushToken) {
+            const fetch = require("node-fetch");
+            const badgeCount = await getUnreadNotificationCount(followerDoc.id);
+            await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: pushToken,
+                sound: "default",
+                title: "New Barter Post",
+                body: `${authorName} posted "${postTitle}" on the Barter Market`,
+                data: { type: "barterMarketPost", postId, authorId },
+                badge: badgeCount,
+              }),
+            });
+          }
+        }
       }
     } catch (error) {
       logger.error("Barter post follower notification error:", error);
@@ -1769,6 +1908,59 @@ exports.cleanupExpiredMessages = onSchedule(
     logger.info(`Total expired messages cleaned: ${totalDeleted}`);
   }
 );
+
+// =============================================================
+// FUNCTION 15b: One-time cleanup — delete orphaned conversations
+// =============================================================
+// Finds all conversations where at least one participant's user
+// document no longer exists (deleted account) and deletes the
+// entire conversation + all messages. Callable by admins only.
+exports.cleanupOrphanedConversations = onCall({ timeoutSeconds: 300 }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in.");
+  }
+
+  // Verify caller is admin
+  const callerDoc = await db.collection("users").doc(request.auth.uid).get();
+  if (!callerDoc.exists || !callerDoc.data().isAdmin) {
+    throw new HttpsError("permission-denied", "Admin access required.");
+  }
+
+  const conversationsSnapshot = await db.collection("conversations").get();
+  let conversationsDeleted = 0;
+  let messagesDeleted = 0;
+
+  for (const convoDoc of conversationsSnapshot.docs) {
+    const convoData = convoDoc.data();
+    const participants = convoData.participants || [];
+
+    // Check if any participant's user document is missing
+    let hasOrphan = false;
+    for (const participantId of participants) {
+      const userDoc = await db.collection("users").doc(participantId).get();
+      if (!userDoc.exists) {
+        hasOrphan = true;
+        break;
+      }
+    }
+
+    if (hasOrphan) {
+      // Delete all messages in this conversation
+      const messagesSnapshot = await convoDoc.ref.collection("messages").get();
+      for (const msgDoc of messagesSnapshot.docs) {
+        await msgDoc.ref.delete();
+        messagesDeleted++;
+      }
+      // Delete the conversation document
+      await convoDoc.ref.delete();
+      conversationsDeleted++;
+      logger.info(`Deleted orphaned conversation ${convoDoc.id} (${messagesSnapshot.size} messages)`);
+    }
+  }
+
+  logger.info(`Orphan cleanup complete: ${conversationsDeleted} conversations, ${messagesDeleted} messages deleted`);
+  return { conversationsDeleted, messagesDeleted };
+});
 
 // =============================================================
 // FUNCTION 16: Scheduled Barter Post Cleanup (60-day retention)
@@ -2107,8 +2299,16 @@ exports.onConversationCreate = onDocumentCreated(
       const initiatorDoc = await db.collection("users").doc(initiatorId).get();
       const initiatorName = initiatorDoc.exists ? (initiatorDoc.data().name || "Someone") : "Someone";
 
-      // Skip notification history for private messages — they have their own indicators
-      // Still send push notification below
+      // Store to notification history (for in-app bell + badge)
+      await db.collection("users").doc(recipientId)
+        .collection("notifications").add({
+          title: initiatorName,
+          body: `${initiatorName} wants to start a chat with you`,
+          type: "chat_request",
+          data: { type: "chat_request", conversationId, senderId: initiatorId },
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
 
       // Send push notification (read token from private subcollection)
       const recipientDoc = await db.collection("users").doc(recipientId).get();
@@ -2182,8 +2382,22 @@ exports.onConversationStatusChange = onDocumentUpdated(
       : "perhaps another time";
 
     try {
-      // Skip notification history for private messages — they have their own indicators
-      // Still send push notification below
+      // Store to notification history (for in-app bell + badge)
+      await db.collection("users").doc(requesterId)
+        .collection("notifications").add({
+          title: notifTitle,
+          body: notifBody,
+          type: notifType,
+          data: { type: notifType, conversationId, senderId: responderId },
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+      // Mark conversation as unread for the requester (triggers green dot + badge)
+      if (isAccepted) {
+        await db.collection("conversations").doc(conversationId)
+          .update({ [`unread_${requesterId}`]: true });
+      }
 
       // Send push notification (read token from private subcollection)
       const requesterDoc = await db.collection("users").doc(requesterId).get();
@@ -2247,6 +2461,7 @@ exports.onFollowChange = onDocumentUpdated(
 
       for (const targetUserId of newFollows) {
         try {
+          // In-app notification
           await db.collection("users").doc(targetUserId)
             .collection("notifications").add({
               title: "New Follower",
@@ -2256,6 +2471,34 @@ exports.onFollowChange = onDocumentUpdated(
               read: false,
               createdAt: FieldValue.serverTimestamp(),
             });
+
+          // Push notification
+          const targetDoc = await db.collection("users").doc(targetUserId).get();
+          if (targetDoc.exists && targetDoc.data().notificationsMuted !== true) {
+            const tokenDoc = await db.collection("users").doc(targetUserId)
+              .collection("private").doc("tokens").get();
+            const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+            if (pushToken) {
+              const fetch = require("node-fetch");
+              const badgeCount = await getUnreadNotificationCount(targetUserId);
+              await fetch("https://exp.host/--/api/v2/push/send", {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Accept-Encoding": "gzip, deflate",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  to: pushToken,
+                  sound: "default",
+                  title: "New Follower",
+                  body: `${followerName} is now following you!`,
+                  data: { type: "follower", followerId: userId },
+                  badge: badgeCount,
+                }),
+              });
+            }
+          }
         } catch (error) {
           logger.error(`Follower notification error for ${targetUserId}:`, error);
         }

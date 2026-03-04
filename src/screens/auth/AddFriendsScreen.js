@@ -1,5 +1,6 @@
 // Add Friends Screen
-// 3-step onboarding flow: Matrix intro → Contacts on Collective → Invite via SMS
+// 2-step onboarding flow: Matrix intro → Follow friends on Collective
+// Profile mode retains all 3 steps: Contacts on Collective → Invite via SMS
 // Appears after profile setup, before dashboard
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
@@ -37,17 +38,6 @@ const MATRIX_CHARS = '0123456789'
 const NUM_COLUMNS = 32
 const CHAR_SIZE = 13
 const COLUMN_WIDTH = (width - 40) / NUM_COLUMNS
-
-// Preview contact photos for "On Collective" step
-const PREVIEW_PHOTOS = [
-  require('../../assets/contact-photos/contact 1.png'),
-  require('../../assets/contact-photos/contact 2.png'),
-  require('../../assets/contact-photos/contact 3.png'),
-  require('../../assets/contact-photos/contact 4.png'),
-  require('../../assets/contact-photos/contact 5.png'),
-  require('../../assets/contact-photos/contact 6.png'),
-  require('../../assets/contact-photos/contact 7.png'),
-]
 
 // ── Matrix Rain inside Nokia Phone Frame ──
 const SCREEN_COLUMNS = 18
@@ -309,8 +299,6 @@ const ContactRow = React.memo(({ item, selected, onToggle, showPhoto, isFollowed
     <View style={rowStyles.avatar}>
       {showPhoto && item.profilePhoto ? (
         <Image source={{ uri: item.profilePhoto }} style={rowStyles.avatarImage} />
-      ) : showPhoto && item.previewPhoto ? (
-        <Image source={item.previewPhoto} style={rowStyles.avatarImage} />
       ) : (
         <View style={rowStyles.avatarPlaceholder}>
           <Text style={rowStyles.avatarInitial}>{initial}</Text>
@@ -372,12 +360,12 @@ const rowStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#555',
+    backgroundColor: colors.lilac,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    color: '#fff',
+    color: colors.textDark,
     fontSize: 18,
     fontFamily: fonts.bold,
   },
@@ -576,7 +564,6 @@ const AddFriendsScreen = ({ navigation, route }) => {
       // Check which contacts are on Collective
       const onCollective = []
       const notOnCollective = []
-      let previewIndex = 0
 
       // Batch check phones against Firestore (limit to first 200 to avoid rate limits)
       const toCheck = contactsWithPhones.slice(0, 200)
@@ -596,9 +583,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
               uid: result.data.id,
               name: result.data.name || contact.displayName,
               profilePhoto: result.data.profilePhoto,
-              previewPhoto: PREVIEW_PHOTOS[previewIndex % PREVIEW_PHOTOS.length],
             })
-            previewIndex++
           } else {
             notOnCollective.push(contact)
           }
@@ -633,28 +618,28 @@ const AddFriendsScreen = ({ navigation, route }) => {
       return
     }
 
-    if (selectedCollective.size === 0) {
-      setStep(2)
-      return
+    // Onboarding mode: follow selected contacts, then complete
+    if (selectedCollective.size > 0) {
+      setLoading(true)
+      try {
+        const followPromises = Array.from(selectedCollective).map((contactId) => {
+          const contact = contactsOnCollective.find((c) => c.id === contactId)
+          if (contact?.uid) {
+            return followUser(user.uid, contact.uid)
+          }
+          return Promise.resolve()
+        })
+
+        await Promise.allSettled(followPromises)
+      } catch (error) {
+        console.log('Follow error:', error)
+      }
+      setLoading(false)
     }
 
-    setLoading(true)
-    try {
-      const followPromises = Array.from(selectedCollective).map((contactId) => {
-        const contact = contactsOnCollective.find((c) => c.id === contactId)
-        if (contact?.uid) {
-          return followUser(user.uid, contact.uid)
-        }
-        return Promise.resolve()
-      })
-
-      await Promise.allSettled(followPromises)
-    } catch (error) {
-      console.log('Follow error:', error)
-    }
-    setLoading(false)
-    setStep(2)
-  }, [selectedCollective, contactsOnCollective, user, isProfileMode])
+    // In onboarding mode, complete flow after following (skip SMS invite step)
+    completeFlow()
+  }, [selectedCollective, contactsOnCollective, user, isProfileMode, completeFlow])
 
   // Send SMS invites to selected contacts using expo-sms
   // Sends individual texts (one per contact) so recipients don't see each other's numbers.
@@ -825,7 +810,9 @@ const AddFriendsScreen = ({ navigation, route }) => {
                 ? step === 2
                   ? 'Tap a contact to send an invite.'
                   : 'Tap a friend to view their profile & follow.'
-                : 'Get started by inviting your network.'}
+                : step === 0
+                  ? 'Find your friends already on Collective.'
+                  : 'Select friends to follow.'}
             </Text>
 
             {/* Step content */}
@@ -844,7 +831,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
               {step === 1 && (
                 <>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Follow Friends</Text>
+                    <Text style={styles.sectionTitle}>Friends on Collective</Text>
                     {!isProfileMode && contactsOnCollective.length > 0 && (
                       <TouchableOpacity onPress={handleSelectAllCollective} activeOpacity={0.7}>
                         <Text style={styles.selectAllText}>
@@ -875,7 +862,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
                 </>
               )}
 
-              {step === 2 && (
+              {step === 2 && isProfileMode && (
                 <>
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Invite Contacts</Text>
@@ -935,7 +922,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
               onPress={() => {
                 if (step === 0 && !isProfileMode) handleAddContacts()
                 else if (step === 1) handleFollowSelected()
-                else if (step === 2) handleSendInvites()
+                else if (step === 2 && isProfileMode) handleSendInvites()
               }}
               disabled={loading || step === -1}
               activeOpacity={0.8}
@@ -951,11 +938,11 @@ const AddFriendsScreen = ({ navigation, route }) => {
                 ) : (
                   <Text style={styles.nextText}>
                     {step === 0 && !isProfileMode
-                      ? 'add contacts'
+                      ? 'add friends'
                       : isProfileMode && step === 1
                         ? 'add from contacts'
                         : step === 1
-                          ? 'follow'
+                          ? (contactsOnCollective.length > 0 ? 'follow' : 'continue')
                           : 'invite'}
                   </Text>
                 )}
