@@ -23,14 +23,7 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-   
-      "package": "com.collectivenetwork.app",
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_CONTACTS",
-        "android.permission.WRITE_CONTACTS"
-      ]
-    },
+ 
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -47,8 +40,7 @@
               "RNFBFunctions",
               "RNFBDatabase",
               "RNFBMessaging",
-              "RNFBStorage",
-              "RNFBAppCheck"
+              "RNFBStorage"
             ]
           }
         }

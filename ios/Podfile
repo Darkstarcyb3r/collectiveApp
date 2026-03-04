@@ -2,6 +2,12 @@ require File.join(File.dirname(`node --print "require.resolve('expo/package.json
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
 require 'json'
+
+# THESE MUST BE AT THE VERY TOP 
+$RNFirebaseAsStaticFramework = true
+use_frameworks! :linkage => :static
+use_modular_headers!
+
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 def ccache_enabled?(podfile_properties)
@@ -59,5 +65,24 @@ target 'Collective' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
-  end
-end
+    
+# FIX FOR RNFB HEADER ERRORS
+installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # This is the magic line that fixes the "non-modular header" errors
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        
+        # For React Native Firebase targets, disable modules to avoid conflicts
+        if target.name.start_with?('RNFB')
+          config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
+        end
+      end
+    end
+
+    # Fix for Xcode 15+ simulator builds (if needed)
+    installer.pods_project.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+    end
+  end  # ← This closes the post_install block
+end  # ← This closes the target 'Collective' block
+

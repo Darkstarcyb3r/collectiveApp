@@ -1,16 +1,11 @@
 // Firebase Configuration - Using @react-native-firebase (native SDK)
 // Native SDK initializes automatically from GoogleService-Info.plist (iOS)
 // and google-services.json (Android) — no JS config object needed.
-//
-// App Check uses App Attest (iOS) / Play Integrity (Android) natively,
-// and tokens are automatically attached to all Firebase requests.
 
 import auth from '@react-native-firebase/auth'
 import firestore from '@react-native-firebase/firestore'
 import functions from '@react-native-firebase/functions'
 
-// App Check is initialized automatically by the @react-native-firebase/app-check
-// config plugin — no manual initialization needed.
 //
 // Static properties available on these module exports:
 //   auth.EmailAuthProvider         — for re-authentication credentials
