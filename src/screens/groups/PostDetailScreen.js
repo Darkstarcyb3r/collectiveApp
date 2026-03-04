@@ -43,6 +43,7 @@ import { ConfirmModal } from '../../components/common'
 import LightTabBar from '../../components/navigation/LightTabBar'
 import { groupCommentsWithReplies } from '../../utils/commentUtils'
 import { LinearGradient } from 'expo-linear-gradient'
+import { playClick } from '../../services/soundService'
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window')
 const POST_CONTENT_MAX_HEIGHT = SCREEN_HEIGHT * 0.2
@@ -165,6 +166,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   }
 
   const handleDelete = () => {
+    playClick()
     setDeletePostConfirm(true)
   }
 
@@ -179,6 +181,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   }
 
   const handleShare = async () => {
+    playClick()
     const { shareContent, buildGroupPostLink } = require('../../utils/shareLinks')
     await shareContent(
       `Check out "${post?.title}" in ${groupName || 'our group'} on Collective!`,
@@ -187,6 +190,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   }
 
   const handleToggleSubscribe = async () => {
+    playClick()
     if (!user?.uid || subscribingRef.current) return
     subscribingRef.current = true
     const newState = !isSubscribed
@@ -207,6 +211,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   }
 
   const handleDeleteComment = (commentId) => {
+    playClick()
     setDeleteCommentConfirm({ visible: true, commentId })
   }
 
@@ -222,6 +227,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   }
 
   const handleSelectCommentReaction = (emoji) => {
+    playClick()
     const cid = reactionPickerCommentId
     setReactionPickerCommentId(null)
     if (cid && user?.uid) {
@@ -245,6 +251,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   }
 
   const handleTapCommentReaction = (commentId, emoji) => {
+    playClick()
     if (!user?.uid) return
     setComments((prev) =>
       prev.map((c) => {
@@ -339,6 +346,7 @@ const PostDetailScreen = ({ navigation, route }) => {
               {/* Author Avatar (Left) */}
               <TouchableOpacity
                 onPress={() => {
+                  playClick()
                   if (post.author?.id) {
                     navigation.navigate('UserProfile', { userId: post.author.id })
                   }
@@ -365,7 +373,7 @@ const PostDetailScreen = ({ navigation, route }) => {
                 {isPostAuthor && (
                   <TouchableOpacity
                     style={styles.iconButton}
-                    onPress={() => navigation.navigate('EditPost', { groupId, postId, groupName })}
+                    onPress={() => { playClick(); navigation.navigate('EditPost', { groupId, postId, groupName }); }}
                   >
                     <Text style={styles.editPostLink}>edit_post</Text>
                   </TouchableOpacity>
@@ -382,6 +390,7 @@ const PostDetailScreen = ({ navigation, route }) => {
                 <TouchableOpacity
                   style={styles.iconButton}
                   onPress={() => {
+                    playClick()
                     setReplyTarget(null)
                     setShowCommentModal(true)
                   }}
@@ -415,7 +424,7 @@ const PostDetailScreen = ({ navigation, route }) => {
 
             {/* Image — tap to view full */}
             {post.imageUrl && (
-              <TouchableOpacity activeOpacity={0.85} onPress={() => setViewingImage(post.imageUrl)}>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => { playClick(); setViewingImage(post.imageUrl); }}>
                 <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
               </TouchableOpacity>
             )}
@@ -513,6 +522,7 @@ const PostDetailScreen = ({ navigation, route }) => {
                     <View style={[styles.commentRow, comment.isReply && styles.replyCommentRow]}>
                       <TouchableOpacity
                         onPress={() => {
+                          playClick()
                           if (comment.author?.id) {
                             navigation.navigate('UserProfile', { userId: comment.author.id })
                           }
@@ -546,6 +556,7 @@ const PostDetailScreen = ({ navigation, route }) => {
                         {!comment.isReply && (
                           <TouchableOpacity
                             onPress={() => {
+                              playClick()
                               setReplyTarget({
                                 commentId: comment.id,
                                 authorName: comment.author?.name || 'User',

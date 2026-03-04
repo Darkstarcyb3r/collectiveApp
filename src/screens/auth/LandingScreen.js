@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { View, StyleSheet, Image, SafeAreaView, StatusBar, Dimensions } from 'react-native'
 import { Button } from '../../components/common'
 import { colors } from '../../theme'
+import { playClick } from '../../services/soundService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -32,7 +33,7 @@ const LandingScreen = ({ navigation }) => {
             title="Login"
             variant="gradient"
             size="large"
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => { playClick(); navigation.navigate('Login'); }}
             style={styles.button}
           />
 
@@ -40,7 +41,7 @@ const LandingScreen = ({ navigation }) => {
             title="Sign Up"
             variant="gradient"
             size="large"
-            onPress={() => navigation.navigate('SignUp')}
+            onPress={() => { playClick(); navigation.navigate('SignUp'); }}
             style={styles.button}
           />
         </View>

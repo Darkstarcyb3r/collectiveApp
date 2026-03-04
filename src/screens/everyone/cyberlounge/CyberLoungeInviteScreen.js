@@ -28,6 +28,7 @@ import { searchUsers, searchUserByPhone } from '../../../services/userService'
 import { subscribeToChatroom } from '../../../services/everyoneService'
 import { sendChatroomInvitation } from '../../../services/messageService'
 import { getMemberProfiles } from '../../../services/groupService'
+import { playClick } from '../../../services/soundService'
 
 const CyberLoungeInviteScreen = ({ navigation, route }) => {
   const { roomId, roomName } = route.params
@@ -134,6 +135,7 @@ const CyberLoungeInviteScreen = ({ navigation, route }) => {
   }, [])
 
   const handleInvite = async (targetUserId, targetName, targetPhoto) => {
+    playClick()
     setInviting(targetUserId)
 
     const result = await sendChatroomInvitation(
@@ -258,6 +260,7 @@ const CyberLoungeInviteScreen = ({ navigation, route }) => {
           {searchQuery.length > 0 && (
             <TouchableOpacity
               onPress={() => {
+                playClick()
                 setSearchQuery('')
                 setResults([])
                 setHasSearched(false)

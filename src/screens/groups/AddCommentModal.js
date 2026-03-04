@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { addComment } from '../../services/groupService'
+import { playClick } from '../../services/soundService'
 
 const MAX_COMMENT_WORDS = 100
 
@@ -55,6 +56,7 @@ const AddCommentModal = ({
   }
 
   const handlePublish = async () => {
+    playClick()
     if (!commentText.trim()) {
       Alert.alert('Required', 'Please write a comment.')
       return
@@ -86,7 +88,7 @@ const AddCommentModal = ({
       >
         <View style={styles.modalContainer}>
           {/* Close X */}
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => { playClick(); onClose(); }}>
             <Ionicons name="close" size={22} color={colors.textDark} />
           </TouchableOpacity>
 

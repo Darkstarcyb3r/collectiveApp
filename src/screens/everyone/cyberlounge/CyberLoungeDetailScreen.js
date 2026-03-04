@@ -31,6 +31,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
 import { Swipeable } from 'react-native-gesture-handler'
 import * as ImagePicker from 'expo-image-picker'
+import * as Haptics from 'expo-haptics'
+import { playSwoosh } from '../../../services/soundService'
 import { Audio } from 'expo-av'
 import Autolink from 'react-native-autolink'
 import { colors } from '../../../theme'
@@ -456,6 +458,8 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
       userProfile?.profilePhoto || null,
       text
     )
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    playSwoosh()
     setSending(false)
   }
 

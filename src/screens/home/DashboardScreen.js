@@ -17,6 +17,8 @@ import {
   RefreshControl,
   Alert,
   Animated,
+  Easing,
+  Vibration,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -43,8 +45,10 @@ import {
 import { subscribeToConversations } from '../../services/messageService';
 import { NotificationListModal } from '../../components/notifications';
 import { ConfirmModal } from '../../components/common';
-import { firestore } from '../../config/firebase';
+import { firestore, functions } from '../../config/firebase';
 import * as Notifications from 'expo-notifications';
+import * as Haptics from 'expo-haptics';
+import { playClick, playSwoosh } from '../../services/soundService';
 
 const MAX_GROUPS = 50;
 
@@ -79,12 +83,64 @@ const getEventImageSource = (imageUrl, eventId) => {
   return getEventThumbnail(eventId);
 };
 
+// Skeleton shimmer bar for loading placeholders
+const SkeletonBar = ({ width = '100%', height = 12, style, delay = 0 }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(shimmer, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+  return (
+    <Animated.View style={[{ width, height, borderRadius: 6, backgroundColor: '#2a2a2a', opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] }) }, style]} />
+  );
+};
+
+// Skeleton row for group loading state
+const SkeletonGroupRow = ({ delay = 0 }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, marginBottom: 6 }}>
+    <SkeletonBar width={20} height={20} style={{ borderRadius: 10, marginRight: 8 }} delay={delay} />
+    <SkeletonBar width="60%" height={10} delay={delay + 100} />
+  </View>
+);
+
+// Skeleton for room loading state
+const SkeletonRoomRow = ({ delay = 0 }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8 }}>
+    <SkeletonBar width={20} height={20} style={{ borderRadius: 10, marginRight: 10 }} delay={delay} />
+    <SkeletonBar width="50%" height={10} delay={delay + 100} />
+  </View>
+);
+
+// Reusable spring bounce wrapper — each instance has its own scale
+const BounceWrap = ({ children, style }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onPressIn = () => {
+    Animated.spring(scale, { toValue: 0.95, friction: 8, useNativeDriver: true }).start();
+  };
+  const onPressOut = () => {
+    Animated.spring(scale, { toValue: 1, friction: 5, tension: 200, useNativeDriver: true }).start();
+  };
+  return (
+    <Animated.View style={[{ transform: [{ scale }] }, style]}>
+      {typeof children === 'function' ? children({ onPressIn, onPressOut }) : children}
+    </Animated.View>
+  );
+};
+
 const DashboardScreen = ({ navigation }) => {
   const { user, userProfile, refreshUserProfile } = useAuth();
   const { showTabBar, hideTabBar, resetTimer, notificationModalRequested, clearNotificationModalRequest } = useTabBar();
 
   // --- State ---
   const [groups, setGroups] = useState([]);
+  const groupsCacheLoaded = useRef(false);
   const [groupCreators, setGroupCreators] = useState({}); // { creatorId: { name, profilePhoto } }
   const [groupLastVisited, setGroupLastVisited] = useState({}); // { groupId: timestamp }
   const [rooms, setRooms] = useState([]);
@@ -97,6 +153,10 @@ const DashboardScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [notificationModalVisible, setNotificationModalVisible] = useState(false);
   const [allNetworkUsers, setAllNetworkUsers] = useState([]);
+  const [groupsLoaded, setGroupsLoaded] = useState(false);
+  const [roomsLoaded, setRoomsLoaded] = useState(false);
+  const groupsFade = useRef(new Animated.Value(0)).current;
+  const roomsFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const groupsScrollThumb = useRef(new Animated.Value(0)).current;
   const roomsScrollThumbAnim = useRef(new Animated.Value(0)).current;
@@ -105,6 +165,28 @@ const DashboardScreen = ({ navigation }) => {
   const diamondScale = useRef(new Animated.Value(1)).current;
   const diamondOpacity = useRef(new Animated.Value(0.8)).current;
   const pulseAnimRef = useRef(null);
+  // Always-on pulsing diamonds for Active Users + Mutual Aid buttons
+  const accentDiamondScale = useRef(new Animated.Value(1)).current;
+  const accentDiamondOpacity = useRef(new Animated.Value(0.7)).current;
+  const accentPulseRef = useRef(null);
+  const mutualAidSpin = useRef(new Animated.Value(0)).current;
+  const mutualAidSpinRef = useRef(null);
+  // Animation: Bell shake + unread glow
+  const bellShake = useRef(new Animated.Value(0)).current;
+  const bellGlow = useRef(new Animated.Value(1)).current;
+  // Animation: Activity dot breathing
+  const activityDotScale = useRef(new Animated.Value(1)).current;
+  const activityDotOpacity = useRef(new Animated.Value(1)).current;
+  // Animation: Card entrance (fade + slide)
+  const sectionFadePrivate = useRef(new Animated.Value(0)).current;
+  const sectionSlidePrivate = useRef(new Animated.Value(30)).current;
+  const sectionFadePublic = useRef(new Animated.Value(0)).current;
+  const sectionSlidePublic = useRef(new Animated.Value(30)).current;
+  // Animation: Pull-to-refresh glow
+  const refreshGlow = useRef(new Animated.Value(0)).current;
+  // Animation: Section title shimmer
+  const shimmerPrivate = useRef(new Animated.Value(0)).current;
+  const shimmerPublic = useRef(new Animated.Value(0)).current;
   // Excluded users (hidden/blocked)
   const hiddenUsers = userProfile?.hiddenUsers || [];
   const blockedUsers = userProfile?.blockedUsers || [];
@@ -113,6 +195,24 @@ const DashboardScreen = ({ navigation }) => {
   const myFollowingUsers = userProfile?.subscribedUsers || [];
 
   // --- Data Fetching ---
+
+  // Load cached groups instantly on first mount so rows appear without delay
+  useEffect(() => {
+    if (!user?.uid || groupsCacheLoaded.current) return;
+    groupsCacheLoaded.current = true;
+    AsyncStorage.getItem(`groups_cache_${user.uid}`).then((cached) => {
+      if (cached && !groupsLoaded) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.length > 0) {
+            setGroups(parsed);
+            setGroupsLoaded(true);
+            groupsFade.setValue(1); // show instantly, no fade needed for cache
+          }
+        } catch (_e) {}
+      }
+    }).catch(() => {});
+  }, [user?.uid]);
 
   const fetchGroups = async () => {
     if (!user?.uid) {
@@ -133,6 +233,13 @@ const DashboardScreen = ({ navigation }) => {
           (g) => !excluded.includes(g.creatorId)
         );
         setGroups(visibleGroups);
+        // Cache for instant load next time — store only what we need for display
+        const cacheData = visibleGroups.map((g) => ({ id: g.id, name: g.name, creatorId: g.creatorId, lastActivityAt: g.lastActivityAt }));
+        AsyncStorage.setItem(`groups_cache_${user.uid}`, JSON.stringify(cacheData)).catch(() => {});
+        if (!groupsLoaded) {
+          setGroupsLoaded(true);
+          Animated.timing(groupsFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+        }
 
         // Fetch creator profiles for avatars
         const creatorIds = [...new Set(visibleGroups.map((g) => g.creatorId).filter(Boolean))];
@@ -238,6 +345,114 @@ const DashboardScreen = ({ navigation }) => {
     };
   }, [onboardingComplete]);
 
+  // Always-on accent diamond pulse (Active Users + Mutual Aid buttons)
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(accentDiamondScale, { toValue: 1.3, duration: 900, useNativeDriver: true }),
+          Animated.timing(accentDiamondOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(accentDiamondScale, { toValue: 0.9, duration: 900, useNativeDriver: true }),
+          Animated.timing(accentDiamondOpacity, { toValue: 0.5, duration: 900, useNativeDriver: true }),
+        ]),
+      ])
+    );
+    pulse.start();
+    accentPulseRef.current = pulse;
+
+    // Slow spin for Mutual Aid diamond (3s per rotation)
+    const spin = Animated.loop(
+      Animated.timing(mutualAidSpin, { toValue: 1, duration: 3000, useNativeDriver: true, easing: undefined })
+    );
+    spin.start();
+    mutualAidSpinRef.current = spin;
+
+    return () => { pulse.stop(); spin.stop(); };
+  }, []);
+
+  // Bell shake when unread count changes and is > 0
+  useEffect(() => {
+    if (unreadCount > 0) {
+      bellShake.setValue(0);
+      Animated.sequence([
+        Animated.timing(bellShake, { toValue: 0.5, duration: 100, useNativeDriver: true }),
+        Animated.timing(bellShake, { toValue: -0.4, duration: 100, useNativeDriver: true }),
+        Animated.timing(bellShake, { toValue: 0.2, duration: 80, useNativeDriver: true }),
+        Animated.timing(bellShake, { toValue: 0, duration: 80, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [unreadCount]);
+
+  // Bell glow pulse when unread
+  useEffect(() => {
+    if (unreadCount > 0) {
+      const glow = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bellGlow, { toValue: 0.5, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(bellGlow, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      );
+      glow.start();
+      return () => glow.stop();
+    } else {
+      bellGlow.setValue(1);
+    }
+  }, [unreadCount > 0]);
+
+  // Activity dot breathing on active groups
+  useEffect(() => {
+    const dotPulse = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(activityDotScale, { toValue: 1.4, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(activityDotOpacity, { toValue: 0.4, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(activityDotScale, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(activityDotOpacity, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]),
+      ])
+    );
+    dotPulse.start();
+    return () => dotPulse.stop();
+  }, []);
+
+  // Card entrance animations — fade + slide up on mount
+  useEffect(() => {
+    Animated.stagger(150, [
+      Animated.parallel([
+        Animated.timing(sectionFadePrivate, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(sectionSlidePrivate, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(sectionFadePublic, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(sectionSlidePublic, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, []);
+
+  // Section title shimmer — looping light sweep
+  useEffect(() => {
+    const shimmerLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerPrivate, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(shimmerPrivate, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    const shimmerLoop2 = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1000),
+        Animated.timing(shimmerPublic, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(shimmerPublic, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    shimmerLoop.start();
+    shimmerLoop2.start();
+    return () => { shimmerLoop.stop(); shimmerLoop2.stop(); };
+  }, []);
+
   // Real-time subscription to network users (for 2-degree filtering)
   useEffect(() => {
     if (!user?.uid) return;
@@ -255,6 +470,8 @@ const DashboardScreen = ({ navigation }) => {
 
     const unsubRooms = subscribeToActiveRooms((roomList) => {
       setRooms(roomList.filter((r) => !excludedUsers.includes(r.hostId) && connectedUserIds.has(r.hostId)));
+      setRoomsLoaded(true);
+      Animated.timing(roomsFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     });
 
     const unsubConfluence = subscribeToConfluencePosts((posts) => {
@@ -299,10 +516,7 @@ const DashboardScreen = ({ navigation }) => {
   useEffect(() => {
     if (!user?.uid) return;
     const resetPendingBadge = () => {
-      firestore().collection('users').doc(user.uid)
-        .collection('private').doc('tokens')
-        .set({ pendingBadge: 0 }, { merge: true })
-        .catch(() => {});
+      functions().httpsCallable('resetBadgeCount')().catch(() => {});
     };
     // Reset on mount (app just opened to this screen)
     resetPendingBadge();
@@ -363,6 +577,9 @@ const DashboardScreen = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    // Trigger glow animation
+    refreshGlow.setValue(1);
+    Animated.timing(refreshGlow, { toValue: 0, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();
     await Promise.all([fetchGroups(), refreshUserProfile()]);
     setRefreshing(false);
   };
@@ -433,6 +650,7 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const handleCreateGroup = () => {
+    playClick();
     if (groups.length >= MAX_GROUPS) {
       Alert.alert('Group Limit', `You've reached the maximum of ${MAX_GROUPS} groups.`);
       return;
@@ -441,6 +659,7 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const handleGroupPress = (groupId) => {
+    playSwoosh();
     markGroupVisited(groupId);
     navigation.navigate('GroupDetail', { groupId });
   };
@@ -513,6 +732,46 @@ const DashboardScreen = ({ navigation }) => {
     return `${days[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}`;
   };
 
+  // Tap bounce helper — wraps a pressable with a quick scale bounce + haptic
+  const makeBounce = useCallback(() => {
+    const scale = new Animated.Value(1);
+    const onPressIn = () => {
+      Animated.spring(scale, { toValue: 0.95, friction: 8, useNativeDriver: true }).start();
+    };
+    const onPressOut = () => {
+      Animated.spring(scale, { toValue: 1, friction: 5, tension: 200, useNativeDriver: true }).start();
+    };
+    return { scale, onPressIn, onPressOut };
+  }, []);
+
+  const bounceAvatar = useRef(makeBounce()).current;
+  const bounceLogo = useRef(makeBounce()).current;
+  const bounceConfluence = useRef(makeBounce()).current;
+  const bounceEvents = useRef(makeBounce()).current;
+  // Bounce + green glow factory for green-accented buttons
+  const makeGlowBounce = useCallback(() => {
+    const scale = new Animated.Value(1);
+    const glowOpacity = new Animated.Value(0);
+    const onPressIn = () => {
+      playClick();
+      Animated.parallel([
+        Animated.spring(scale, { toValue: 0.95, friction: 8, useNativeDriver: true }),
+        Animated.timing(glowOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      ]).start();
+    };
+    const onPressOut = () => {
+      Animated.parallel([
+        Animated.spring(scale, { toValue: 1, friction: 5, tension: 200, useNativeDriver: true }),
+        Animated.timing(glowOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    };
+    return { scale, glowOpacity, onPressIn, onPressOut };
+  }, []);
+  const bounceMutualAid = useRef(makeGlowBounce()).current;
+  const bounceUsers = useRef(makeGlowBounce()).current;
+  const bounceAddGroup = useRef(makeBounce()).current;
+  const bounceAddChat = useRef(makeBounce()).current;
+
   // --- Render ---
 
   return (
@@ -533,14 +792,16 @@ const DashboardScreen = ({ navigation }) => {
           />
         }
       >
+        {/* Pull-to-refresh glow bar */}
+        <Animated.View style={{ height: 3, borderRadius: 2, marginHorizontal: 40, marginBottom: 4, backgroundColor: colors.primary, opacity: refreshGlow, transform: [{ scaleX: refreshGlow.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }} />
 
        {/* ==================== HEADER ==================== */}
 <View style={styles.headerSection}>
   {/* Avatar + Bell in glass container */}
-  <View style={styles.avatarWrapper}>
+  <Animated.View style={[styles.avatarWrapper, { transform: [{ scale: bounceAvatar.scale }] }]}>
     <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
       <View style={styles.glassInner}>
-        <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')} style={{ flex: 1, width: '100%' }}>
+        <TouchableOpacity onPress={() => navigation.navigate('ProfileTab')} onPressIn={bounceAvatar.onPressIn} onPressOut={bounceAvatar.onPressOut} activeOpacity={0.9} style={{ flex: 1, width: '100%' }}>
           <View style={styles.avatarContainer}>
             {userProfile?.profilePhoto ? (
               <Image
@@ -557,20 +818,25 @@ const DashboardScreen = ({ navigation }) => {
       </View>
     </BlurView>
     {/* Notification bell */}
-    <TouchableOpacity
-      style={[styles.bellOverlay, unreadCount === 0 && styles.bellOverlayInactive]}
-      onPress={handleOpenNotifications}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      activeOpacity={0.7}
-    >
-      <Ionicons name="notifications" size={12} color={unreadCount > 0 ? '#000' : '#555'} />
-    </TouchableOpacity>
-  </View>
+    <Animated.View style={{ transform: [{ rotate: bellShake.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-15deg', '0deg', '15deg'] }) }, { scale: unreadCount > 0 ? bellGlow.interpolate({ inputRange: [0.5, 1], outputRange: [1.08, 1] }) : 1 }], opacity: unreadCount > 0 ? bellGlow : 1 }}>
+      <TouchableOpacity
+        style={[styles.bellOverlay, unreadCount === 0 && styles.bellOverlayInactive]}
+        onPress={() => { playClick(); handleOpenNotifications(); }}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="notifications" size={12} color={unreadCount > 0 ? '#000' : '#555'} />
+      </TouchableOpacity>
+    </Animated.View>
+  </Animated.View>
 
   {/* Logo */}
+  <Animated.View style={{ flex: 1, transform: [{ scale: bounceLogo.scale }] }}>
   <TouchableOpacity
     onPress={() => navigation.navigate('Onboarding')}
-    activeOpacity={0.8}
+    onPressIn={bounceLogo.onPressIn}
+    onPressOut={bounceLogo.onPressOut}
+    activeOpacity={0.9}
     style={{ flex: 1 }}
   >
     <BlurView intensity={10} tint="dark" style={styles.glassContainer}>
@@ -600,22 +866,28 @@ const DashboardScreen = ({ navigation }) => {
       </Animated.View>
     )}
   </TouchableOpacity>
+  </Animated.View>
 </View>
 
 
         {/* ==================== =MY PRIVATE GROUPS ==================== */}
+        <Animated.View style={{ opacity: sectionFadePrivate, transform: [{ translateY: sectionSlidePrivate }] }}>
         <BlurView intensity={10} tint="dark" style={styles.privateGroupsGlass}>
           <View style={styles.privateGroupsSection}>
             {/* Section Header */}
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.privateGroupsTitle}>My Private Groups</Text>
+                <Animated.Text style={[styles.privateGroupsTitle, { opacity: shimmerPrivate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Private Groups</Animated.Text>
                 <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} groups</Text>
               </View>
+              <Animated.View style={{ transform: [{ scale: bounceAddGroup.scale }] }}>
               <TouchableOpacity
                 style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
                 onPress={handleCreateGroup}
+                onPressIn={bounceAddGroup.onPressIn}
+                onPressOut={bounceAddGroup.onPressOut}
                 disabled={groups.length >= MAX_GROUPS}
+                activeOpacity={0.9}
               >
                 <LinearGradient
                   colors={['#cafb6c', '#71f200', '#23ff0d']}
@@ -631,11 +903,19 @@ const DashboardScreen = ({ navigation }) => {
                   <Text style={styles.addButtonText}>Group</Text>
                 </LinearGradient>
               </TouchableOpacity>
+              </Animated.View>
             </View>
 
           {/* Groups Scrollable Container */}
           <View style={styles.groupsContainer}>
-              <View style={styles.groupsScrollRow}>
+            {!groupsLoaded ? (
+              <View style={{ paddingVertical: 4 }}>
+                <SkeletonGroupRow delay={0} />
+                <SkeletonGroupRow delay={150} />
+                <SkeletonGroupRow delay={300} />
+              </View>
+            ) : (
+              <Animated.View style={[styles.groupsScrollRow, { opacity: groupsFade }]}>
                 <ScrollView
                   style={[styles.groupsScrollView, { height: 115 }]}
                   nestedScrollEnabled={true}
@@ -644,7 +924,7 @@ const DashboardScreen = ({ navigation }) => {
                   scrollEventThrottle={16}
                   scrollEnabled={sortedGroups.length > 3}
                 >
-                  {sortedGroups.map((group) => {
+                  {sortedGroups.map((group, idx) => {
                     const active = isGroupActive(group);
                     const creator = groupCreators[group.creatorId];
                     return (
@@ -654,10 +934,14 @@ const DashboardScreen = ({ navigation }) => {
                         rightThreshold={40}
                         overshootRight={false}
                       >
+                        <BounceWrap>
+                          {({ onPressIn, onPressOut }) => (
                         <TouchableOpacity
                           style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
                           onPress={() => handleGroupPress(group.id)}
-                          activeOpacity={0.8}
+                          onPressIn={onPressIn}
+                          onPressOut={onPressOut}
+                          activeOpacity={0.9}
                         >
                           <LinearGradient
                             colors={['#d8f434', '#b3f425', '#93f478']}
@@ -679,10 +963,17 @@ const DashboardScreen = ({ navigation }) => {
                             {/* Group Name */}
                             <Text style={styles.groupName} numberOfLines={1}>{group.name || '------'}</Text>
 
+                            {/* Activity dot for active groups */}
+                            {active && (
+                              <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1a1a1a', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
+                            )}
+
                             {/* Arrow */}
                             <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
                           </LinearGradient>
                         </TouchableOpacity>
+                          )}
+                        </BounceWrap>
                       </Swipeable>
                     );
                   })}
@@ -721,19 +1012,34 @@ const DashboardScreen = ({ navigation }) => {
                     />
                   )}
                 </View>
-              </View>
+              </Animated.View>
+            )}
           </View>
           </View>
         </BlurView>
+        </Animated.View>
 
         {/* ==================== MY PUBLIC COLLECTIVE ==================== */}
+        <Animated.View style={{ opacity: sectionFadePublic, transform: [{ translateY: sectionSlidePublic }] }}>
         <View style={[styles.sectionContainer, !userProfile?.everyoneNetworkEnabled && { opacity: 0.35 }]}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>My Public Collective</Text>
+            <Animated.Text style={[styles.sectionTitle, { opacity: shimmerPublic.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Public Collective</Animated.Text>
             {userProfile?.everyoneNetworkEnabled && (
+              <>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Animated.View style={{ transform: [{ scale: accentDiamondScale }, { rotate: mutualAidSpin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }], opacity: accentDiamondOpacity, width: 14, height: 14, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ position: 'absolute', width: 3, height: 12, borderRadius: 1.5, backgroundColor: colors.primary }} />
+                  <View style={{ position: 'absolute', width: 12, height: 3, borderRadius: 1.5, backgroundColor: colors.primary }} />
+                  <View style={{ position: 'absolute', width: 2, height: 9, borderRadius: 1, backgroundColor: colors.primary, transform: [{ rotate: '45deg' }], opacity: 0.7 }} />
+                  <View style={{ position: 'absolute', width: 2, height: 9, borderRadius: 1, backgroundColor: colors.primary, transform: [{ rotate: '-45deg' }], opacity: 0.7 }} />
+                </Animated.View>
+              </View>
+              <Animated.View style={{ transform: [{ scale: bounceUsers.scale }], shadowColor: colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: bounceUsers.glowOpacity, shadowRadius: 12, elevation: 6 }}>
               <TouchableOpacity
                 onPress={() => navigation.navigate('ActiveUsers')}
-                activeOpacity={0.8}
+                onPressIn={bounceUsers.onPressIn}
+                onPressOut={bounceUsers.onPressOut}
+                activeOpacity={0.9}
               >
                 <BlurView intensity={10} tint="dark" style={styles.usersButton}>
                   <View style={styles.usersButtonInner}>
@@ -742,6 +1048,8 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
                 </BlurView>
               </TouchableOpacity>
+              </Animated.View>
+              </>
             )}
           </View>
 
@@ -761,10 +1069,13 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.cyberLoungeContainer}>
             <View style={styles.cyberLoungeHeader}>
               <Text style={styles.subSectionTitle}>Cyber Lounge {'>'}</Text>
+              <Animated.View style={{ transform: [{ scale: bounceAddChat.scale }] }}>
               <TouchableOpacity
                 style={styles.addChatButtonOuter}
-                onPress={() => navigation.navigate('CyberLoungeCreate')}
-                activeOpacity={0.8}
+                onPress={() => { playClick(); navigation.navigate('CyberLoungeCreate') }}
+                onPressIn={bounceAddChat.onPressIn}
+                onPressOut={bounceAddChat.onPressOut}
+                activeOpacity={0.9}
               >
                 <LinearGradient
                   colors={['#cafb6c', '#71f200', '#23ff0d']}
@@ -780,16 +1091,22 @@ const DashboardScreen = ({ navigation }) => {
                   <Text style={styles.addChatButtonText}>Chat</Text>
                 </LinearGradient>
               </TouchableOpacity>
+              </Animated.View>
             </View>
 
             {/* Rooms Preview */}
             <View style={styles.roomsScrollContainer}>
-              {rooms.length === 0 ? (
-                <View style={styles.roomsEmptyContainer}>
-                  <Text style={styles.roomsEmptyText}>No active chatrooms</Text>
+              {!roomsLoaded ? (
+                <View style={{ paddingVertical: 4 }}>
+                  <SkeletonRoomRow delay={0} />
+                  <SkeletonRoomRow delay={150} />
                 </View>
+              ) : rooms.length === 0 ? (
+                <Animated.View style={[styles.roomsEmptyContainer, { opacity: roomsFade }]}>
+                  <Text style={styles.roomsEmptyText}>No active chatrooms</Text>
+                </Animated.View>
               ) : (
-                <View style={styles.roomsScrollRow}>
+                <Animated.View style={[styles.roomsScrollRow, { opacity: roomsFade }]}>
                   <ScrollView
                     nestedScrollEnabled={true}
                     showsVerticalScrollIndicator={false}
@@ -824,7 +1141,7 @@ const DashboardScreen = ({ navigation }) => {
                               <Text style={styles.roomParticipantCountText}>+{(room.participantCount || room.participants?.length || 0) - 4}</Text>
                             </View>
                           )}
-                          <View style={styles.roomActivityDot} />
+                          <Animated.View style={[styles.roomActivityDot, { transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }]} />
                         </View>
                         <Text style={styles.roomName} numberOfLines={1}>{room.name}</Text>
                       </TouchableOpacity>
@@ -842,16 +1159,20 @@ const DashboardScreen = ({ navigation }) => {
                       />
                     )}
                   </View>
-                </View>
+                </Animated.View>
               )}
             </View>
           </View>
 
           {/* ---- Confluence ---- */}
+          <Animated.View style={{ transform: [{ scale: bounceConfluence.scale }] }}>
           <BlurView intensity={10} tint="dark" style={styles.confluenceGlass}>
             <TouchableOpacity
               style={styles.confluenceContainer}
               onPress={() => navigation.navigate('ConfluenceLanding')}
+              onPressIn={bounceConfluence.onPressIn}
+              onPressOut={bounceConfluence.onPressOut}
+              activeOpacity={0.9}
             >
               <Text style={styles.subSectionTitleLight}>Confluence {'>'}</Text>
               <View style={styles.confluenceImagesRow}>
@@ -878,12 +1199,16 @@ const DashboardScreen = ({ navigation }) => {
               </View>
             </TouchableOpacity>
           </BlurView>
+          </Animated.View>
 
           {/* ---- Mutual Aid & Resources ---- */}
+          <Animated.View style={{ transform: [{ scale: bounceMutualAid.scale }], shadowColor: colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: bounceMutualAid.glowOpacity, shadowRadius: 16, elevation: 8 }}>
           <TouchableOpacity
             style={styles.mutualAidButtonOuter}
             onPress={() => navigation.navigate('MutualAidLanding')}
-            activeOpacity={0.7}
+            onPressIn={bounceMutualAid.onPressIn}
+            onPressOut={bounceMutualAid.onPressOut}
+            activeOpacity={0.9}
           >
             <LinearGradient
               colors={['#d8f434', '#b3f425', '#93f478']}
@@ -891,16 +1216,28 @@ const DashboardScreen = ({ navigation }) => {
               end={{ x: 1, y: 1 }}
               style={styles.mutualAidButton}
             >
-              <Text style={styles.mutualAidButtonText}>Mutual Aid & Resources {'>'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Animated.View style={{ transform: [{ scale: accentDiamondScale }, { rotate: mutualAidSpin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }], opacity: accentDiamondOpacity, width: 16, height: 16, alignItems: 'center', justifyContent: 'center' }}>
+                  <LinearGradient colors={['#ff93bd', '#32259e']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={{ position: 'absolute', width: 3, height: 14, borderRadius: 1.5 }} />
+                  <LinearGradient colors={['#ff93bd', '#32259e']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ position: 'absolute', width: 14, height: 3, borderRadius: 1.5 }} />
+                  <LinearGradient colors={['#ff93bd', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', width: 2, height: 10, borderRadius: 1, transform: [{ rotate: '45deg' }], opacity: 0.7 }} />
+                  <LinearGradient colors={['#ff93bd', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', width: 2, height: 10, borderRadius: 1, transform: [{ rotate: '-45deg' }], opacity: 0.7 }} />
+                </Animated.View>
+                <Text style={styles.mutualAidButtonText}>Mutual Aid & Resources {'>'}</Text>
+              </View>
             </LinearGradient>
           </TouchableOpacity>
+          </Animated.View>
 
           {/* ---- Events ---- */}
+          <Animated.View style={{ transform: [{ scale: bounceEvents.scale }] }}>
           <BlurView intensity={10} tint="dark" style={styles.eventsGlass}>
           <TouchableOpacity
             style={styles.eventsContainer}
             onPress={() => navigation.navigate('EventsLanding')}
-            activeOpacity={0.8}
+            onPressIn={bounceEvents.onPressIn}
+            onPressOut={bounceEvents.onPressOut}
+            activeOpacity={0.9}
           >
             <Text style={styles.subSectionTitleLight}>Events {'>'}</Text>
             {events.length > 0 ? (
@@ -940,9 +1277,11 @@ const DashboardScreen = ({ navigation }) => {
             )}
           </TouchableOpacity>
           </BlurView>
+          </Animated.View>
           </>
           )}
         </View>
+        </Animated.View>
 
       </ScrollView>
 
@@ -1031,7 +1370,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#333',
   },
   avatarImage: {
     width: '100%',
@@ -1118,7 +1456,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   privateGroupsTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontFamily: fonts.regular,
     color: '#ffffff',
   },
@@ -1157,7 +1495,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.primary,
   },

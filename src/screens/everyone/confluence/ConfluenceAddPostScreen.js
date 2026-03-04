@@ -26,6 +26,7 @@ import { createConfluencePost, getMonthlyConfluenceCount } from '../../../servic
 import { signedUpload } from '../../../utils/cloudinaryUpload'
 import { validateImageAsset } from '../../../utils/imageValidation'
 import DarkTabBar from '../../../components/navigation/DarkTabBar'
+import { playClick } from '../../../services/soundService'
 
 const MAX_MONTHLY = 10
 
@@ -55,6 +56,7 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
   }, [user?.uid])
 
   const handlePickImage = async () => {
+    playClick()
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -74,6 +76,7 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
   }
 
   const handlePublish = () => {
+    playClick()
     if (!imageUri) {
       Alert.alert('Image Required', 'Please upload a photo.')
       return
@@ -208,6 +211,7 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.linkCell}
             onPress={() => {
+              playClick()
               setTempLinkLabel(linkLabel)
               setTempLink(link)
               setShowLinkModal(true)
@@ -275,6 +279,7 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.linkModalRemoveButton}
                   onPress={() => {
+                    playClick()
                     setLink('')
                     setLinkLabel('')
                     setTempLink('')
@@ -290,6 +295,7 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.linkModalSaveButtonOuter}
                 onPress={() => {
+                  playClick()
                   setLink(tempLink.trim())
                   setLinkLabel(tempLinkLabel.trim())
                   setShowLinkModal(false)

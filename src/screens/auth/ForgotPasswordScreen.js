@@ -21,6 +21,7 @@ import { Button, Input } from '../../components/common'
 import { colors } from '../../theme'
 import { sendResetEmail } from '../../services/authService'
 import { fonts } from '../../theme/typography'
+import { playClick } from '../../services/soundService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -44,6 +45,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
   }
 
   const handleSubmit = async () => {
+    playClick()
     if (!validateEmail()) return
 
     setLoading(true)
@@ -58,6 +60,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
   }
 
   const handleBackToLogin = () => {
+    playClick()
     navigation.navigate('Login')
   }
 

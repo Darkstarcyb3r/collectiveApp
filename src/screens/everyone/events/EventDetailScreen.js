@@ -39,6 +39,7 @@ import AddEventCommentModal from './AddEventCommentModal'
 import { ConfirmModal } from '../../../components/common'
 import LightTabBar from '../../../components/navigation/LightTabBar'
 import { groupCommentsWithReplies } from '../../../utils/commentUtils'
+import { playClick } from '../../../services/soundService'
 
 const EVENT_THUMBNAILS = [
   require('../../../assets/event-thumbnails/Galaxy.png'),
@@ -179,6 +180,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   }
 
   const handleDelete = () => {
+    playClick()
     setDeleteEventConfirm(true)
   }
 
@@ -189,6 +191,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   }
 
   const openInMaps = () => {
+    playClick()
     if (!event?.location) return
     const query = encodeURIComponent(event.location.trim())
     const url = Platform.OS === 'ios' ? `maps:0,0?q=${query}` : `https://maps.apple.com/?q=${query}`
@@ -198,6 +201,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   }
 
   const handleShare = async () => {
+    playClick()
     const { shareContent, buildEventLink } = require('../../../utils/shareLinks')
     await shareContent(
       `Check out this event: ${event?.title} on Collective!`,
@@ -206,6 +210,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   }
 
   const handleDeleteComment = (commentId) => {
+    playClick()
     setDeleteCommentConfirm({ visible: true, commentId })
   }
 
@@ -221,6 +226,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   }
 
   const handleSelectCommentReaction = (emoji) => {
+    playClick()
     const cid = reactionPickerCommentId
     setReactionPickerCommentId(null)
     if (cid && user?.uid) {
@@ -245,6 +251,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   }
 
   const handleTapCommentReaction = (commentId, emoji) => {
+    playClick()
     if (!user?.uid) return
     // Optimistic update
     setComments((prev) =>
@@ -378,10 +385,10 @@ const EventDetailScreen = ({ route, navigation }) => {
                 <View style={styles.cardAuthorRow}>
                   <TouchableOpacity
                     style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-                    onPress={() =>
-                      event.authorId &&
-                      navigation.navigate('UserProfile', { userId: event.authorId })
-                    }
+                    onPress={() => {
+                      playClick()
+                      if (event.authorId) navigation.navigate('UserProfile', { userId: event.authorId })
+                    }}
                     activeOpacity={0.7}
                   >
                     <View style={styles.cardAvatar}>
@@ -407,6 +414,7 @@ const EventDetailScreen = ({ route, navigation }) => {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
+                      playClick()
                       setReplyTarget(null)
                       setShowCommentModal(true)
                     }}
@@ -468,11 +476,12 @@ const EventDetailScreen = ({ route, navigation }) => {
             {/* Photo cell */}
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() =>
-                event.imageUrl && !event.imageUrl.startsWith('placeholder:')
-                  ? setViewingImage(event.imageUrl)
-                  : null
-              }
+              onPress={() => {
+                playClick()
+                if (event.imageUrl && !event.imageUrl.startsWith('placeholder:')) {
+                  setViewingImage(event.imageUrl)
+                }
+              }}
               style={styles.cardImageCell}
             >
               <Image
@@ -491,6 +500,7 @@ const EventDetailScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 style={styles.cardLinkCell}
                 onPress={() => {
+                  playClick()
                   const url = event.link.startsWith('http') ? event.link : `https://${event.link}`
                   Linking.openURL(url).catch(() => {
                     Alert.alert('Error', 'Could not open link.')
@@ -509,12 +519,12 @@ const EventDetailScreen = ({ route, navigation }) => {
             {isAuthor && (
               <View style={styles.cardActionsCell}>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('EventEdit', { eventId })}
+                  onPress={() => { playClick(); navigation.navigate('EventEdit', { eventId }) }}
                   style={styles.actionButton}
                 >
                   <Text style={styles.editLink}>Edit</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleDelete} style={styles.actionButton}>
+                <TouchableOpacity onPress={() => { playClick(); handleDelete() }} style={styles.actionButton}>
                   <Ionicons name="trash-outline" size={20} color={colors.offline} />
                 </TouchableOpacity>
               </View>
@@ -548,6 +558,7 @@ const EventDetailScreen = ({ route, navigation }) => {
                     <View style={[styles.commentRow, comment.isReply && styles.replyCommentRow]}>
                       <TouchableOpacity
                         onPress={() => {
+                          playClick()
                           if (comment.author?.id) {
                             navigation.navigate('UserProfile', { userId: comment.author.id })
                           }
@@ -583,6 +594,7 @@ const EventDetailScreen = ({ route, navigation }) => {
                         {!comment.isReply && (
                           <TouchableOpacity
                             onPress={() => {
+                              playClick()
                               setReplyTarget({
                                 commentId: comment.id,
                                 authorName: comment.author?.name || 'User',

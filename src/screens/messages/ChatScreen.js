@@ -20,6 +20,8 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
+import * as Haptics from 'expo-haptics'
+import { playSwoosh, playClick } from '../../services/soundService'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
@@ -253,6 +255,8 @@ const ChatScreen = ({ route, navigation }) => {
     setSending(false)
 
     if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      playSwoosh()
       // Scroll to bottom after sending (offset 0 in inverted list = bottom)
       setTimeout(() => {
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
@@ -323,6 +327,7 @@ const ChatScreen = ({ route, navigation }) => {
   }
 
   const handleConfirmSendImage = () => {
+    playClick()
     if (pendingImageUri) {
       const dims = pendingImageDimensions
       const uri = pendingImageUri
@@ -333,6 +338,7 @@ const ChatScreen = ({ route, navigation }) => {
   }
 
   const handleCancelSendImage = () => {
+    playClick()
     setPendingImageUri(null)
     setPendingImageDimensions(null)
   }

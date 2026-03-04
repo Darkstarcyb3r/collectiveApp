@@ -26,6 +26,7 @@ import { validateImageAsset } from '../../../utils/imageValidation'
 import { signedUpload } from '../../../utils/cloudinaryUpload'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
 import LightTabBar from '../../../components/navigation/LightTabBar'
+import { playClick } from '../../../services/soundService'
 
 const MutualAidCreateScreen = ({ route, navigation }) => {
   const { category, _title } = route.params
@@ -46,6 +47,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
   const isArtAction = category === 'action_art'
 
   const handlePickImage = async () => {
+    playClick()
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -64,6 +66,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
   }
 
   const handlePublish = async () => {
+    playClick()
     if (!name.trim()) {
       Alert.alert('Name Required', 'Please enter a group name.')
       return
@@ -117,6 +120,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
   }
 
   const handleDelete = () => {
+    playClick()
     setName('')
     setCaption('')
     setLink('')
@@ -228,7 +232,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
                         <Text style={styles.imageChangeText}>Change</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => { setImageUri(null); setImageMeta(null) }}
+                        onPress={() => { playClick(); setImageUri(null); setImageMeta(null) }}
                         style={styles.imageRemoveButton}
                       >
                         <Ionicons name="close-circle-outline" size={16} color={colors.offline} />
@@ -285,6 +289,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={styles.globalToggleRow}
               onPress={() => {
+                playClick()
                 setIsGlobal(!isGlobal)
                 if (!isGlobal) setCity('')
               }}
@@ -315,7 +320,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
             {/* Vet Toggle */}
             <TouchableOpacity
               style={styles.vetToggleRow}
-              onPress={() => setVetByAuthor(!vetByAuthor)}
+              onPress={() => { playClick(); setVetByAuthor(!vetByAuthor) }}
               activeOpacity={0.7}
             >
               <View style={[styles.vetCheckbox, vetByAuthor && styles.vetCheckboxActive]}>

@@ -233,73 +233,60 @@ export const unblockUser = async (currentUserId, targetUserId) => {
   }
 }
 
-// Get users you are following
-export const getFollowingUsers = async (userId) => {
+// Helper: fetch user profiles by IDs, auto-clean stale (deleted) IDs from the source array
+const fetchAndCleanUserList = async (userId, fieldName) => {
   try {
     const userDoc = await firestore().collection('users').doc(userId).get()
-    if (userDoc.exists) {
-      const followingIds = userDoc.data().subscribedUsers || []
-      if (followingIds.length === 0) return { success: true, data: [] }
+    if (!userDoc.exists) return { success: false, error: 'User not found' }
 
-      const users = await Promise.all(
-        followingIds.map(async (id) => {
-          const userProfile = await firestore().collection('users').doc(id).get()
-          return userProfile.exists ? { id, ...userProfile.data() } : null
-        })
-      )
+    const ids = userDoc.data()[fieldName] || []
+    if (ids.length === 0) return { success: true, data: [] }
 
-      return { success: true, data: users.filter(Boolean) }
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        const profile = await firestore().collection('users').doc(id).get()
+        if (!profile.exists) return { id, _gone: true }
+        const data = profile.data()
+        if (!data || !data.name) return { id, _hidden: true }
+        return { id, ...data }
+      })
+    )
+
+    const validUsers = results.filter((u) => !u._gone && !u._hidden)
+    const goneIds = results.filter((u) => u._gone).map((u) => u.id)
+
+    // Only auto-remove IDs whose Firestore doc is fully deleted — safe cleanup
+    if (goneIds.length > 0) {
+      firestore().collection('users').doc(userId).update({
+        [fieldName]: firestore.FieldValue.arrayRemove(...goneIds),
+      }).catch(() => {})
+
+      if (fieldName === 'subscribedUsers') {
+        const prefUpdates = {}
+        goneIds.forEach((id) => { prefUpdates[`subscriptionPreferences.${id}`] = firestore.FieldValue.delete() })
+        firestore().collection('users').doc(userId).update(prefUpdates).catch(() => {})
+      }
     }
-    return { success: false, error: 'User not found' }
+
+    return { success: true, data: validUsers }
   } catch (error) {
     return { success: false, error: error.message }
   }
+}
+
+// Get users you are following
+export const getFollowingUsers = async (userId) => {
+  return fetchAndCleanUserList(userId, 'subscribedUsers')
 }
 
 // Get hidden users
 export const getHiddenUsers = async (userId) => {
-  try {
-    const userDoc = await firestore().collection('users').doc(userId).get()
-    if (userDoc.exists) {
-      const hiddenIds = userDoc.data().hiddenUsers || []
-      if (hiddenIds.length === 0) return { success: true, data: [] }
-
-      const users = await Promise.all(
-        hiddenIds.map(async (id) => {
-          const userProfile = await firestore().collection('users').doc(id).get()
-          return userProfile.exists ? { id, ...userProfile.data() } : null
-        })
-      )
-
-      return { success: true, data: users.filter(Boolean) }
-    }
-    return { success: false, error: 'User not found' }
-  } catch (error) {
-    return { success: false, error: error.message }
-  }
+  return fetchAndCleanUserList(userId, 'hiddenUsers')
 }
 
 // Get blocked users
 export const getBlockedUsers = async (userId) => {
-  try {
-    const userDoc = await firestore().collection('users').doc(userId).get()
-    if (userDoc.exists) {
-      const blockedIds = userDoc.data().blockedUsers || []
-      if (blockedIds.length === 0) return { success: true, data: [] }
-
-      const users = await Promise.all(
-        blockedIds.map(async (id) => {
-          const userProfile = await firestore().collection('users').doc(id).get()
-          return userProfile.exists ? { id, ...userProfile.data() } : null
-        })
-      )
-
-      return { success: true, data: users.filter(Boolean) }
-    }
-    return { success: false, error: 'User not found' }
-  } catch (error) {
-    return { success: false, error: error.message }
-  }
+  return fetchAndCleanUserList(userId, 'blockedUsers')
 }
 
 // Get users who follow you (your followers)

@@ -31,6 +31,7 @@ import { signedUpload } from '../../../utils/cloudinaryUpload'
 import { validateImageAsset } from '../../../utils/imageValidation'
 import LightTabBar from '../../../components/navigation/LightTabBar'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
+import { playClick } from '../../../services/soundService'
 
 const MAX_DESCRIPTION_WORDS = 100
 const MONTHS_FULL = [
@@ -126,6 +127,7 @@ const EventCreateScreen = ({ navigation }) => {
   }
 
   const cycleCalMonth = (direction) => {
+    playClick()
     if (direction === -1 && !canGoBack) return
     if (direction === 1 && !canGoForward) return
     let newMonth = calMonth + direction
@@ -143,6 +145,7 @@ const EventCreateScreen = ({ navigation }) => {
   }
 
   const handleSelectDay = (day) => {
+    playClick()
     if (!isDayInRange(day)) return
     setSelectedMonth(calMonth)
     setSelectedYear(calYear)
@@ -150,6 +153,7 @@ const EventCreateScreen = ({ navigation }) => {
   }
 
   const handleResetDate = () => {
+    playClick()
     const now = new Date()
     setSelectedMonth(now.getMonth())
     setSelectedYear(now.getFullYear())
@@ -163,6 +167,7 @@ const EventCreateScreen = ({ navigation }) => {
   }
 
   const handlePickImage = async () => {
+    playClick()
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -184,6 +189,7 @@ const EventCreateScreen = ({ navigation }) => {
   }
 
   const handlePublish = async () => {
+    playClick()
     if (!title.trim()) {
       Alert.alert('Title Required', 'Please enter an event title.')
       return
@@ -367,7 +373,7 @@ const EventCreateScreen = ({ navigation }) => {
                     <Text style={styles.detailLabel}>Time:</Text>
                     <TouchableOpacity
                       style={styles.timeDropdown}
-                      onPress={() => setShowTimePicker(true)}
+                      onPress={() => { playClick(); setShowTimePicker(true) }}
                     >
                       <Text style={[styles.timeValue, !time && { color: colors.offline }]}>
                         {time || '12:00 PM'}
@@ -386,7 +392,7 @@ const EventCreateScreen = ({ navigation }) => {
               {/* Date row cell — inline dropdown calendar */}
               <TouchableOpacity
                 style={[styles.cardDateCell, calendarOpen && styles.cardDateCellOpen]}
-                onPress={() => setCalendarOpen(!calendarOpen)}
+                onPress={() => { playClick(); setCalendarOpen(!calendarOpen) }}
                 activeOpacity={0.7}
               >
                 <Ionicons
@@ -513,7 +519,7 @@ const EventCreateScreen = ({ navigation }) => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.showResultsButton}
-                      onPress={() => setCalendarOpen(false)}
+                      onPress={() => { playClick(); setCalendarOpen(false) }}
                     >
                       <Text style={styles.showResultsButtonText}>Done</Text>
                     </TouchableOpacity>
@@ -541,7 +547,7 @@ const EventCreateScreen = ({ navigation }) => {
               {/* Placeholder image picker */}
               <TouchableOpacity
                 style={styles.placeholderPickerTrigger}
-                onPress={() => setPlaceholderPickerOpen(!placeholderPickerOpen)}
+                onPress={() => { playClick(); setPlaceholderPickerOpen(!placeholderPickerOpen) }}
                 activeOpacity={0.7}
               >
                 <Ionicons
@@ -575,6 +581,7 @@ const EventCreateScreen = ({ navigation }) => {
                         selectedPlaceholder === thumb.id && styles.placeholderThumbWrapSelected,
                       ]}
                       onPress={() => {
+                        playClick()
                         setSelectedPlaceholder(selectedPlaceholder === thumb.id ? null : thumb.id)
                         setImageUri(null)
                         setImageMeta(null)
@@ -615,6 +622,7 @@ const EventCreateScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.cardLinkCell}
                 onPress={() => {
+                  playClick()
                   setTempLinkLabel(linkLabel)
                   setTempLink(link)
                   setShowLinkModal(true)
@@ -646,6 +654,7 @@ const EventCreateScreen = ({ navigation }) => {
                 <TouchableOpacity
                   style={[styles.globalCheckbox, isGlobal && styles.globalCheckboxActive]}
                   onPress={() => {
+                    playClick()
                     setIsGlobal(!isGlobal)
                     if (!isGlobal) setCity('')
                   }}
@@ -687,6 +696,7 @@ const EventCreateScreen = ({ navigation }) => {
                 <TouchableOpacity
                   style={[styles.timeOption, time === item && styles.timeOptionSelectedOuter]}
                   onPress={() => {
+                    playClick()
                     setTime(item)
                     setShowTimePicker(false)
                   }}
@@ -753,6 +763,7 @@ const EventCreateScreen = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.linkModalRemoveButton}
                   onPress={() => {
+                    playClick()
                     setLink('')
                     setLinkLabel('')
                     setTempLink('')
@@ -768,6 +779,7 @@ const EventCreateScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.linkModalSaveButton}
                 onPress={() => {
+                  playClick()
                   setLink(tempLink.trim())
                   setLinkLabel(tempLinkLabel.trim())
                   setShowLinkModal(false)

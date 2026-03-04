@@ -28,6 +28,7 @@ import {
   declineMessageRequest,
 } from '../../services/messageService'
 import ConversationItem from '../../components/messages/ConversationItem'
+import { playClick } from '../../services/soundService'
 
 const ConversationListScreen = ({ navigation }) => {
   const { user, userProfile } = useAuth()
@@ -105,6 +106,7 @@ const ConversationListScreen = ({ navigation }) => {
   }
 
   const handleConversationPress = (conversation, otherUserId, otherProfile) => {
+    playClick()
     // Use getParent() to navigate from tab to stack-level Chat screen
     const parentNav = navigation.getParent() || navigation
     parentNav.navigate('Chat', {
@@ -136,6 +138,7 @@ const ConversationListScreen = ({ navigation }) => {
 
   // Decline a chat request → sends "perhaps another time", deletes the conversation
   const handleDeclineRequest = (conversation) => {
+    playClick()
     const otherUserId = conversation.participants?.find((id) => id !== user?.uid)
     const otherProfile = conversation.participantProfiles?.[otherUserId] || {}
     Alert.alert(
@@ -155,6 +158,7 @@ const ConversationListScreen = ({ navigation }) => {
   }
 
   const handleGoBack = () => {
+    playClick()
     // Navigate to ProfileTab (inside tabs) so tab bar remains visible
     navigation.navigate('ProfileTab')
   }
@@ -200,7 +204,7 @@ const ConversationListScreen = ({ navigation }) => {
           {!loading && messageRequests.length > 0 && (
             <TouchableOpacity
               style={styles.requestsBanner}
-              onPress={() => setShowRequests(!showRequests)}
+              onPress={() => { playClick(); setShowRequests(!showRequests); }}
             >
               <View style={styles.requestsBannerLeft}>
                 <Ionicons name="mail-unread-outline" size={20} color={colors.textDark} />
@@ -239,7 +243,7 @@ const ConversationListScreen = ({ navigation }) => {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.acceptBtnOuter}
-                      onPress={() => handleAcceptRequest(item, reqOtherUserId, reqOtherProfile)}
+                      onPress={() => { playClick(); handleAcceptRequest(item, reqOtherUserId, reqOtherProfile); }}
                     >
                       <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.acceptBtn}>
                         <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.acceptBtnHighlight} />

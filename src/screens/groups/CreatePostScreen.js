@@ -28,6 +28,7 @@ import { createPost } from '../../services/groupService'
 import { validateImageAsset } from '../../utils/imageValidation'
 import { ConfirmModal } from '../../components/common'
 import LightTabBar from '../../components/navigation/LightTabBar'
+import { playClick } from '../../services/soundService'
 
 const MAX_CONTENT_WORDS = 500
 
@@ -74,6 +75,7 @@ const CreatePostScreen = ({ navigation, route }) => {
   }
 
   const pickImage = async () => {
+    playClick()
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your photos.')
@@ -99,6 +101,7 @@ const CreatePostScreen = ({ navigation, route }) => {
   }
 
   const handlePublish = async () => {
+    playClick()
     if (!title.trim()) {
       Alert.alert('Required', 'Please enter a title for your post.')
       return
@@ -174,6 +177,7 @@ const CreatePostScreen = ({ navigation, route }) => {
               <View style={styles.authorRow}>
                 <TouchableOpacity
                   onPress={() => {
+                    playClick()
                     if (user?.uid) {
                       navigation.navigate('UserProfile', { userId: user.uid })
                     }

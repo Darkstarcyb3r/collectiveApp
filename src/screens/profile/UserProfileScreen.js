@@ -34,6 +34,7 @@ import {
   checkExistingReport,
 } from '../../services/userService'
 import { sendChatRequest } from '../../services/messageService'
+import { playClick } from '../../services/soundService'
 import DarkTabBar from '../../components/navigation/DarkTabBar'
 
 const UserProfileScreen = ({ route, navigation }) => {
@@ -377,7 +378,7 @@ const UserProfileScreen = ({ route, navigation }) => {
               </Text>
               {isBlocked && !isBlockedByThem && (
                 <TouchableOpacity
-                  onPress={() => openConfirmation('block')}
+                  onPress={() => { playClick(); openConfirmation('block'); }}
                   style={{ marginTop: 20 }}
                 >
                   <Text
@@ -410,14 +411,14 @@ const UserProfileScreen = ({ route, navigation }) => {
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
                     style={styles.modalButtonCancel}
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => { playClick(); setModalVisible(false); }}
                     disabled={actionLoading}
                   >
                     <Text style={styles.modalButtonCancelText}>cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.modalButtonConfirmShadow}
-                    onPress={handleConfirmAction}
+                    onPress={() => { playClick(); handleConfirmAction(); }}
                     disabled={actionLoading}
                   >
                     <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalButtonConfirm}>
@@ -475,9 +476,10 @@ const UserProfileScreen = ({ route, navigation }) => {
                       <TouchableOpacity
                         key={item.key}
                         style={styles.notifPrefRow}
-                        onPress={() =>
+                        onPress={() => {
+                          playClick()
                           setNotifPrefs((prev) => ({ ...prev, [item.key]: !prev[item.key] }))
-                        }
+                        }}
                         activeOpacity={0.7}
                       >
                         <View
@@ -502,7 +504,7 @@ const UserProfileScreen = ({ route, navigation }) => {
                   <View style={{ alignItems: 'center' }}>
                     <TouchableOpacity
                       style={styles.flagAlertOkButtonShadow}
-                      onPress={handleSaveNotifPrefs}
+                      onPress={() => { playClick(); handleSaveNotifPrefs(); }}
                       disabled={actionLoading}
                     >
                       <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
@@ -523,14 +525,14 @@ const UserProfileScreen = ({ route, navigation }) => {
                   <View style={styles.modalButtons}>
                     <TouchableOpacity
                       style={styles.modalButtonCancel}
-                      onPress={() => setModalVisible(false)}
+                      onPress={() => { playClick(); setModalVisible(false); }}
                       disabled={actionLoading}
                     >
                       <Text style={styles.modalButtonCancelText}>cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.modalButtonConfirmShadow}
-                      onPress={handleConfirmAction}
+                      onPress={() => { playClick(); handleConfirmAction(); }}
                       disabled={actionLoading}
                     >
                       <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.modalButtonConfirm}>
@@ -564,7 +566,7 @@ const UserProfileScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 key={item.key}
                 style={styles.flagReasonRow}
-                onPress={() => setFlagReason(item.key)}
+                onPress={() => { playClick(); setFlagReason(item.key); }}
               >
                 <Ionicons
                   name={flagReason === item.key ? 'radio-button-on' : 'radio-button-off'}
@@ -588,14 +590,14 @@ const UserProfileScreen = ({ route, navigation }) => {
             <View style={styles.flagButtonRow}>
               <TouchableOpacity
                 style={styles.flagCancelButton}
-                onPress={() => setShowFlagModal(false)}
+                onPress={() => { playClick(); setShowFlagModal(false); }}
                 disabled={actionLoading}
               >
                 <Text style={styles.flagCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.flagSubmitButtonShadow}
-                onPress={handleSubmitFlag}
+                onPress={() => { playClick(); handleSubmitFlag(); }}
                 disabled={actionLoading}
               >
                 <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagSubmitButton}>
@@ -626,7 +628,7 @@ const UserProfileScreen = ({ route, navigation }) => {
             <View style={{ alignItems: 'center' }}>
               <TouchableOpacity
                 style={styles.flagAlertOkButtonShadow}
-                onPress={() => setFlagAlert({ visible: false, title: '', message: '' })}
+                onPress={() => { playClick(); setFlagAlert({ visible: false, title: '', message: '' }); }}
               >
                 <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
                   <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagAlertOkButtonHighlight} />
@@ -684,6 +686,7 @@ const UserProfileScreen = ({ route, navigation }) => {
               <TouchableOpacity
                 style={styles.messageButtonOuter}
                 onPress={async () => {
+                  playClick()
                   if (isBlocked) return
                   const result = await sendChatRequest(user.uid, userId, userProfile, {
                     name: userData?.name,
@@ -753,7 +756,7 @@ const UserProfileScreen = ({ route, navigation }) => {
               {/* Left group: follow + bell + flag */}
               <View style={styles.quipLinksLeft}>
                 <TouchableOpacity
-                  onPress={() => openConfirmation('follow')}
+                  onPress={() => { playClick(); openConfirmation('follow'); }}
                   hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                   style={styles.quipLinkTouchable}
                 >
@@ -763,7 +766,7 @@ const UserProfileScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
                 {isFollowing && (
                   <TouchableOpacity
-                    onPress={openNotifPrefs}
+                    onPress={() => { playClick(); openNotifPrefs(); }}
                     hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                     style={styles.bellIconTouchable}
                   >
@@ -771,7 +774,7 @@ const UserProfileScreen = ({ route, navigation }) => {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  onPress={openFlagModal}
+                  onPress={() => { playClick(); openFlagModal(); }}
                   hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                   style={styles.flagIconTouchable}
                 >
@@ -782,7 +785,7 @@ const UserProfileScreen = ({ route, navigation }) => {
               {/* Right group: hide + block (centered under photo) */}
               <View style={styles.quipLinksRight}>
                 <TouchableOpacity
-                  onPress={() => openConfirmation('hide')}
+                  onPress={() => { playClick(); openConfirmation('hide'); }}
                   hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                   style={styles.quipLinkTouchable}
                 >
@@ -791,7 +794,7 @@ const UserProfileScreen = ({ route, navigation }) => {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => openConfirmation('block')}
+                  onPress={() => { playClick(); openConfirmation('block'); }}
                   hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                   style={styles.quipLinkTouchable}
                 >

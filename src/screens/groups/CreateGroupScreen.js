@@ -26,6 +26,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { createGroup } from '../../services/groupService'
 import { validateImageAsset } from '../../utils/imageValidation'
 import LightTabBar from '../../components/navigation/LightTabBar'
+import { playClick } from '../../services/soundService'
 
 const MAX_DESCRIPTION_WORDS = 50
 
@@ -70,6 +71,7 @@ const CreateGroupScreen = ({ navigation }) => {
   }
 
   const pickBanner = async () => {
+    playClick()
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your photos.')
@@ -95,6 +97,7 @@ const CreateGroupScreen = ({ navigation }) => {
   }
 
   const handlePublish = async () => {
+    playClick()
     if (!name.trim()) {
       Alert.alert('Required', 'Please enter a group name.')
       return
@@ -164,6 +167,7 @@ const CreateGroupScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.creatorSection}
               onPress={() => {
+                playClick()
                 if (user?.uid) {
                   navigation.navigate('UserProfile', { userId: user.uid })
                 }

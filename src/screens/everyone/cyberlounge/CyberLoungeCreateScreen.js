@@ -27,6 +27,7 @@ import DarkTabBar from '../../../components/navigation/DarkTabBar'
 import { VIBES, DEFAULT_VIBE_ID, getVibeById } from '../../../config/vibes'
 import { STICKER_OPTIONS, MAX_STICKERS } from '../../../config/stickers'
 import { BACKGROUNDS, DEFAULT_BACKGROUND_ID, getBackgroundById } from '../../../config/backgrounds'
+import { playClick } from '../../../services/soundService'
 
 const CyberLoungeCreateScreen = ({ navigation }) => {
   const { user, userProfile } = useAuth()
@@ -56,6 +57,7 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
   }, [])
 
   const handleCreate = async () => {
+    playClick()
     const name = roomName.trim()
     if (!name) {
       Alert.alert('Name Required', 'Please enter a chatroom name.')
@@ -86,6 +88,7 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
   }
 
   const toggleSticker = (emoji) => {
+    playClick()
     setSelectedStickers((prev) => {
       if (prev.includes(emoji)) {
         return prev.filter((s) => s !== emoji)
@@ -193,6 +196,7 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
                 )}
                 <TouchableOpacity
                   onPress={() => {
+                    playClick()
                     setStickerPickerOpen(!stickerPickerOpen)
                     setVibeDropdownOpen(false)
                   }}
@@ -232,6 +236,7 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.bgPickerTrigger}
                 onPress={() => {
+                  playClick()
                   setBgPickerOpen(!bgPickerOpen)
                   setVibeDropdownOpen(false)
                   setStickerPickerOpen(false)
@@ -266,7 +271,7 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
                         styles.bgThumbWrap,
                         selectedBackground === bg.id && styles.bgThumbWrapSelected,
                       ]}
-                      onPress={() => setSelectedBackground(bg.id)}
+                      onPress={() => { playClick(); setSelectedBackground(bg.id) }}
                       activeOpacity={0.7}
                     >
                       {bg.source ? (
@@ -295,7 +300,7 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
             <View style={styles.vibeDropdownWrapper}>
               <TouchableOpacity
                 style={styles.vibeDropdownTrigger}
-                onPress={() => setVibeDropdownOpen(!vibeDropdownOpen)}
+                onPress={() => { playClick(); setVibeDropdownOpen(!vibeDropdownOpen) }}
                 activeOpacity={0.7}
               >
                 <Ionicons name="musical-notes" size={14} color={colors.primary} />
@@ -325,6 +330,7 @@ const CyberLoungeCreateScreen = ({ navigation }) => {
                           selectedVibe === vibe.id && styles.vibeDropdownOptionSelected,
                         ]}
                         onPress={() => {
+                          playClick()
                           setSelectedVibe(vibe.id)
                           setVibeDropdownOpen(false)
                         }}

@@ -24,6 +24,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { setupProfile } from '../../services/userService'
 import { validateImageAsset } from '../../utils/imageValidation'
 import { fonts } from '../../theme/typography'
+import { playClick } from '../../services/soundService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -89,6 +90,7 @@ const ProfileSetupScreen = ({ navigation }) => {
   }
 
   const showImageOptions = () => {
+    playClick()
     Alert.alert('Select Photo', 'Choose how you want to add your profile photo', [
       { text: 'Camera', onPress: takePhoto },
       { text: 'Photo Library', onPress: pickImage },
@@ -108,6 +110,7 @@ const ProfileSetupScreen = ({ navigation }) => {
   }
 
   const handleDone = async () => {
+    playClick()
     if (!validateForm()) return
     if (!user) {
       Alert.alert('Error', 'User not found. Please try signing up again.')
@@ -127,9 +130,9 @@ const ProfileSetupScreen = ({ navigation }) => {
     setLoading(false)
 
     if (result.success) {
-      // Navigate first — don't refresh profile here because it triggers
-      // AuthNavigator to re-mount and reset the navigation stack.
-      // Profile state will be refreshed when AddFriends completes.
+      await refreshUserProfile()
+      // Replace ProfileSetup with AddFriends so there's no back-stack
+      // to return to after contacts permission dialog
       navigation.replace('AddFriends')
     } else {
       Alert.alert('Error', result.error)

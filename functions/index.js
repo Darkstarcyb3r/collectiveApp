@@ -473,10 +473,10 @@ exports.resetBadgeCount = onCall(async (request) => {
 
   const userId = request.auth.uid;
 
-  // Reset the pending badge counter to 0
+  // Reset the pending badge counter and clear per-sender tracking
   await db.collection("users").doc(userId)
     .collection("private").doc("tokens")
-    .set({ pendingBadge: 0 }, { merge: true });
+    .set({ pendingBadge: 0, pendingMessageSenders: [] }, { merge: true });
 
   return { badgeCount: 0 };
 });
@@ -573,13 +573,30 @@ exports.onMessageCreate = onDocumentCreated(
       }
 
       // Send push notification via Expo push API (read token from private subcollection)
-      const tokenDoc = await db.collection("users").doc(recipientId)
-        .collection("private").doc("tokens").get();
-      const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+      const tokenRef = db.collection("users").doc(recipientId)
+        .collection("private").doc("tokens");
+      const tokenDoc = await tokenRef.get();
+      const tokenData = tokenDoc.exists ? tokenDoc.data() : {};
+      const pushToken = tokenData.pushToken || null;
       if (!pushToken) return;
 
       const fetch = require("node-fetch");
-      const badgeCount = await getUnreadNotificationCount(recipientId);
+
+      // Only increment badge once per unique sender (prevents fatigue from rapid messages)
+      const pendingSenders = tokenData.pendingMessageSenders || [];
+      let badgeCount;
+
+      if (pendingSenders.includes(senderId)) {
+        // Sender already has a pending notification — don't increment badge
+        badgeCount = tokenData.pendingBadge || 1;
+      } else {
+        // New sender — add to pending list and increment badge
+        await tokenRef.set({
+          pendingMessageSenders: FieldValue.arrayUnion(senderId),
+        }, { merge: true });
+        badgeCount = await getUnreadNotificationCount(recipientId);
+      }
+
       const response = await fetch("https://exp.host/--/api/v2/push/send", {
         method: "POST",
         headers: {

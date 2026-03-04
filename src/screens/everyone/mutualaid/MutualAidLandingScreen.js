@@ -20,6 +20,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { functions } from '../../../config/firebase'
 // Note: functions is @react-native-firebase module — call as functions().httpsCallable('name')
 import LightTabBar from '../../../components/navigation/LightTabBar'
+import { playClick } from '../../../services/soundService'
 
 const CATEGORIES = [
   {
@@ -63,6 +64,7 @@ const MutualAidLandingScreen = ({ navigation }) => {
   }, [])
 
   const handleRequestCategory = async () => {
+    playClick()
     if (requestingChat) return
     setRequestingChat(true)
     try {
@@ -190,6 +192,7 @@ const MutualAidLandingScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.arrowButtonDark}
                     onPress={() => {
+                      playClick()
                       navigation.navigate('BarterMarketLanding')
                     }}
                   >
@@ -199,6 +202,7 @@ const MutualAidLandingScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={styles.arrowButtonOuter}
                     onPress={() => {
+                      playClick()
                       navigation.navigate('MutualAidCategory', {
                         category: cat.category,
                         title: cat.title,

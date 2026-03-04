@@ -19,6 +19,7 @@ import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
 import { resendVerificationEmail, checkEmailVerified, logOut } from '../../services/authService'
+import { playClick } from '../../services/soundService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -122,6 +123,7 @@ const EmailVerificationScreen = ({ navigation, route }) => {
 
   // Sign out and go back to landing
   const handleBackToLogin = async () => {
+    playClick()
     await logOut()
     navigation.navigate('Landing')
   }
@@ -159,14 +161,14 @@ const EmailVerificationScreen = ({ navigation, route }) => {
           variant="gradient"
           size="large"
           loading={checking}
-          onPress={() => handleCheckVerification(false)}
+          onPress={() => { playClick(); handleCheckVerification(false); }}
           style={styles.verifyButton}
         />
 
         {/* Resend Link */}
         <TouchableOpacity
           style={styles.resendButton}
-          onPress={() => handleResend(false)}
+          onPress={() => { playClick(); handleResend(false); }}
           disabled={cooldown > 0 || resending}
         >
           <Text

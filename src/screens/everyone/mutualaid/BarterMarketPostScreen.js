@@ -35,6 +35,7 @@ import { signedUpload } from '../../../utils/cloudinaryUpload'
 import { validateImageAsset } from '../../../utils/imageValidation'
 import { ConfirmModal } from '../../../components/common'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
+import { playClick } from '../../../services/soundService'
 
 const BARTER_TYPES = ['Service', 'Good', 'Currency']
 const MONTHS_FULL = [
@@ -101,6 +102,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
   )
 
   const handleShare = async () => {
+    playClick()
     const { shareContent, buildBarterLink } = require('../../../utils/shareLinks')
     await shareContent(
       `Check out this barter: ${post?.title || 'a new listing'} on Collective!`,
@@ -109,6 +111,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
   }
 
   const handleContact = async () => {
+    playClick()
     if (!post?.authorId || !user?.uid) return
     const blockedUsers = userProfile?.blockedUsers || []
     const blockedBy = userProfile?.blockedBy || []
@@ -143,6 +146,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
   }
 
   const handlePickImage = async () => {
+    playClick()
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -162,6 +166,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
   }
 
   const handleSaveEdit = async () => {
+    playClick()
     setSaving(true)
 
     let imageUrl = post.imageUrl || null
@@ -209,6 +214,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
   }
 
   const handleDelete = () => {
+    playClick()
     setDeletePostConfirm(true)
   }
 
@@ -224,6 +230,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
       <TouchableOpacity
         style={styles.editDropdownToggle}
         onPress={() => {
+          playClick()
           setIsOpen(!isOpen)
           otherClose(false)
         }}
@@ -240,6 +247,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
               key={type}
               style={[styles.editDropdownOption, value === type && styles.editDropdownOptionActive]}
               onPress={() => {
+                playClick()
                 setValue(type)
                 setIsOpen(false)
               }}
@@ -296,6 +304,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={styles.authorAvatar}
               onPress={() => {
+                playClick()
                 if (post.authorId && post.authorId !== user?.uid) {
                   navigation.navigate('UserProfile', { userId: post.authorId })
                 }
@@ -422,6 +431,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
                 <TouchableOpacity
                   style={styles.globalToggleRow}
                   onPress={() => {
+                    playClick()
                     setEditIsGlobal(!editIsGlobal)
                     if (!editIsGlobal) setEditCity('')
                   }}
@@ -531,7 +541,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
                 <Text style={styles.postDescription}>{post.description}</Text>
 
                 {post.imageUrl && (
-                  <TouchableOpacity activeOpacity={0.8} onPress={() => setImageModalVisible(true)}>
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => { playClick(); setImageModalVisible(true) }}>
                     <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
                   </TouchableOpacity>
                 )}
@@ -561,7 +571,7 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
           <SafeAreaView style={styles.imageModalContainer}>
             <TouchableOpacity
               style={styles.imageModalClose}
-              onPress={() => setImageModalVisible(false)}
+              onPress={() => { playClick(); setImageModalVisible(false) }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <Ionicons name="close" size={28} color="#ffffff" />

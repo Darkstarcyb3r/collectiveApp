@@ -28,6 +28,7 @@ import { searchUsers, searchUserByPhone } from '../../services/userService'
 import { getGroup } from '../../services/groupService'
 import { sendGroupInvitation } from '../../services/messageService'
 import LightTabBar from '../../components/navigation/LightTabBar'
+import { playClick } from '../../services/soundService'
 
 const InviteMemberScreen = ({ navigation, route }) => {
   const { groupId, groupName } = route.params
@@ -144,6 +145,7 @@ const InviteMemberScreen = ({ navigation, route }) => {
   }, [])
 
   const handleInvite = async (targetUserId, targetName, targetPhoto) => {
+    playClick()
     setInviting(targetUserId)
 
     const result = await sendGroupInvitation(
@@ -258,6 +260,7 @@ const InviteMemberScreen = ({ navigation, route }) => {
             {searchQuery.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
+                  playClick()
                   setSearchQuery('')
                   setResults([])
                   setHasSearched(false)

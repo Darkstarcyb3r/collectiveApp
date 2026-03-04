@@ -34,6 +34,7 @@ import { buildConnectedUserIds } from '../../../utils/networkGraph'
 import LightTabBar from '../../../components/navigation/LightTabBar'
 import { ConfirmModal } from '../../../components/common'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
+import { playClick } from '../../../services/soundService'
 
 const MAX_EVENTS_PER_MONTH = 20
 const MONTHS_FULL = [
@@ -164,6 +165,7 @@ const EventsLandingScreen = ({ navigation, route }) => {
   )
 
   const handleCreateEvent = () => {
+    playClick()
     if (myMonthlyCount >= MAX_EVENTS_PER_MONTH) {
       Alert.alert(
         'Monthly Limit Reached',
@@ -187,6 +189,7 @@ const EventsLandingScreen = ({ navigation, route }) => {
   const canGoForward = calMonth !== maxDate.getMonth() || calYear !== maxDate.getFullYear()
 
   const cycleCalMonth = (direction) => {
+    playClick()
     if (direction === -1 && !canGoBack) return
     if (direction === 1 && !canGoForward) return
     let newMonth = calMonth + direction
@@ -210,17 +213,20 @@ const EventsLandingScreen = ({ navigation, route }) => {
   }
 
   const handleSelectDay = (day) => {
+    playClick()
     if (!isDayInRange(day)) return
     setFilterDate(new Date(calYear, calMonth, day))
   }
 
   const handleReset = () => {
+    playClick()
     setFilterDate(null)
     setCalMonth(new Date().getMonth())
     setCalYear(new Date().getFullYear())
   }
 
   const handleShowResults = () => {
+    playClick()
     setCalendarOpen(false)
   }
 
@@ -231,6 +237,7 @@ const EventsLandingScreen = ({ navigation, route }) => {
 
   // --- Swipe-to-delete (author only) ---
   const handleSwipeDelete = (eventId) => {
+    playClick()
     setDeleteConfirm({ visible: true, eventId })
   }
 
@@ -369,7 +376,7 @@ const EventsLandingScreen = ({ navigation, route }) => {
         {/* Calendar Date Filter */}
         <TouchableOpacity
           style={[styles.calendarToggle, calendarOpen && styles.calendarToggleOpen]}
-          onPress={() => setCalendarOpen(!calendarOpen)}
+          onPress={() => { playClick(); setCalendarOpen(!calendarOpen) }}
           activeOpacity={0.7}
         >
           <Ionicons name="calendar-outline" size={16} color={colors.textDark} />
@@ -512,6 +519,7 @@ const EventsLandingScreen = ({ navigation, route }) => {
             <TouchableOpacity
               style={[styles.globalCheckbox, isGlobalFilter && styles.globalCheckboxActive]}
               onPress={() => {
+                playClick()
                 setIsGlobalFilter(!isGlobalFilter)
                 if (!isGlobalFilter) setCityFilter('')
               }}

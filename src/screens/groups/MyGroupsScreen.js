@@ -21,6 +21,7 @@ import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTabBar } from '../../contexts/TabBarContext'
 import { getUserGroups } from '../../services/groupService'
+import { playClick } from '../../services/soundService'
 
 const MAX_GROUPS = 50
 
@@ -111,6 +112,7 @@ const MyGroupsScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.arrowButtonOuter}
           onPress={() => {
+            playClick()
             const parentNav = navigation.getParent() || navigation
             parentNav.navigate('GroupDetail', { groupId: item.id })
           }}
@@ -178,6 +180,7 @@ const MyGroupsScreen = ({ navigation }) => {
                 groups.length >= MAX_GROUPS && styles.newGroupButtonDisabled,
               ]}
               onPress={() => {
+                playClick()
                 if (groups.length >= MAX_GROUPS) {
                   return
                 }

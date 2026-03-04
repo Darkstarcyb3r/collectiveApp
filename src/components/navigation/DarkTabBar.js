@@ -13,6 +13,7 @@ import React, {
 import { View, TouchableOpacity, Animated, StyleSheet } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { playClick } from '../../services/soundService'
 import { useNavigation } from '@react-navigation/native'
 import { colors } from '../../theme'
 import { useAuth } from '../../contexts/AuthContext'
@@ -107,6 +108,7 @@ const DarkTabBar = forwardRef((props, ref) => {
   }, [visible])
 
   const handleTabPress = (tabName) => {
+    playClick()
     resetTimer()
     // Navigate to the tab within the MainTabs navigator
     navigation.navigate('MainTabs', { screen: tabName })

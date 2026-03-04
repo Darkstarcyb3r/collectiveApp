@@ -34,6 +34,7 @@ import {
   leaveGroup,
 } from '../../services/groupService'
 import { getUserProfile } from '../../services/userService'
+import { playClick } from '../../services/soundService'
 import { ConfirmModal } from '../../components/common'
 import LightTabBar from '../../components/navigation/LightTabBar'
 
@@ -182,6 +183,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
   }
 
   const handleDeleteGroup = () => {
+    playClick()
     setDeleteGroupConfirm(true)
   }
 
@@ -196,6 +198,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
   }
 
   const handleLeaveGroup = () => {
+    playClick()
     setLeaveGroupConfirm(true)
   }
 
@@ -210,6 +213,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
   }
 
   const handleViewMembers = () => {
+    playClick()
     navigation.navigate('GroupMembers', {
       groupId,
       groupName: group?.name,
@@ -229,6 +233,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
       <Animated.View style={[styles.swipeDeleteAction, { transform: [{ translateX: trans }] }]}>
         <TouchableOpacity
           onPress={() => {
+            playClick()
             swipeableRefs.current[post.id]?.close()
             setDeletePostConfirm({ visible: true, postId: post.id })
           }}
@@ -247,14 +252,11 @@ const GroupDetailScreen = ({ navigation, route }) => {
     const postCard = (
       <TouchableOpacity
         style={styles.postCard}
-        onPress={() =>
+        onPress={() => {
           navigation.navigate('PostDetail', { groupId, postId: item.id, groupName: group?.name })
-        }
+        }}
         activeOpacity={0.8}
       >
-        {/* Unseen changes green dot */}
-        {unseen && <View style={styles.unseenDot} />}
-
         {/* Post Header: author avatar + edit link + icons/date */}
         <View style={styles.postHeader}>
           {/* Author Avatar (Left) */}
@@ -384,7 +386,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
           <View style={styles.groupNameRow}>
             <Text style={styles.groupName}>{group.name}</Text>
             {isCreator && (
-              <TouchableOpacity onPress={() => navigation.navigate('EditGroup', { groupId })}>
+              <TouchableOpacity onPress={() => { playClick(); navigation.navigate('EditGroup', { groupId }); }}>
                 <Text style={styles.editGroupLink}>edit_group</Text>
               </TouchableOpacity>
             )}
@@ -418,9 +420,10 @@ const GroupDetailScreen = ({ navigation, route }) => {
             {isMember && (
               <TouchableOpacity
                 style={styles.postButtonOuter}
-                onPress={() =>
+                onPress={() => {
+                  playClick()
                   navigation.navigate('CreatePost', { groupId, groupName: group.name })
-                }
+                }}
               >
                 <LinearGradient
                   colors={['#cafb6c', '#71f200', '#23ff0d']}

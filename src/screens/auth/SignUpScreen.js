@@ -23,6 +23,7 @@ import { colors } from '../../theme'
 import { signUp } from '../../services/authService'
 import { formatPhoneNumber, stripPhoneFormatting } from '../../utils/formatPhoneNumber'
 import { fonts } from '../../theme/typography'
+import { playClick } from '../../services/soundService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -58,6 +59,7 @@ const SignUpScreen = ({ navigation }) => {
   }
 
   const handleSignUp = async () => {
+    playClick()
     if (!validateForm()) return
 
     setLoading(true)
@@ -138,7 +140,7 @@ const SignUpScreen = ({ navigation }) => {
             {/* Age Confirmation Checkbox */}
             <TouchableOpacity
               style={[styles.checkboxRow, { opacity: ageConfirmed ? 1 : 0.4 }]}
-              onPress={() => setAgeConfirmed(!ageConfirmed)}
+              onPress={() => { playClick(); setAgeConfirmed(!ageConfirmed); }}
               activeOpacity={0.7}
             >
               <Ionicons

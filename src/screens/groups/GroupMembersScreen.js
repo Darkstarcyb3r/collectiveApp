@@ -27,6 +27,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getGroupMembers, removeMember } from '../../services/groupService'
 import { ConfirmModal } from '../../components/common'
 import LightTabBar from '../../components/navigation/LightTabBar'
+import { playClick } from '../../services/soundService'
 
 const GroupMembersScreen = ({ navigation, route }) => {
   const { groupId, groupName, creatorId } = route.params
@@ -196,7 +197,7 @@ const GroupMembersScreen = ({ navigation, route }) => {
             </Text>
             <TouchableOpacity
               style={styles.addMemberButtonOuter}
-              onPress={() => navigation.navigate('InviteMember', { groupId, groupName })}
+              onPress={() => { playClick(); navigation.navigate('InviteMember', { groupId, groupName }); }}
             >
               <LinearGradient
                 colors={['#cafb6c', '#71f200', '#23ff0d']}
@@ -225,7 +226,7 @@ const GroupMembersScreen = ({ navigation, route }) => {
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity onPress={() => { playClick(); setSearchQuery(''); }}>
                 <Ionicons name="close-circle" size={18} color={colors.offline} />
               </TouchableOpacity>
             )}

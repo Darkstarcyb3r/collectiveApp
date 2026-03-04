@@ -16,6 +16,7 @@ import {
 } from 'react-native'
 import { Button, Input } from '../../components/common'
 import { colors } from '../../theme'
+import { playClick } from '../../services/soundService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -46,6 +47,7 @@ const ResetPasswordScreen = ({ navigation, route }) => {
   }
 
   const handleResetPassword = async () => {
+    playClick()
     if (!validateForm()) return
 
     setLoading(true)

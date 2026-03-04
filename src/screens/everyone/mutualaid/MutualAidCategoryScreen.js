@@ -30,6 +30,7 @@ import { buildConnectedUserIds } from '../../../utils/networkGraph'
 import { ConfirmModal } from '../../../components/common'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
 import LightTabBar from '../../../components/navigation/LightTabBar'
+import { playClick } from '../../../services/soundService'
 
 const MutualAidCategoryScreen = ({ route, navigation }) => {
   const { category, title } = route.params
@@ -127,6 +128,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
   )
 
   const handleSortChange = (order) => {
+    playClick()
     setSortOrder(order)
     setSortDropdownOpen(false)
     const query = searchQuery.trim().toLowerCase()
@@ -147,6 +149,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
   }, [])
 
   const handleToggleVet = async (groupId) => {
+    playClick()
     if (!user?.uid) return
 
     // Optimistically update local state for instant UI feedback
@@ -171,10 +174,12 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
   }
 
   const handleDeleteGroup = (groupId, groupName) => {
+    playClick()
     setDeleteGroupConfirm({ visible: true, groupId, groupName })
   }
 
   const handleConfirmDeleteGroup = async () => {
+    playClick()
     const { groupId } = deleteGroupConfirm
     setDeleteGroupConfirm({ visible: false, groupId: null, groupName: '' })
     await deleteMutualAidGroup(groupId)
@@ -255,7 +260,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.addButtonOuter}
-              onPress={() => navigation.navigate('MutualAidCreate', { category, title })}
+              onPress={() => { playClick(); navigation.navigate('MutualAidCreate', { category, title }) }}
             >
               <LinearGradient
                 colors={['#cafb6c', '#71f200', '#23ff0d']}
@@ -289,6 +294,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
             {searchQuery.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
+                  playClick()
                   setSearchQuery('')
                   setFilteredGroups(applyFilters(groups, '', cityFilter, sortOrder))
                 }}
@@ -311,6 +317,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
           <TouchableOpacity
             style={styles.globalFilterRow}
             onPress={() => {
+              playClick()
               if (cityFilter === 'Global') {
                 setCityFilter('')
               } else {
@@ -342,7 +349,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
           <View style={styles.sortContainer}>
             <TouchableOpacity
               style={styles.sortToggle}
-              onPress={() => setSortDropdownOpen(!sortDropdownOpen)}
+              onPress={() => { playClick(); setSortDropdownOpen(!sortDropdownOpen) }}
             >
               <Text style={styles.sortLabel}>
                 {sortOrder === 'recent' ? 'Most Recent' : 'Most Vetted'}
@@ -439,7 +446,7 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
                       
                       <TouchableOpacity
                         style={styles.vettedByButton}
-                        onPress={() => navigation.navigate('VettedMembers', { groupId: group.id })}
+                        onPress={() => { playClick(); navigation.navigate('VettedMembers', { groupId: group.id }) }}
                       >
                         <Text style={styles.vettedByText}>vetted by...</Text>
                       </TouchableOpacity>
@@ -454,12 +461,13 @@ const MutualAidCategoryScreen = ({ route, navigation }) => {
                             <Ionicons name="trash-outline" size={14} color={colors.offline} />
                           </TouchableOpacity>
                           <TouchableOpacity
-                            onPress={() =>
+                            onPress={() => {
+                              playClick()
                               navigation.navigate('MutualAidPost', {
                                 groupId: group.id,
                                 editMode: true,
                               })
-                            }
+                            }}
                           >
                             <Text style={styles.editPostLink}>Edit Post</Text>
                           </TouchableOpacity>

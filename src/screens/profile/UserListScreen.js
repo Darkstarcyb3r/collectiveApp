@@ -22,6 +22,7 @@ import { ConfirmModal } from '../../components/common'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import DarkTabBar from '../../components/navigation/DarkTabBar'
+import { playClick } from '../../services/soundService'
 
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -243,7 +244,7 @@ const UserListScreen = ({ navigation, route }) => {
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity onPress={() => { playClick(); setSearchQuery(''); }}>
                 <Ionicons name="close-circle" size={20} color="#888" />
               </TouchableOpacity>
             )}
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.backgroundCard,
-    marginBottom: 8,
+    marginBottom: 22,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 18,

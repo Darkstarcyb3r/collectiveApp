@@ -39,6 +39,7 @@ import {
 } from '../../services/notificationHistoryService'
 import { subscribeToConversations } from '../../services/messageService'
 import { getMonthlyConfluenceCount } from '../../services/everyoneService'
+import { playClick } from '../../services/soundService'
 
 const ProfileScreen = ({ navigation }) => {
   const { user, userProfile, refreshUserProfile } = useAuth()
@@ -119,10 +120,12 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   const handleLogout = async () => {
+    playClick()
     await logOut()
   }
 
   const handleDeleteAccount = () => {
+    playClick()
     setDeleteAccountConfirm(true)
   }
 
@@ -148,6 +151,7 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   const handlePrivacyTerms = () => {
+    playClick()
     Alert.alert('Privacy & Terms', 'View our legal documents', [
       {
         text: 'Terms of Service',
@@ -171,6 +175,7 @@ const ProfileScreen = ({ navigation }) => {
 
   // Pick and immediately upload a new profile photo
   const pickImage = async () => {
+    playClick()
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your photos.')
@@ -236,6 +241,7 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   const handleSearchContact = () => {
+    playClick()
     navigation.navigate('FindFriends', { mode: 'profile' })
   }
 
@@ -345,7 +351,7 @@ const ProfileScreen = ({ navigation }) => {
               <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
                 <TouchableOpacity
                   style={styles.messagesButtonOuter}
-                  onPress={() => navigation.navigate('MainTabs', { screen: 'MessagesTab' })}
+                  onPress={() => { playClick(); navigation.navigate('MainTabs', { screen: 'MessagesTab' }); }}
                 >
                   <LinearGradient
                     colors={['#cafb6c', '#71f200', '#23ff0d']}
@@ -402,7 +408,7 @@ const ProfileScreen = ({ navigation }) => {
           {/* Quip Input Area */}
           <TouchableOpacity
             style={styles.quipInput}
-            onPress={() => navigation.navigate('EditQuip')}
+            onPress={() => { playClick(); navigation.navigate('EditQuip'); }}
           >
             <Text style={styles.quipText}>{userProfile?.quip || ''}</Text>
             <Ionicons name="create-outline" size={18} color="#343333" style={styles.quipPencil} />
@@ -415,7 +421,7 @@ const ProfileScreen = ({ navigation }) => {
               <View style={styles.settingsStack}>
                 <TouchableOpacity
                   style={styles.glassyButtonWrap}
-                  onPress={() => navigation.navigate('FollowingUsers')}
+                  onPress={() => { playClick(); navigation.navigate('FollowingUsers'); }}
                 >
                   <BlurView intensity={10} tint="dark" style={styles.glassyButton}>
                     <View style={styles.glassyButtonInner}>
@@ -426,7 +432,7 @@ const ProfileScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.glassyButtonWrap}
-                  onPress={() => navigation.navigate('Followers')}
+                  onPress={() => { playClick(); navigation.navigate('Followers'); }}
                 >
                   <BlurView intensity={10} tint="dark" style={styles.glassyButton}>
                     <View style={styles.glassyButtonInner}>
@@ -437,7 +443,7 @@ const ProfileScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.glassyButtonWrap}
-                  onPress={() => setNetworkDropdownOpen(true)}
+                  onPress={() => { playClick(); setNetworkDropdownOpen(true); }}
                 >
                   <BlurView intensity={10} tint="dark" style={styles.glassyButton}>
                     <View style={styles.glassyButtonInner}>
@@ -487,13 +493,14 @@ const ProfileScreen = ({ navigation }) => {
             <TouchableOpacity
               style={styles.networkModalOverlay}
               activeOpacity={1}
-              onPress={() => setNetworkDropdownOpen(false)}
+              onPress={() => { playClick(); setNetworkDropdownOpen(false); }}
             >
               <View style={styles.networkModalContent}>
                 <Text style={styles.networkModalTitle}>hide / block</Text>
                 <TouchableOpacity
                   style={styles.networkModalItem}
                   onPress={() => {
+                    playClick()
                     setNetworkDropdownOpen(false)
                     navigation.navigate('HiddenUsers')
                   }}
@@ -504,6 +511,7 @@ const ProfileScreen = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.networkModalItem}
                   onPress={() => {
+                    playClick()
                     setNetworkDropdownOpen(false)
                     navigation.navigate('BlockedUsers')
                   }}

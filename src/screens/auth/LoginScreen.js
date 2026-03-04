@@ -22,6 +22,7 @@ import { colors } from '../../theme'
 import { signIn } from '../../services/authService'
 import { useAuth } from '../../contexts/AuthContext'
 import { fonts } from '../../theme/typography'
+import { playClick } from '../../services/soundService'
 
 const { width, height } = Dimensions.get('window')
 
@@ -50,6 +51,7 @@ const LoginScreen = ({ navigation }) => {
   }
 
   const handleLogin = async () => {
+    playClick()
     if (!validateForm()) return
 
     setLoading(true)
@@ -131,7 +133,7 @@ const LoginScreen = ({ navigation }) => {
 
             <TouchableOpacity
               style={styles.forgotPassword}
-              onPress={() => navigation.navigate('ForgotPassword')}
+              onPress={() => { playClick(); navigation.navigate('ForgotPassword'); }}
             >
               <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>

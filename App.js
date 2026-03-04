@@ -14,6 +14,7 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { RootNavigator } from './src/navigation';
 import { colors } from './src/theme';
 import { fonts } from './src/theme/typography';
+import { loadSounds } from './src/services/soundService';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 
 
@@ -89,6 +90,9 @@ export default function App() {
         fonts.semiBold = 'RobotoMono-SemiBold' || 'RobotoMono-Bold';
         fonts.pixel = 'PressStart2P-Regular';
         fonts.mono = 'FiraCode-Regular';
+
+        // Load UI sounds — fire-and-forget (don't block startup)
+        loadSounds().catch(() => {});
 
         // Request notification permissions — fire-and-forget (don't block startup)
         console.log('[Splash] Checking notification permissions (non-blocking)...');

@@ -25,6 +25,7 @@ import { fonts } from '../../theme/typography'
 import { getGroup, updateGroup, updateGroupBanner } from '../../services/groupService'
 import { validateImageAsset } from '../../utils/imageValidation'
 import LightTabBar from '../../components/navigation/LightTabBar'
+import { playClick } from '../../services/soundService'
 
 const MAX_DESCRIPTION_WORDS = 50
 
@@ -90,6 +91,7 @@ const EditGroupScreen = ({ navigation, route }) => {
   }
 
   const pickBanner = async () => {
+    playClick()
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your photos.')
@@ -115,6 +117,7 @@ const EditGroupScreen = ({ navigation, route }) => {
   }
 
   const handleSave = async () => {
+    playClick()
     if (!name.trim()) {
       Alert.alert('Required', 'Group name cannot be empty.')
       return

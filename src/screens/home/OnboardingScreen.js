@@ -23,6 +23,7 @@ import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
 import { updateUserProfile } from '../../services/userService'
+import { playClick } from '../../services/soundService'
 import LightTabBar from '../../components/navigation/LightTabBar'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -288,6 +289,7 @@ const OnboardingScreen = ({ navigation }) => {
   }
 
   const handleNext = async () => {
+    playClick()
     if (isLast) {
       // Mark onboarding as complete on the user's Firestore profile
       // This persists across devices and app reinstalls
@@ -301,6 +303,7 @@ const OnboardingScreen = ({ navigation }) => {
   }
 
   const handleBack = () => {
+    playClick()
     if (activeIndex > 0) goToIndex(activeIndex - 1)
   }
 
@@ -361,7 +364,7 @@ const OnboardingScreen = ({ navigation }) => {
           <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => setShowMission(true)} style={styles.missionButtonOuter}>
+          <TouchableOpacity onPress={() => { playClick(); setShowMission(true); }} style={styles.missionButtonOuter}>
             <LinearGradient
               colors={['#cafb6c', '#71f200', '#23ff0d']}
               start={{ x: 0, y: 0 }}
@@ -405,7 +408,7 @@ const OnboardingScreen = ({ navigation }) => {
       {/* Pagination dots */}
       <View style={styles.dotsRow}>
         {slides.map((_, i) => (
-          <TouchableOpacity key={i} onPress={() => goToIndex(i)}>
+          <TouchableOpacity key={i} onPress={() => { playClick(); goToIndex(i); }}>
             <View
               style={[
                 styles.dot,
@@ -445,7 +448,7 @@ const OnboardingScreen = ({ navigation }) => {
             {/* Close button */}
             <TouchableOpacity
               style={styles.missionClose}
-              onPress={() => setShowMission(false)}
+              onPress={() => { playClick(); setShowMission(false); }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <Ionicons name="close" size={22} color={colors.textPrimary} />

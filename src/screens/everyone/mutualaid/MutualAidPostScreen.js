@@ -40,6 +40,7 @@ import CityAutocomplete from '../../../components/common/CityAutocomplete'
 import { groupCommentsWithReplies } from '../../../utils/commentUtils'
 import { validateImageAsset } from '../../../utils/imageValidation'
 import { signedUpload } from '../../../utils/cloudinaryUpload'
+import { playClick } from '../../../services/soundService'
 
 const MutualAidPostScreen = ({ route, navigation }) => {
   const { groupId, editMode } = route.params
@@ -127,6 +128,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   }
 
   const handleDeleteComment = (commentId) => {
+    playClick()
     setDeleteCommentConfirm({ visible: true, commentId })
   }
 
@@ -142,6 +144,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   }
 
   const handleSelectCommentReaction = (emoji) => {
+    playClick()
     const cid = reactionPickerCommentId
     setReactionPickerCommentId(null)
     if (cid && user?.uid) {
@@ -165,6 +168,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   }
 
   const handleTapCommentReaction = (commentId, emoji) => {
+    playClick()
     if (!user?.uid) return
     setComments((prev) =>
       prev.map((c) => {
@@ -192,6 +196,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   )
 
   const handleShare = async () => {
+    playClick()
     const { shareContent, buildMutualAidLink } = require('../../../utils/shareLinks')
     await shareContent(
       `Check out this mutual aid group: ${group?.name || 'a group'} on Collective!`,
@@ -200,6 +205,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   }
 
   const handleOpenLink = () => {
+    playClick()
     if (group?.link) {
       const url = group.link.startsWith('http') ? group.link : `https://${group.link}`
       Linking.openURL(url).catch(() => {
@@ -209,6 +215,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   }
 
   const handleSaveEdit = async () => {
+    playClick()
     const savedCity = editIsGlobal ? 'Global' : editCity.trim()
 
     // Upload new image if changed (Art & Action only)
@@ -247,6 +254,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   }
 
   const handleDelete = () => {
+    playClick()
     setDeleteGroupConfirm(true)
   }
 
@@ -293,6 +301,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
+                    playClick()
                     setReplyTarget(null)
                     setShowCommentModal(true)
                   }}
@@ -325,12 +334,12 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                       <View style={styles.imagePreviewContainer}>
                         <Image source={{ uri: editImageUri }} style={styles.imagePreview} />
                         <View style={styles.imageActions}>
-                          <TouchableOpacity onPress={handlePickEditImage} style={styles.imageChangeButton}>
+                          <TouchableOpacity onPress={() => { playClick(); handlePickEditImage() }} style={styles.imageChangeButton}>
                             <Ionicons name="camera-outline" size={16} color={colors.textDark} />
                             <Text style={styles.imageChangeText}>Change</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            onPress={() => { setEditImageUri(null); setEditImageMeta(null); setImageChanged(true) }}
+                            onPress={() => { playClick(); setEditImageUri(null); setEditImageMeta(null); setImageChanged(true) }}
                             style={styles.imageRemoveButton}
                           >
                             <Ionicons name="close-circle-outline" size={16} color={colors.offline} />
@@ -339,7 +348,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                         </View>
                       </View>
                     ) : (
-                      <TouchableOpacity style={styles.imagePicker} onPress={handlePickEditImage}>
+                      <TouchableOpacity style={styles.imagePicker} onPress={() => { playClick(); handlePickEditImage() }}>
                         <Ionicons name="image-outline" size={24} color={colors.offline} />
                         <Text style={styles.imagePickerText}>+ Add photo</Text>
                       </TouchableOpacity>
@@ -384,6 +393,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                 <TouchableOpacity
                   style={styles.globalToggleRow}
                   onPress={() => {
+                    playClick()
                     setEditIsGlobal(!editIsGlobal)
                     if (!editIsGlobal) setEditCity('')
                   }}
@@ -413,7 +423,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                   multiline
                 />
                 <View style={styles.editActions}>
-                  <TouchableOpacity style={styles.saveButtonOuter} onPress={handleSaveEdit}>
+                  <TouchableOpacity style={styles.saveButtonOuter} onPress={() => { playClick(); handleSaveEdit() }}>
                     <LinearGradient
                       colors={['#cafb6c', '#71f200', '#23ff0d']}
                       start={{ x: 0, y: 0 }}
@@ -427,11 +437,11 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                       <Text style={styles.saveButtonText}>Save</Text>
                     </LinearGradient>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditing(false)}>
+                  <TouchableOpacity onPress={() => { playClick(); setEditing(false) }}>
                     <Text style={styles.cancelText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={handleDelete}
+                    onPress={() => { playClick(); handleDelete() }}
                     style={{
                       marginLeft: 'auto',
                       flexDirection: 'row',
@@ -509,6 +519,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                         >
                           <TouchableOpacity
                             onPress={() => {
+                              playClick()
                               if (comment.author?.id) {
                                 navigation.navigate('UserProfile', { userId: comment.author.id })
                               }
@@ -545,7 +556,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                               </Text>
                               {comment.author?.id === user?.uid && (
                                 <TouchableOpacity
-                                  onPress={() => handleDeleteComment(comment.id)}
+                                  onPress={() => { playClick(); handleDeleteComment(comment.id) }}
                                   style={styles.deleteCommentButton}
                                 >
                                   <Ionicons name="trash-outline" size={12} color={colors.offline} />
@@ -558,6 +569,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                             {!comment.isReply && (
                               <TouchableOpacity
                                 onPress={() => {
+                                  playClick()
                                   setReplyTarget({
                                     commentId: comment.id,
                                     authorName: comment.author?.name || 'User',

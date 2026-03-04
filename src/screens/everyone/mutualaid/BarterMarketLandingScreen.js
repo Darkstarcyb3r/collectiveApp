@@ -31,6 +31,7 @@ import { buildConnectedUserIds } from '../../../utils/networkGraph'
 import { ConfirmModal } from '../../../components/common'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
 import LightTabBar from '../../../components/navigation/LightTabBar'
+import { playClick } from '../../../services/soundService'
 
 const BARTER_TYPES = ['Service', 'Good', 'Currency']
 const MONTHS_SHORT = [
@@ -172,6 +173,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
   )
 
   const handleFilterOffering = (type) => {
+    playClick()
     const newValue = filterOffering === type ? '' : type
     setFilterOffering(newValue)
     setOfferingDropdownOpen(false)
@@ -179,6 +181,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
   }
 
   const handleFilterLookingFor = (type) => {
+    playClick()
     const newValue = filterLookingFor === type ? '' : type
     setFilterLookingFor(newValue)
     setLookingForDropdownOpen(false)
@@ -198,6 +201,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
   }, [])
 
   const handleSwipeDelete = (postId) => {
+    playClick()
     setDeletePostConfirm({ visible: true, postId })
   }
 
@@ -280,7 +284,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.addButtonOuter}
-              onPress={() => navigation.navigate('BarterMarketCreate')}
+              onPress={() => { playClick(); navigation.navigate('BarterMarketCreate') }}
             >
               <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButton}>
                 <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.addButtonHighlight} />
@@ -306,6 +310,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
             {searchQuery.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
+                  playClick()
                   setSearchQuery('')
                   setFilteredPosts(
                     applyFilters(posts, '', filterOffering, filterLookingFor, cityFilter)
@@ -330,6 +335,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.globalFilterRow}
             onPress={() => {
+              playClick()
               if (cityFilter === 'Global') {
                 setCityFilter('')
               } else {
@@ -365,6 +371,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.filterToggle}
                 onPress={() => {
+                  playClick()
                   setOfferingDropdownOpen(!offeringDropdownOpen)
                   setLookingForDropdownOpen(false)
                 }}
@@ -383,6 +390,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={[styles.filterOption, !filterOffering && styles.filterOptionActive]}
                     onPress={() => {
+                      playClick()
                       setFilterOffering('')
                       setOfferingDropdownOpen(false)
                       setFilteredPosts(
@@ -428,6 +436,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.filterToggle}
                 onPress={() => {
+                  playClick()
                   setLookingForDropdownOpen(!lookingForDropdownOpen)
                   setOfferingDropdownOpen(false)
                 }}
@@ -446,6 +455,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={[styles.filterOption, !filterLookingFor && styles.filterOptionActive]}
                     onPress={() => {
+                      playClick()
                       setFilterLookingFor('')
                       setLookingForDropdownOpen(false)
                       setFilteredPosts(
@@ -530,9 +540,10 @@ const BarterMarketLandingScreen = ({ navigation }) => {
                         </View>
                         <TouchableOpacity
                           style={styles.arrowButtonOuter}
-                          onPress={() =>
+                          onPress={() => {
+                            playClick()
                             navigation.navigate('BarterMarketPost', { postId: post.id })
-                          }
+                          }}
                         >
                           <LinearGradient
                             colors={['#d8f434', '#b3f425', '#93f478']}
@@ -551,12 +562,13 @@ const BarterMarketLandingScreen = ({ navigation }) => {
                       {isAuthor && (
                         <View style={styles.editPostContainer}>
                           <TouchableOpacity
-                            onPress={() =>
+                            onPress={() => {
+                              playClick()
                               navigation.navigate('BarterMarketPost', {
                                 postId: post.id,
                                 editMode: true,
                               })
-                            }
+                            }}
                           >
                             <Text style={styles.editPostLink}>Edit Post</Text>
                           </TouchableOpacity>

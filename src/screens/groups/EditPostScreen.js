@@ -27,6 +27,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getPost, updatePost, uploadPostImage } from '../../services/groupService'
 import { validateImageAsset } from '../../utils/imageValidation'
 import LightTabBar from '../../components/navigation/LightTabBar'
+import { playClick } from '../../services/soundService'
 
 const MAX_CONTENT_WORDS = 500
 
@@ -95,6 +96,7 @@ const EditPostScreen = ({ navigation, route }) => {
   }, [groupId, postId])
 
   const pickImage = async () => {
+    playClick()
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant permission to access your photos.')
@@ -120,6 +122,7 @@ const EditPostScreen = ({ navigation, route }) => {
   }
 
   const handleSave = async () => {
+    playClick()
     if (!title.trim()) {
       Alert.alert('Required', 'Post title cannot be empty.')
       return
@@ -218,6 +221,7 @@ const EditPostScreen = ({ navigation, route }) => {
               <View style={styles.authorRow}>
                 <TouchableOpacity
                   onPress={() => {
+                    playClick()
                     if (user?.uid) {
                       navigation.navigate('UserProfile', { userId: user.uid })
                     }

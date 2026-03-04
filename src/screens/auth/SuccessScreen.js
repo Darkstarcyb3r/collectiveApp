@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Button } from '../../components/common'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
+import { playClick } from '../../services/soundService'
 
 const SuccessScreen = ({ navigation, route }) => {
   const {
@@ -25,6 +26,7 @@ const SuccessScreen = ({ navigation, route }) => {
   } = route.params || {}
 
   const handleContinue = () => {
+    playClick()
     navigation.reset({
       index: 0,
       routes: [{ name: navigateTo }],
@@ -72,6 +74,7 @@ const SuccessScreen = ({ navigation, route }) => {
 // Password Reset Success Screen (specific variant)
 export const PasswordResetSuccessScreen = ({ navigation }) => {
   const handleLogin = () => {
+    playClick()
     navigation.reset({
       index: 0,
       routes: [{ name: 'Landing' }],
@@ -123,6 +126,7 @@ export const PasswordResetSuccessScreen = ({ navigation }) => {
 // Account Setup Success Screen (specific variant)
 export const AccountSetupSuccessScreen = ({ navigation }) => {
   const handleLogin = () => {
+    playClick()
     // This will trigger AuthContext to check auth state
     // and redirect to main app if logged in
     navigation.reset({

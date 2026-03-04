@@ -3,6 +3,11 @@
 // Stored in Firestore as an array of emoji strings
 
 export const STICKER_OPTIONS = [
+  '😊',
+  '😡',
+  '😢',
+  '😂',
+  '🫠',
   '🔥',
   '✨',
   '💀',
@@ -30,7 +35,6 @@ export const STICKER_OPTIONS = [
   '⚰️',
   '⚔️',
   '👽',
-  '🫠',
   '❤️‍🔥',
   '💖',
   '🎀',

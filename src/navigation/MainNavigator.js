@@ -61,7 +61,8 @@ const MainNavigator = () => {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animation: 'slide_from_right',
+        animation: 'fade_from_bottom',
+        animationDuration: 250,
       }}
     >
       {/* Main Tabs - This should be your initial route */}

@@ -22,6 +22,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToNetworkUsers } from '../../services/everyoneService'
 import { buildConnectedUserIds } from '../../utils/networkGraph'
 import DarkTabBar from '../../components/navigation/DarkTabBar'
+import { playClick } from '../../services/soundService'
 
 
 const ActiveUsersScreen = ({ navigation }) => {

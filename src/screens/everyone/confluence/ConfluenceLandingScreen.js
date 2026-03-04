@@ -32,6 +32,7 @@ import {
 } from '../../../services/everyoneService'
 import { buildConnectedUserIds } from '../../../utils/networkGraph'
 import DarkTabBar from '../../../components/navigation/DarkTabBar'
+import { playClick } from '../../../services/soundService'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const COLUMN_GAP = 8
@@ -135,6 +136,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
 
   // Flag/report handlers
   const openFlagModal = async () => {
+    playClick()
     if (!user?.uid || !selectedPost) return
     const result = await checkExistingConfluenceReport(user.uid, selectedPost.id)
     if (result.exists) {
@@ -151,6 +153,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
   }
 
   const handleSubmitFlag = async () => {
+    playClick()
     if (!flagReason) {
       setFlagAlert({
         visible: true,
@@ -220,7 +223,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
             </View>
             <TouchableOpacity
               style={styles.uploadButtonOuter}
-              onPress={() => navigation.navigate('ConfluenceAddPost')}
+              onPress={() => { playClick(); navigation.navigate('ConfluenceAddPost') }}
             >
               <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.uploadButton}>
                 <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.uploadButtonHighlight} />
@@ -321,6 +324,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                   <TouchableOpacity
                     style={{ flex: 1 }}
                     onPress={() => {
+                      playClick()
                       const url = selectedPost.link.startsWith('http')
                         ? selectedPost.link
                         : `https://${selectedPost.link}`
@@ -361,7 +365,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
               <TouchableOpacity
                 key={item.key}
                 style={styles.flagReasonRow}
-                onPress={() => setFlagReason(item.key)}
+                onPress={() => { playClick(); setFlagReason(item.key) }}
                 activeOpacity={0.7}
               >
                 <Ionicons
@@ -388,7 +392,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
             <View style={styles.flagButtonRow}>
               <TouchableOpacity
                 style={styles.flagCancelButton}
-                onPress={() => setShowFlagModal(false)}
+                onPress={() => { playClick(); setShowFlagModal(false) }}
               >
                 <Text style={styles.flagCancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -425,7 +429,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
             <View style={{ alignItems: 'center' }}>
               <TouchableOpacity
                 style={styles.flagAlertOkButtonOuter}
-                onPress={() => setFlagAlert({ visible: false, title: '', message: '' })}
+                onPress={() => { playClick(); setFlagAlert({ visible: false, title: '', message: '' }) }}
               >
                 <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
                   <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagAlertOkButtonHighlight} />

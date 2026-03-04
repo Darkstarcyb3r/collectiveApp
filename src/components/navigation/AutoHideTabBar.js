@@ -11,6 +11,7 @@ import { useTabBar } from '../../contexts/TabBarContext'
 import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToConversations } from '../../services/messageService'
 import { subscribeToNotifications } from '../../services/notificationHistoryService'
+import { playClick } from '../../services/soundService'
 
 const AutoHideTabBar = ({ state, _descriptors, navigation }) => {
   const { visible, resetTimer } = useTabBar()
@@ -75,6 +76,7 @@ const AutoHideTabBar = ({ state, _descriptors, navigation }) => {
         const iconName = getIconName(route.name)
 
         const onPress = () => {
+          playClick()
           resetTimer()
 
           const event = navigation.emit({

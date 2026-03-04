@@ -20,6 +20,7 @@ import { Button } from '../../components/common'
 import { colors } from '../../theme'
 import { useAuth } from '../../contexts/AuthContext'
 import { updateQuip } from '../../services/userService'
+import { playClick } from '../../services/soundService'
 import { fonts } from '../../theme/typography'
 
 const EditQuipScreen = ({ navigation }) => {
@@ -28,6 +29,7 @@ const EditQuipScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false)
 
   const handleSave = async () => {
+    playClick()
     setLoading(true)
     const result = await updateQuip(userProfile.uid, quip.trim())
     setLoading(false)

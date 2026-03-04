@@ -28,6 +28,7 @@ import { signedUpload } from '../../../utils/cloudinaryUpload'
 import { validateImageAsset } from '../../../utils/imageValidation'
 import CityAutocomplete from '../../../components/common/CityAutocomplete'
 import LightTabBar from '../../../components/navigation/LightTabBar'
+import { playClick } from '../../../services/soundService'
 
 const BARTER_TYPES = ['Service', 'Good', 'Currency']
 const MONTHS_FULL = [
@@ -76,6 +77,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
   const getFirstDayOfMonth = (month, year) => new Date(year, month, 1).getDay()
 
   const openCalendar = () => {
+    playClick()
     setCalMonth(selectedMonth)
     setCalYear(selectedYear)
     setCalDay(selectedDay)
@@ -83,6 +85,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
   }
 
   const cycleCalMonth = (direction) => {
+    playClick()
     let newMonth = calMonth + direction
     let newYear = calYear
     if (newMonth > 11) {
@@ -100,6 +103,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
   }
 
   const applyCalendar = () => {
+    playClick()
     setSelectedMonth(calMonth)
     setSelectedYear(calYear)
     setSelectedDay(calDay)
@@ -111,6 +115,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
   }
 
   const handlePickImage = async () => {
+    playClick()
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -130,6 +135,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
   }
 
   const handlePublish = async () => {
+    playClick()
     if (!title.trim()) {
       Alert.alert('Title Required', 'Please enter a post title.')
       return
@@ -204,6 +210,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
       <TouchableOpacity
         style={styles.dropdownToggle}
         onPress={() => {
+          playClick()
           setIsOpen(!isOpen)
           otherClose(false)
         }}
@@ -220,6 +227,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
               key={type}
               style={[styles.dropdownOption, value === type && styles.dropdownOptionActive]}
               onPress={() => {
+                playClick()
                 setValue(type)
                 setIsOpen(false)
               }}
@@ -342,7 +350,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
             />
 
             {/* Date — press to open calendar */}
-            <TouchableOpacity style={styles.dateRow} onPress={openCalendar}>
+            <TouchableOpacity style={styles.dateRow} onPress={() => { playClick(); openCalendar() }}>
               <Ionicons
                 name="calendar-outline"
                 size={18}
@@ -412,6 +420,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.globalToggleRow}
                 onPress={() => {
+                  playClick()
                   setIsGlobal(!isGlobal)
                   if (!isGlobal) setCity('')
                 }}
@@ -476,7 +485,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
                   <TouchableOpacity
                     key={day}
                     style={[styles.calDayCell, isSelected && styles.calDayCellSelected]}
-                    onPress={() => setCalDay(day)}
+                    onPress={() => { playClick(); setCalDay(day) }}
                   >
                     <Text style={[styles.calDayText, isSelected && styles.calDayTextSelected]}>
                       {day}
@@ -490,7 +499,7 @@ const BarterMarketCreateScreen = ({ navigation }) => {
             <View style={styles.calActions}>
               <TouchableOpacity
                 style={styles.calCancelButton}
-                onPress={() => setShowCalendar(false)}
+                onPress={() => { playClick(); setShowCalendar(false) }}
               >
                 <Text style={styles.calCancelText}>Cancel</Text>
               </TouchableOpacity>
