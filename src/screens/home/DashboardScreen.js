@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
+  AppState,
   View,
   Text,
   StyleSheet,
@@ -292,8 +293,27 @@ const DashboardScreen = ({ navigation }) => {
     };
   }, [user?.uid]);
 
-  // Badge count is set server-side via the push notification payload.
-  // No client-side setBadgeCountAsync here — competing badge setters cause jumping.
+  // Reset the server-side pendingBadge counter when the app comes to foreground.
+  // This keeps the counter in sync with the device badge (which App.js clears to 0).
+  const dashAppState = useRef(AppState.currentState);
+  useEffect(() => {
+    if (!user?.uid) return;
+    const resetPendingBadge = () => {
+      firestore().collection('users').doc(user.uid)
+        .collection('private').doc('tokens')
+        .set({ pendingBadge: 0 }, { merge: true })
+        .catch(() => {});
+    };
+    // Reset on mount (app just opened to this screen)
+    resetPendingBadge();
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (dashAppState.current.match(/inactive|background/) && nextAppState === 'active') {
+        resetPendingBadge();
+      }
+      dashAppState.current = nextAppState;
+    });
+    return () => subscription.remove();
+  }, [user?.uid]);
 
   // Fetch participant profiles for chatroom avatar banners (max 4 per room)
   // Dependency uses JSON.stringify of participant arrays so it re-fetches

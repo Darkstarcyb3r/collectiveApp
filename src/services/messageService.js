@@ -376,21 +376,9 @@ export const sendMessage = async (
 // Mark conversation as read for a user
 export const markConversationAsRead = async (conversationId, userId) => {
   try {
-    // Your existing Firestore update
     await firestore().collection('conversations').doc(conversationId).update({
       [`unread_${userId}`]: false
     });
-
-    // FORCE badge to 0 on device immediately
-    await Notifications.setBadgeCountAsync(0);
-
-    // Call cloud function to recalc and set correct badge
-    const resetBadge = functions().httpsCallable('resetBadgeCount');
-    const result = await resetBadge();
-
-    // Set to the actual count from server
-    await Notifications.setBadgeCountAsync(result.data.badgeCount);
-
     return { success: true };
   } catch (error) {
     console.log('Error marking conversation as read:', error);

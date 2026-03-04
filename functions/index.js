@@ -160,38 +160,26 @@ async function checkRateLimit(userId, counterField, limit, resetPeriod) {
 // BADGE COUNT HELPER
 // =============================================================
 /**
- * Get the total badge count for a user's iOS app icon.
- * Combines: unread notification history + unread DM conversations.
- * Uses Firestore count() aggregation (lightweight — doesn't download docs).
+ * Get the badge count for a user's iOS app icon.
+ * Uses a simple pendingBadge counter stored in users/{userId}/private/tokens.
+ * Each push notification increments it by 1. The client resets it to 0 when
+ * the app comes to the foreground, so the count only reflects notifications
+ * received since the user last opened the app.
  */
-async function getUnreadNotificationCount(userId, useCache = false) {
-  // Optional simple in-memory cache to avoid hitting Firestore too often
-  if (useCache && badgeCache[userId] && Date.now() - badgeCache[userId].timestamp < 5000) {
-    return badgeCache[userId].count;
-  }
-
+async function getUnreadNotificationCount(userId) {
   try {
-    // Badge = unread notification bell items + unread DM conversations.
-    // Client clears badge to 0 on app foreground so it won't appear "stuck".
-    const [notifSnapshot, convosSnapshot] = await Promise.all([
-      db.collection("users").doc(userId)
-        .collection("notifications").where("read", "==", false).count().get(),
-      db.collection("conversations")
-        .where("participants", "array-contains", userId)
-        .where(`unread_${userId}`, "==", true).count().get(),
-    ]);
+    const tokenRef = db.collection("users").doc(userId)
+      .collection("private").doc("tokens");
 
-    const count = notifSnapshot.data().count + convosSnapshot.data().count;
+    // Atomically increment the pending badge counter
+    await tokenRef.set({ pendingBadge: FieldValue.increment(1) }, { merge: true });
 
-    // Cache the result
-    if (useCache) {
-      badgeCache[userId] = { count, timestamp: Date.now() };
-    }
-
-    return count;
+    // Read back the new value (strongly consistent in Firestore)
+    const tokenDoc = await tokenRef.get();
+    return tokenDoc.exists ? (tokenDoc.data().pendingBadge || 1) : 1;
   } catch (error) {
     logger.error(`getUnreadNotificationCount error for ${userId}:`, error);
-    return 0;
+    return 1;
   }
 }
 
@@ -482,13 +470,15 @@ exports.resetBadgeCount = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in.");
   }
-  
+
   const userId = request.auth.uid;
-  
-  // Reuse your existing getUnreadNotificationCount function
-  const badgeCount = await getUnreadNotificationCount(userId);
-  
-  return { badgeCount };
+
+  // Reset the pending badge counter to 0
+  await db.collection("users").doc(userId)
+    .collection("private").doc("tokens")
+    .set({ pendingBadge: 0 }, { merge: true });
+
+  return { badgeCount: 0 };
 });
 
 
