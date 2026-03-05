@@ -114,7 +114,7 @@ useEffect(() => {
             >
               <Ionicons name="chevron-back" size={28} color={colors.textGreen} />
             </TouchableOpacity>
-            <Text style={styles.title}>My Public Collective</Text>
+            <Text style={styles.title}>My Collective Network</Text>
             <View style={{ width: 28 }} />
           </View>
 

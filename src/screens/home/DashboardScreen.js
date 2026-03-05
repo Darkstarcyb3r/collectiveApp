@@ -159,6 +159,9 @@ const DashboardScreen = ({ navigation }) => {
   const [publicGroupCreators, setPublicGroupCreators] = useState({});
   const [localPinnedIds, setLocalPinnedIds] = useState([]);
   const [roomsLoaded, setRoomsLoaded] = useState(false);
+  const [privateGroupsExpanded, setPrivateGroupsExpanded] = useState(false);
+  const privateGroupsHeight = useRef(new Animated.Value(0)).current;
+  const privateChevronRotation = useRef(new Animated.Value(0)).current;
   const groupsFade = useRef(new Animated.Value(0)).current;
   const roomsFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
@@ -719,6 +722,15 @@ const DashboardScreen = ({ navigation }) => {
     }
   };
 
+  const togglePrivateGroups = () => {
+    const toValue = privateGroupsExpanded ? 0 : 1;
+    setPrivateGroupsExpanded(!privateGroupsExpanded);
+    Animated.parallel([
+      Animated.spring(privateGroupsHeight, { toValue, useNativeDriver: false, friction: 8, tension: 60 }),
+      Animated.timing(privateChevronRotation, { toValue, duration: 200, useNativeDriver: true }),
+    ]).start();
+  };
+
   const handleCreateGroup = (isPublic = false) => {
     playClick();
     if (groups.length >= MAX_GROUPS) {
@@ -1034,167 +1046,11 @@ const DashboardScreen = ({ navigation }) => {
 </View>
 
 
-        {/* ==================== =MY PRIVATE GROUPS ==================== */}
-        <Animated.View style={{ opacity: sectionFadePrivate, transform: [{ translateY: sectionSlidePrivate }] }}>
-        <BlurView intensity={10} tint="dark" style={styles.privateGroupsGlass}>
-          <View style={styles.privateGroupsSection}>
-            {/* Section Header */}
-            <View style={styles.sectionHeaderRow}>
-              <View>
-                <Animated.Text style={[styles.privateGroupsTitle, { opacity: shimmerPrivate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Private Groups</Animated.Text>
-                <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>
-              </View>
-              <Animated.View style={{ transform: [{ scale: bounceAddGroup.scale }] }}>
-              <TouchableOpacity
-                style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
-                onPress={() => handleCreateGroup(false)}
-                onPressIn={bounceAddGroup.onPressIn}
-                onPressOut={bounceAddGroup.onPressOut}
-                disabled={groups.length >= MAX_GROUPS}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={['#cafb6c', '#71f200', '#23ff0d']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.addButtonGradient}
-                >
-                  <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
-                    style={styles.addButtonHighlight}
-                  />
-                  <Ionicons name="add" size={12} color="#1a1a1a" />
-                  <Text style={styles.addButtonText}>Group</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              </Animated.View>
-            </View>
-
-          {/* Groups Scrollable Container */}
-          <View style={styles.groupsContainer}>
-            {!groupsLoaded ? (
-              <View style={{ paddingVertical: 4 }}>
-                <SkeletonGroupRow delay={0} />
-                <SkeletonGroupRow delay={150} />
-                <SkeletonGroupRow delay={300} />
-              </View>
-            ) : (
-              <Animated.View style={[styles.groupsScrollRow, { opacity: groupsFade }]}>
-                <ScrollView
-                  style={[styles.groupsScrollView, { height: 97 }]}
-                  nestedScrollEnabled={true}
-                  showsVerticalScrollIndicator={false}
-                  onScroll={handleGroupsScroll}
-                  scrollEventThrottle={16}
-                  scrollEnabled={sortedGroups.length > 2}
-                >
-                  {sortedGroups.map((group, idx) => {
-                    const active = isGroupActive(group);
-                    const creator = groupCreators[group.creatorId];
-                    return (
-                      <Swipeable
-                        key={group.id}
-                        renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
-                        rightThreshold={40}
-                        overshootRight={false}
-                      >
-                        <BounceWrap>
-                          {({ onPressIn, onPressOut }) => (
-                        <TouchableOpacity
-                          style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
-                          onPress={() => handleGroupPress(group.id)}
-                          onLongPress={() => handleTogglePin(group.id, privateGroups.map((g) => g.id))}
-                          delayLongPress={400}
-                          onPressIn={onPressIn}
-                          onPressOut={onPressOut}
-                          activeOpacity={0.9}
-                        >
-                          <LinearGradient
-                            colors={['#d8f434', '#b3f425', '#93f478']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.groupRow}
-                          >
-                            {/* Pin Icon — only visible when pinned */}
-                            {pinnedSet.has(group.id) && (
-                              <Ionicons name="pin" size={12} color="#000000" style={{ marginRight: 4 }} />
-                            )}
-
-                            {/* Creator Avatar */}
-                            <View style={styles.groupCreatorAvatar}>
-                              {creator?.profilePhoto ? (
-                                <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
-                              ) : (
-                                <View style={styles.groupCreatorPlaceholder}>
-                                  <Ionicons name="person" size={12} color="#666" />
-                                </View>
-                              )}
-                            </View>
-
-                            {/* Group Name */}
-                            <Text style={styles.groupName} numberOfLines={1}>{group.name || '------'}</Text>
-
-                            {/* Activity dot for active groups */}
-                            {active && (
-                              <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1a1a1a', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
-                            )}
-
-                            {/* Arrow */}
-                            <Ionicons name="chevron-forward" size={16} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
-                          </LinearGradient>
-                        </TouchableOpacity>
-                          )}
-                        </BounceWrap>
-                      </Swipeable>
-                    );
-                  })}
-                  {/* Ghost placeholder rows */}
-                  {sortedGroups.length < MAX_GROUPS && (
-                    sortedGroups.length < 3
-                      ? Array.from({ length: 3 - sortedGroups.length }, (_, i) => (
-                          <TouchableOpacity
-                            key={`placeholder-${i}`}
-                            style={styles.groupPlaceholder}
-                            onPress={() => handleCreateGroup(false)}
-                          >
-                            <Text style={styles.emptyText}>create a group</Text>
-                          </TouchableOpacity>
-                        ))
-                      : (
-                          <TouchableOpacity
-                            key="placeholder-extra"
-                            style={styles.groupPlaceholder}
-                            onPress={() => handleCreateGroup(false)}
-                          >
-                            <Text style={styles.emptyText}>create a group</Text>
-                          </TouchableOpacity>
-                        )
-                  )}
-                </ScrollView>
-
-                {/* Always-visible scroll track */}
-                <View style={styles.groupsScrollTrack}>
-                  {sortedGroups.length > 2 && (
-                    <Animated.View
-                      style={[
-                        styles.groupsScrollThumb,
-                        { transform: [{ translateY: groupsScrollThumb }] },
-                      ]}
-                    />
-                  )}
-                </View>
-              </Animated.View>
-            )}
-          </View>
-          </View>
-        </BlurView>
-        </Animated.View>
-
-        {/* ==================== MY PUBLIC COLLECTIVE ==================== */}
+        {/* ==================== MY COLLECTIVE NETWORK ==================== */}
         <Animated.View style={{ opacity: sectionFadePublic, transform: [{ translateY: sectionSlidePublic }] }}>
         <View style={[styles.sectionContainer, !userProfile?.everyoneNetworkEnabled && { opacity: 0.35 }]}>
           <View style={styles.sectionHeaderRow}>
-            <Animated.Text style={[styles.sectionTitle, { opacity: shimmerPublic.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Public Collective</Animated.Text>
+            <Animated.Text style={[styles.sectionTitle, { opacity: shimmerPublic.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Collective Network</Animated.Text>
             {userProfile?.everyoneNetworkEnabled && (
               <>
               <View style={{ flex: 1, alignItems: 'flex-start', justifyContent: 'center', paddingLeft: 8 }}>
@@ -1237,7 +1093,7 @@ const DashboardScreen = ({ navigation }) => {
                 <BlurView intensity={10} tint="dark" style={styles.actionGlassButton}>
                   <View style={[styles.actionGlassButtonInner, { flexWrap: 'nowrap' }]}>
                     <Ionicons name="people-outline" size={14} color="#ffffff" />
-                    <Text style={styles.actionGlassButtonText} numberOfLines={1}>Explore the Collective</Text>
+                    <Text style={styles.actionGlassButtonText} numberOfLines={1}>See My Network</Text>
                   </View>
                 </BlurView>
               </TouchableOpacity>
@@ -1247,7 +1103,7 @@ const DashboardScreen = ({ navigation }) => {
 
           {!userProfile?.everyoneNetworkEnabled && (
             <View style={styles.gatedOverlay}>
-              <Ionicons name="globe-outline" size={36} color="#888888" />
+              <Ionicons name="globe-outline" size={36} color="#bbbbbb" />
               <Text style={styles.gatedOverlayTitle}>Everyone Network Disabled</Text>
               <Text style={styles.gatedOverlayMessage}>
                 Turn on the Everyone Network toggle in your profile to access the public collective — a cyber public space with your network of IRL humans.
@@ -1258,6 +1114,7 @@ const DashboardScreen = ({ navigation }) => {
           {userProfile?.everyoneNetworkEnabled && (
           <>
           {/* ---- Cyber Lounge ---- */}
+          {(rooms.length > 0 || !roomsLoaded) && (
           <View style={styles.cyberLoungeContainer}>
             <View style={styles.cyberLoungeHeader}>
               <Text style={styles.subSectionTitle}>Cyber Lounge {'>'}</Text>
@@ -1280,7 +1137,7 @@ const DashboardScreen = ({ navigation }) => {
                     style={styles.addChatButtonHighlight}
                   />
                   <Ionicons name="add" size={12} color={colors.textDark} />
-                  <Text style={styles.addChatButtonText}>Chat</Text>
+                  <Text style={styles.addChatButtonText}>Live Chatroom</Text>
                 </LinearGradient>
               </TouchableOpacity>
               </Animated.View>
@@ -1355,8 +1212,10 @@ const DashboardScreen = ({ navigation }) => {
               )}
             </View>
           </View>
+          )}
 
           {/* ---- Confluence ---- */}
+          {confluencePosts.length > 0 && (
           <Animated.View style={{ transform: [{ scale: bounceConfluence.scale }] }}>
           <BlurView intensity={10} tint="dark" style={styles.confluenceGlass}>
             <TouchableOpacity
@@ -1392,8 +1251,10 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
           </BlurView>
           </Animated.View>
+          )}
 
           {/* ---- Mutual Aid & Resources ---- */}
+          {networkUserCount > 0 && (
           <Animated.View style={{ marginTop: 12, transform: [{ scale: bounceMutualAid.scale }], shadowColor: '#ff93bd', shadowOffset: { width: 0, height: 0 }, shadowOpacity: bounceMutualAid.glowOpacity, shadowRadius: 28, elevation: 12 }}>
           <TouchableOpacity
             style={styles.mutualAidButtonOuter}
@@ -1419,13 +1280,14 @@ const DashboardScreen = ({ navigation }) => {
             </LinearGradient>
           </TouchableOpacity>
           </Animated.View>
+          )}
 
           {/* ==================== PUBLIC COLLECTIVE GROUPS ==================== */}
           <View style={styles.publicGroupsSection}>
             <View style={[styles.sectionHeaderRow, { alignItems: 'flex-start' }]}>
               <View>
-                <Animated.Text style={[styles.publicGroupsTitle, { opacity: shimmerPublicGroups.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>Public Collective Groups</Animated.Text>
-                <Text style={styles.publicGroupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>
+                <Animated.Text style={[styles.publicGroupsTitle, { opacity: shimmerPublicGroups.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>Public Groups</Animated.Text>
+                {groups.length > 0 && <Text style={styles.publicGroupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>}
               </View>
               <Animated.View style={{ transform: [{ scale: bounceAddPublicGroup.scale }] }}>
               <TouchableOpacity
@@ -1447,7 +1309,7 @@ const DashboardScreen = ({ navigation }) => {
                     style={styles.addButtonHighlight}
                   />
                   <Ionicons name="add" size={12} color="#1a1a1a" />
-                  <Text style={styles.addButtonText}>Group</Text>
+                  <Text style={styles.addButtonText}>Public Group</Text>
                 </LinearGradient>
               </TouchableOpacity>
               </Animated.View>
@@ -1458,12 +1320,12 @@ const DashboardScreen = ({ navigation }) => {
               <View style={styles.publicGroupsContainer}>
                 <View style={styles.groupsScrollRow}>
                   <ScrollView
-                    style={[styles.groupsScrollView, { height: 210 }]}
+                    style={[styles.groupsScrollView, { height: 97 }]}
                     nestedScrollEnabled={true}
                     showsVerticalScrollIndicator={false}
                     onScroll={handlePublicGroupsScroll}
                     scrollEventThrottle={16}
-                    scrollEnabled={sortedPublicGroups.length > 5}
+                    scrollEnabled={sortedPublicGroups.length > 3}
                   >
                     {sortedPublicGroups.map((pg) => {
                       const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
@@ -1524,19 +1386,17 @@ const DashboardScreen = ({ navigation }) => {
                         </Swipeable>
                       );
                     })}
-                    {/* Ghost placeholder rows */}
-                    {sortedPublicGroups.length < 5 &&
-                      Array.from({ length: 5 - sortedPublicGroups.length }, (_, i) => (
-                        <TouchableOpacity key={`pub-placeholder-${i}`} style={styles.pubGroupPlaceholder} onPress={() => handleCreateGroup(true)}>
-                          <Text style={styles.emptyText}>make your group public</Text>
-                        </TouchableOpacity>
-                      ))
-                    }
+                    {/* Ghost placeholder row */}
+                    {sortedPublicGroups.length < 3 && (
+                      <TouchableOpacity key="pub-placeholder" style={styles.pubGroupPlaceholder} onPress={() => handleCreateGroup(true)}>
+                        <Text style={styles.emptyText}>make your group public</Text>
+                      </TouchableOpacity>
+                    )}
                   </ScrollView>
 
                   {/* Scroll track — always visible */}
                   <View style={styles.groupsScrollTrack}>
-                    {sortedPublicGroups.length > 5 && (
+                    {sortedPublicGroups.length > 3 && (
                       <Animated.View
                         style={[
                           styles.groupsScrollThumb,
@@ -1551,6 +1411,7 @@ const DashboardScreen = ({ navigation }) => {
           </View>
 
           {/* ---- Events ---- */}
+          {events.length > 0 && (
           <Animated.View style={{ transform: [{ scale: bounceEvents.scale }] }}>
           <BlurView intensity={10} tint="dark" style={styles.eventsGlass}>
           <TouchableOpacity
@@ -1599,9 +1460,149 @@ const DashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
           </BlurView>
           </Animated.View>
+          )}
           </>
           )}
         </View>
+        </Animated.View>
+
+        {/* ==================== MY PRIVATE GROUPS ==================== */}
+        <Animated.View style={{ opacity: sectionFadePrivate, transform: [{ translateY: sectionSlidePrivate }] }}>
+        <BlurView intensity={10} tint="dark" style={styles.privateGroupsGlass}>
+          <View style={styles.privateGroupsSection}>
+            {/* Section Header — tappable toggle */}
+            <TouchableOpacity style={styles.sectionHeaderRow} onPress={togglePrivateGroups} activeOpacity={0.7}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Animated.View style={{ transform: [{ rotate: privateChevronRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) }], marginRight: 8 }}>
+                  <Ionicons name="chevron-forward" size={16} color="#bbbbbb" />
+                </Animated.View>
+                <View>
+                  <Animated.Text style={[styles.privateGroupsTitle, { opacity: shimmerPrivate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Private Groups</Animated.Text>
+                  {groups.length > 0 && <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>}
+                </View>
+              </View>
+              {privateGroupsExpanded && (
+              <Animated.View style={{ transform: [{ scale: bounceAddGroup.scale }] }}>
+              <TouchableOpacity
+                style={[styles.addButton, { shadowColor: 'transparent', shadowOpacity: 0 }, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
+                onPress={() => handleCreateGroup(false)}
+                onPressIn={bounceAddGroup.onPressIn}
+                onPressOut={bounceAddGroup.onPressOut}
+                disabled={groups.length >= MAX_GROUPS}
+                activeOpacity={0.9}
+              >
+                <View style={[styles.addButtonGradient, { backgroundColor: '#222222', borderColor: 'rgba(255,255,255,0.1)', borderTopColor: 'rgba(255,255,255,0.15)', borderLeftColor: 'rgba(255,255,255,0.12)' }]}>
+                  <Ionicons name="add" size={12} color="#bbbbbb" />
+                  <Text style={[styles.addButtonText, { color: '#bbbbbb' }]}>Private Group</Text>
+                </View>
+              </TouchableOpacity>
+              </Animated.View>
+              )}
+            </TouchableOpacity>
+
+          {/* Groups Scrollable Container — collapsible */}
+          <Animated.View style={{ maxHeight: privateGroupsHeight.interpolate({ inputRange: [0, 1], outputRange: [0, 300] }), overflow: 'hidden', opacity: privateGroupsHeight }}>
+          <View style={styles.groupsContainer}>
+            {!groupsLoaded ? (
+              <View style={{ paddingVertical: 4 }}>
+                <SkeletonGroupRow delay={0} />
+                <SkeletonGroupRow delay={150} />
+                <SkeletonGroupRow delay={300} />
+              </View>
+            ) : (
+              <Animated.View style={[styles.groupsScrollRow, { opacity: groupsFade }]}>
+                <ScrollView
+                  style={[styles.groupsScrollView, { height: 97 }]}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={false}
+                  onScroll={handleGroupsScroll}
+                  scrollEventThrottle={16}
+                  scrollEnabled={sortedGroups.length > 2}
+                >
+                  {sortedGroups.map((group, idx) => {
+                    const active = isGroupActive(group);
+                    const creator = groupCreators[group.creatorId];
+                    return (
+                      <Swipeable
+                        key={group.id}
+                        renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
+                        rightThreshold={40}
+                        overshootRight={false}
+                      >
+                        <BounceWrap>
+                          {({ onPressIn, onPressOut }) => (
+                        <TouchableOpacity
+                          style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
+                          onPress={() => handleGroupPress(group.id)}
+                          onLongPress={() => handleTogglePin(group.id, privateGroups.map((g) => g.id))}
+                          delayLongPress={400}
+                          onPressIn={onPressIn}
+                          onPressOut={onPressOut}
+                          activeOpacity={0.9}
+                        >
+                          <View style={[styles.groupRow, { backgroundColor: '#222222' }]}>
+                            {/* Pin Icon — only visible when pinned */}
+                            {pinnedSet.has(group.id) && (
+                              <Ionicons name="pin" size={12} color="#bbbbbb" style={{ marginRight: 4 }} />
+                            )}
+
+                            {/* Creator Avatar */}
+                            <View style={styles.groupCreatorAvatar}>
+                              {creator?.profilePhoto ? (
+                                <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
+                              ) : (
+                                <View style={styles.groupCreatorPlaceholder}>
+                                  <Ionicons name="person" size={12} color="#999" />
+                                </View>
+                              )}
+                            </View>
+
+                            {/* Group Name */}
+                            <Text style={[styles.groupName, { color: '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
+
+                            {/* Activity dot for active groups */}
+                            {active && (
+                              <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
+                            )}
+
+                            {/* Arrow */}
+                            <Ionicons name="chevron-forward" size={16} color="rgba(187,187,187,0.6)" style={{ marginLeft: 8 }} />
+                          </View>
+                        </TouchableOpacity>
+                          )}
+                        </BounceWrap>
+                      </Swipeable>
+                    );
+                  })}
+                  {/* Ghost placeholder row */}
+                  {sortedGroups.length < MAX_GROUPS && (
+                    <TouchableOpacity
+                      key="placeholder"
+                      style={styles.groupPlaceholder}
+                      onPress={() => handleCreateGroup(false)}
+                    >
+                      <Text style={styles.emptyText}>create a group</Text>
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
+
+                {/* Always-visible scroll track */}
+                <View style={styles.groupsScrollTrack}>
+                  {sortedGroups.length > 2 && (
+                    <Animated.View
+                      style={[
+                        styles.groupsScrollThumb,
+                        { transform: [{ translateY: groupsScrollThumb }] },
+                      ]}
+                    />
+                  )}
+                </View>
+              </Animated.View>
+            )}
+          </View>
+          </Animated.View>
+          </View>
+        </BlurView>
         </Animated.View>
 
       </ScrollView>
@@ -2231,7 +2232,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 
-  // ---- Public Collective Groups ----
+  // ---- Public Groups ----
   publicGroupsSection: {
     marginTop: 16,
     marginBottom: 16,
@@ -2301,16 +2302,18 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   pubGroupPlaceholder: {
+    flexDirection: 'row',
     borderRadius: 14,
     paddingVertical: 6,
     paddingHorizontal: 12,
     marginBottom: 8,
     minHeight: 36,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: colors.tertiary,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    opacity: 0.5,
   },
 
   // ---- Confluences ----

@@ -6,6 +6,19 @@
 
 A community-focused mobile application built with React Native/Expo that enables users to connect through groups, events, mutual aid, and real-time conversations.
 
+## Philosophy
+
+- **Project Philosophy:**
+-  **Collective Network** is an alternative social media app that strives to preserve the human centered experiential diversity in digital interaction. Collective Network embodies this in 5 pillars of operation: 
+
+1. DAO (decentralized autonomous organization) leadership with a roadmap for crowdfunding and open source code.
+2. Dashboard design that fosters digital autonomy by encouraging intentional actions with real people and omitting any algorithms or infinite feeds.  ​
+3. Core mutual aid and resource distribution framework for local collectives.
+4. Ephemeral live chatrooms that foster play, surprise, and the unknown. 
+5. Auto deletion of most data within 90 days for digital hygiene and privacy.
+
+​
+
 ## Features
 
 - **User Authentication** - Secure sign-up/login with Firebase
@@ -19,11 +32,6 @@ A community-focused mobile application built with React Native/Expo that enables
 - **Data Privacy & Deletion** - Automatic data expiration across the platform, preserving only Confluence and Mutual Aid records
 - **Open Source** - Designed to be self-hosted, forked for private networks, or adapted to mesh and decentralized infrastructure
 
-## Screenshots
-
-![Dashboard](assets/screenshots/Dashboard.png)
-![Chatroom](assets/screenshots/Chatroom.png)
-![Groups](assets/screenshots/Groups.png)
 
 ## Getting Started
 
@@ -110,6 +118,13 @@ collectiveApp/
 ├── firestore.rules       # Firestore security rules
 └── package.json          # Dependencies
 ```
+
+## Screenshots
+
+![Dashboard](assets/screenshots/Dashboard.png)
+![Chatroom](assets/screenshots/Chatroom.png)
+![Groups](assets/screenshots/Groups.png)
+
 
 ## Built With
 
