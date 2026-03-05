@@ -24,8 +24,8 @@ Include the following in your report:
 
 ## What to Expect
 
-- **Acknowledgment** within 48 hours of your report
-- **Assessment** within 1 week
+- **Acknowledgment** of your report
+- **Assessment** as soon as possible
 - **Fix timeline** communicated after assessment
 - **Credit** in the release notes (unless you prefer to remain anonymous)
 
