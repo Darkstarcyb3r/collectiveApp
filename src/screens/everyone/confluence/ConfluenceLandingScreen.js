@@ -1,6 +1,6 @@
 // Confluence Landing Screen
-// Masonry-style image grid feed (archive — posts are never deleted)
-// Green border container, 5 posts/month per user
+// Masonry-style image grid feed — posts can be edited or deleted by owner
+// Green border container, 10 posts/month per user
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
@@ -18,6 +18,7 @@ import {
   TextInput,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -29,6 +30,8 @@ import {
   subscribeToNetworkUsers,
   reportConfluencePost,
   checkExistingConfluenceReport,
+  updateConfluencePost,
+  deleteConfluencePost,
 } from '../../../services/everyoneService'
 import { buildConnectedUserIds } from '../../../utils/networkGraph'
 import DarkTabBar from '../../../components/navigation/DarkTabBar'
@@ -70,12 +73,36 @@ const ConfluenceLandingScreen = ({ navigation }) => {
     tabBarRef.current?.show()
   }, [])
   const [selectedPost, setSelectedPost] = useState(null)
+  const [popupImageHeight, setPopupImageHeight] = useState(SCREEN_WIDTH - 32)
   const [allNetworkUsers, setAllNetworkUsers] = useState([])
   const [showFlagModal, setShowFlagModal] = useState(false)
   const [flagReason, setFlagReason] = useState('')
   const [flagDetails, setFlagDetails] = useState('')
   const [flagLoading, setFlagLoading] = useState(false)
   const [flagAlert, setFlagAlert] = useState({ visible: false, title: '', message: '' })
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editCaption, setEditCaption] = useState('')
+  const [editLink, setEditLink] = useState('')
+  const [editLinkLabel, setEditLinkLabel] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+
+  // Calculate proportional image height when a post is selected
+  useEffect(() => {
+    if (selectedPost?.imageUrl) {
+      Image.getSize(
+        selectedPost.imageUrl,
+        (width, height) => {
+          const imageWidth = SCREEN_WIDTH - 32
+          const proportionalHeight = (height / width) * imageWidth
+          const maxHeight = SCREEN_WIDTH * 1.5 // cap tall images
+          setPopupImageHeight(Math.min(proportionalHeight, maxHeight))
+        },
+        () => {
+          setPopupImageHeight(SCREEN_WIDTH - 32) // fallback to square
+        }
+      )
+    }
+  }, [selectedPost])
 
   const hiddenUsers = userProfile?.hiddenUsers || []
   const blockedUsers = userProfile?.blockedUsers || []
@@ -196,6 +223,65 @@ const ConfluenceLandingScreen = ({ navigation }) => {
     }
   }
 
+  // Edit/Delete handlers for own posts
+  const handleEditPost = () => {
+    playClick()
+    if (!selectedPost) return
+    setEditCaption(selectedPost.caption || '')
+    setEditLink(selectedPost.link || '')
+    setEditLinkLabel(selectedPost.linkLabel || '')
+    setShowEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    playClick()
+    if (!selectedPost) return
+    setEditLoading(true)
+    try {
+      const result = await updateConfluencePost(selectedPost.id, {
+        caption: editCaption.trim(),
+        link: editLink.trim(),
+        linkLabel: editLinkLabel.trim(),
+      })
+      if (result.success) {
+        setShowEditModal(false)
+        setSelectedPost(null)
+      } else {
+        Alert.alert('Error', result.error || 'Could not update post.')
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Could not update post.')
+    }
+    setEditLoading(false)
+  }
+
+  const handleDeletePost = () => {
+    playClick()
+    if (!selectedPost || !user?.uid) return
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this confluence post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteConfluencePost(selectedPost.id, user.uid)
+            if (result.success) {
+              setSelectedPost(null)
+            } else {
+              Alert.alert('Error', result.error || 'Could not delete post.')
+            }
+          },
+        },
+      ]
+    )
+  }
+
+  const EDIT_CHAR_LIMIT = 75
+  const editCombinedLength = editCaption.length + editLinkLabel.length
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
@@ -313,37 +399,61 @@ const ConfluenceLandingScreen = ({ navigation }) => {
               {selectedPost?.imageUrl && (
                 <Image
                   source={{ uri: selectedPost.imageUrl }}
-                  style={styles.popupImage}
-                  resizeMode="cover"
+                  style={[styles.popupImage, { height: popupImageHeight }]}
+                  resizeMode="contain"
                 />
               )}
               <View style={styles.popupCaptionBar}>
+                {/* Caption row */}
                 {selectedPost?.caption ? (
                   <Text style={styles.popupCaptionText}>// {selectedPost.caption}</Text>
-                ) : selectedPost?.link ? (
-                  <TouchableOpacity
-                    style={{ flex: 1 }}
-                    onPress={() => {
-                      playClick()
-                      const url = selectedPost.link.startsWith('http')
-                        ? selectedPost.link
-                        : `https://${selectedPost.link}`
-                      Linking.openURL(url).catch(() => {})
-                    }}
-                  >
-                    <Text style={styles.popupLinkText}>
-                      {selectedPost.linkLabel || selectedPost.link}
-                    </Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={{ flex: 1 }} />
-                )}
-                <TouchableOpacity
-                  onPress={openFlagModal}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="flag-outline" size={16} color={colors.textPrimary} />
-                </TouchableOpacity>
+                ) : null}
+
+                {/* Link + icons row */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: selectedPost?.caption ? 6 : 0 }}>
+                  {selectedPost?.link ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        playClick()
+                        const url = selectedPost.link.startsWith('http')
+                          ? selectedPost.link
+                          : `https://${selectedPost.link}`
+                        Linking.openURL(url).catch(() => {})
+                      }}
+                      style={{ flex: 1 }}
+                    >
+                      <Text style={styles.popupLinkText} numberOfLines={1}>
+                        {selectedPost.linkLabel || selectedPost.link}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={{ flex: 1 }} />
+                  )}
+                  {selectedPost?.authorId === user?.uid ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginLeft: 12 }}>
+                      <TouchableOpacity
+                        onPress={handleEditPost}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="pencil-outline" size={16} color={colors.textPrimary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleDeletePost}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#ff6b6b" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={openFlagModal}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={{ marginLeft: 12 }}
+                    >
+                      <Ionicons name="flag-outline" size={16} color={colors.textPrimary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             </View>
           </View>
@@ -434,6 +544,75 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                 <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
                   <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagAlertOkButtonHighlight} />
                   <Text style={styles.flagSubmitText}>OK</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Post Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.popupOverlay}>
+          <View style={styles.flagModalContent}>
+            <Text style={styles.flagTitle}>Edit Post</Text>
+
+            <Text style={styles.editFieldLabel}>Caption</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editCaption}
+              onChangeText={setEditCaption}
+              placeholder="// caption goes here"
+              placeholderTextColor="#888"
+              maxLength={Math.max(editCaption.length, EDIT_CHAR_LIMIT - editLinkLabel.length)}
+            />
+            <Text style={styles.editCharCount}>{editCombinedLength}/75</Text>
+
+            <Text style={styles.editFieldLabel}>Link Label</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editLinkLabel}
+              onChangeText={setEditLinkLabel}
+              placeholder="Label (e.g. Sign Up Here)"
+              placeholderTextColor="#888"
+              maxLength={Math.max(editLinkLabel.length, EDIT_CHAR_LIMIT - editCaption.length)}
+            />
+
+            <Text style={styles.editFieldLabel}>URL</Text>
+            <TextInput
+              style={styles.editInput}
+              value={editLink}
+              onChangeText={setEditLink}
+              placeholder="Paste URL"
+              placeholderTextColor="#888"
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+
+            <View style={styles.flagButtonRow}>
+              <TouchableOpacity
+                style={styles.flagCancelButton}
+                onPress={() => { playClick(); setShowEditModal(false) }}
+              >
+                <Text style={styles.flagCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.flagSubmitButtonOuter}
+                onPress={handleSaveEdit}
+                disabled={editLoading}
+              >
+                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagSubmitButton}>
+                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagSubmitButtonHighlight} />
+                  {editLoading ? (
+                    <ActivityIndicator size="small" color={colors.textDark} />
+                  ) : (
+                    <Text style={styles.flagSubmitText}>Save</Text>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -585,17 +764,15 @@ const styles = StyleSheet.create({
   },
   popupImage: {
     width: '100%',
-    height: SCREEN_WIDTH - 32,
+    backgroundColor: '#000',
   },
   popupCaptionBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
     backgroundColor: '#111111',
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
   popupCaptionText: {
-    flex: 1,
     fontSize: 13,
     fontFamily: fonts.mono,
     color: colors.textPrimary,
@@ -745,6 +922,35 @@ const styles = StyleSheet.create({
     fontFamily: fonts.italic,
     color: colors.offline,
     marginTop: 8,
+  },
+
+  // Edit Modal
+  editFieldLabel: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: colors.textGreen,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  editInput: {
+    backgroundColor: '#222',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#444',
+    color: colors.textPrimary,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  editCharCount: {
+    textAlign: 'right',
+    fontSize: 11,
+    fontFamily: fonts.mono,
+    color: colors.offline,
+    marginTop: -8,
+    marginBottom: 12,
   },
 })
 

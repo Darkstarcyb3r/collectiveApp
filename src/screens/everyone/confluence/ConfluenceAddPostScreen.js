@@ -1,6 +1,6 @@
 // Confluence Add Post Screen
 // Upload an image to the confluence feed
-// 5 posts per month limit, posts expire after 30 days, posts are final
+// 10 posts per month limit, posts can be edited or deleted
 
 import React, { useState, useEffect } from 'react'
 import {
@@ -88,11 +88,18 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
       )
       return
     }
+    if (combinedLength > SHARED_CHAR_LIMIT) {
+      Alert.alert(
+        'Character Limit Exceeded',
+        `Caption and link label combined cannot exceed ${SHARED_CHAR_LIMIT} characters. Use the link label field for URLs instead of the caption.`
+      )
+      return
+    }
     if (!user?.uid) return
 
     Alert.alert(
       'Publish Confluence',
-      'Are you sure you want to post? This action cannot be reversed.',
+      'Post to Confluence?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -204,7 +211,7 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
               numberOfLines={1}
               multiline={false}
             />
-            <Text style={styles.captionCount}>{combinedLength}/75</Text>
+            <Text style={[styles.captionCount, combinedLength > SHARED_CHAR_LIMIT && { color: '#ff6b6b' }]}>{combinedLength}/{SHARED_CHAR_LIMIT}</Text>
           </View>
 
           {/* Hyperlink option */}
@@ -226,6 +233,9 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
               <Text style={styles.linkPlaceholder}>+ Add link</Text>
             )}
           </TouchableOpacity>
+
+          {/* Hint */}
+          <Text style={styles.linkHint}>Use a short label for links — the full URL is saved separately</Text>
 
           {/* Notices */}
           <Text style={styles.notice}>
@@ -264,7 +274,7 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
               placeholderTextColor={colors.offline}
               maxLength={Math.max(tempLinkLabel.length, SHARED_CHAR_LIMIT - caption.length)}
             />
-            <Text style={styles.modalCharCount}>{caption.length + tempLinkLabel.length}/75</Text>
+            <Text style={[styles.modalCharCount, (caption.length + tempLinkLabel.length) > SHARED_CHAR_LIMIT && { color: '#ff6b6b' }]}>{caption.length + tempLinkLabel.length}/{SHARED_CHAR_LIMIT}</Text>
             <TextInput
               style={styles.linkModalInput}
               value={tempLink}
@@ -473,6 +483,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.italic,
     color: colors.offline,
+  },
+  linkHint: {
+    fontSize: 11,
+    fontFamily: fonts.mono,
+    color: colors.offline,
+    marginBottom: 12,
+    marginTop: -10,
   },
 
   // Link Modal

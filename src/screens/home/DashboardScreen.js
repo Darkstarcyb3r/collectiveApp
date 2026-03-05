@@ -1343,6 +1343,7 @@ const DashboardScreen = ({ navigation }) => {
                           style={[styles.pubGroupRowOuter, !pgActive && styles.groupRowInactive]}
                           onPress={() => {
                             playSwoosh();
+                            markGroupVisited(pg.id);
                             navigation.navigate('GroupDetail', { groupId: pg.id });
                           }}
                           onLongPress={() => handleTogglePin(pg.id, sortedPublicGroups.map((g) => g.id))}

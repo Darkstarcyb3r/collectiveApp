@@ -1232,6 +1232,36 @@ export const createConfluencePost = async (postData) => {
   }
 };
 
+// Update a confluence post (caption, link, linkLabel)
+export const updateConfluencePost = async (postId, updates) => {
+  try {
+    const allowed = {};
+    if (updates.caption !== undefined) allowed.caption = validateText(updates.caption, 'confluenceCaption');
+    if (updates.link !== undefined) allowed.link = updates.link;
+    if (updates.linkLabel !== undefined) allowed.linkLabel = updates.linkLabel;
+
+    await firestore().collection('confluencePosts').doc(postId).update(allowed);
+    return { success: true };
+  } catch (error) {
+    console.log('🔴 updateConfluencePost error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// Delete a confluence post and decrement user's lifetime count
+export const deleteConfluencePost = async (postId, authorId) => {
+  try {
+    await firestore().collection('confluencePosts').doc(postId).delete();
+    await firestore().collection('users').doc(authorId).update({
+      confluenceCount: firestore.FieldValue.increment(-1),
+    });
+    return { success: true };
+  } catch (error) {
+    console.log('🔴 deleteConfluencePost error:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 // Subscribe to confluence posts
 export const subscribeToConfluencePosts = (callback) => {
   return firestore().collection('confluencePosts')
