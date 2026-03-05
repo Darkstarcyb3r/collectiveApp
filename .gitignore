@@ -79,8 +79,8 @@ functions/.env
 # Proprietary fonts
 **/helvetica-neue*/
 
-# iOS Firebase config (client-side config, safe for public repos)
-# GoogleService-Info.plist
+# iOS Firebase config
+GoogleService-Info.plist
 
 #Android (iOS-only project)
 android/
