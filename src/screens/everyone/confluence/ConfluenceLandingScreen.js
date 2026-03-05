@@ -30,7 +30,6 @@ import {
   subscribeToNetworkUsers,
   reportConfluencePost,
   checkExistingConfluenceReport,
-  updateConfluencePost,
   deleteConfluencePost,
 } from '../../../services/everyoneService'
 import { buildConnectedUserIds } from '../../../utils/networkGraph'
@@ -80,12 +79,6 @@ const ConfluenceLandingScreen = ({ navigation }) => {
   const [flagDetails, setFlagDetails] = useState('')
   const [flagLoading, setFlagLoading] = useState(false)
   const [flagAlert, setFlagAlert] = useState({ visible: false, title: '', message: '' })
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editCaption, setEditCaption] = useState('')
-  const [editLink, setEditLink] = useState('')
-  const [editLinkLabel, setEditLinkLabel] = useState('')
-  const [editLoading, setEditLoading] = useState(false)
-
   // Calculate proportional image height when a post is selected
   useEffect(() => {
     if (selectedPost?.imageUrl) {
@@ -227,32 +220,15 @@ const ConfluenceLandingScreen = ({ navigation }) => {
   const handleEditPost = () => {
     playClick()
     if (!selectedPost) return
-    setEditCaption(selectedPost.caption || '')
-    setEditLink(selectedPost.link || '')
-    setEditLinkLabel(selectedPost.linkLabel || '')
-    setShowEditModal(true)
-  }
-
-  const handleSaveEdit = async () => {
-    playClick()
-    if (!selectedPost) return
-    setEditLoading(true)
-    try {
-      const result = await updateConfluencePost(selectedPost.id, {
-        caption: editCaption.trim(),
-        link: editLink.trim(),
-        linkLabel: editLinkLabel.trim(),
-      })
-      if (result.success) {
-        setShowEditModal(false)
-        setSelectedPost(null)
-      } else {
-        Alert.alert('Error', result.error || 'Could not update post.')
-      }
-    } catch (error) {
-      Alert.alert('Error', error.message || 'Could not update post.')
-    }
-    setEditLoading(false)
+    const post = selectedPost
+    setSelectedPost(null)
+    navigation.navigate('ConfluenceEditPost', {
+      postId: post.id,
+      caption: post.caption || '',
+      link: post.link || '',
+      linkLabel: post.linkLabel || '',
+      imageUrl: post.imageUrl || '',
+    })
   }
 
   const handleDeletePost = () => {
@@ -278,9 +254,6 @@ const ConfluenceLandingScreen = ({ navigation }) => {
       ]
     )
   }
-
-  const EDIT_CHAR_LIMIT = 75
-  const editCombinedLength = editCaption.length + editLinkLabel.length
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -544,75 +517,6 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                 <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagAlertOkButton}>
                   <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagAlertOkButtonHighlight} />
                   <Text style={styles.flagSubmitText}>OK</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Edit Post Modal */}
-      <Modal
-        visible={showEditModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowEditModal(false)}
-      >
-        <View style={styles.popupOverlay}>
-          <View style={styles.flagModalContent}>
-            <Text style={styles.flagTitle}>Edit Post</Text>
-
-            <Text style={styles.editFieldLabel}>Caption</Text>
-            <TextInput
-              style={styles.editInput}
-              value={editCaption}
-              onChangeText={setEditCaption}
-              placeholder="// caption goes here"
-              placeholderTextColor="#888"
-              maxLength={Math.max(editCaption.length, EDIT_CHAR_LIMIT - editLinkLabel.length)}
-            />
-            <Text style={styles.editCharCount}>{editCombinedLength}/75</Text>
-
-            <Text style={styles.editFieldLabel}>Link Label</Text>
-            <TextInput
-              style={styles.editInput}
-              value={editLinkLabel}
-              onChangeText={setEditLinkLabel}
-              placeholder="Label (e.g. Sign Up Here)"
-              placeholderTextColor="#888"
-              maxLength={Math.max(editLinkLabel.length, EDIT_CHAR_LIMIT - editCaption.length)}
-            />
-
-            <Text style={styles.editFieldLabel}>URL</Text>
-            <TextInput
-              style={styles.editInput}
-              value={editLink}
-              onChangeText={setEditLink}
-              placeholder="Paste URL"
-              placeholderTextColor="#888"
-              autoCapitalize="none"
-              keyboardType="url"
-            />
-
-            <View style={styles.flagButtonRow}>
-              <TouchableOpacity
-                style={styles.flagCancelButton}
-                onPress={() => { playClick(); setShowEditModal(false) }}
-              >
-                <Text style={styles.flagCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.flagSubmitButtonOuter}
-                onPress={handleSaveEdit}
-                disabled={editLoading}
-              >
-                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.flagSubmitButton}>
-                  <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.flagSubmitButtonHighlight} />
-                  {editLoading ? (
-                    <ActivityIndicator size="small" color={colors.textDark} />
-                  ) : (
-                    <Text style={styles.flagSubmitText}>Save</Text>
-                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -924,34 +828,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  // Edit Modal
-  editFieldLabel: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: colors.textGreen,
-    marginBottom: 6,
-    marginTop: 4,
-  },
-  editInput: {
-    backgroundColor: '#222',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#444',
-    color: colors.textPrimary,
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  editCharCount: {
-    textAlign: 'right',
-    fontSize: 11,
-    fontFamily: fonts.mono,
-    color: colors.offline,
-    marginTop: -8,
-    marginBottom: 12,
-  },
 })
 
 export default ConfluenceLandingScreen

@@ -51,6 +51,7 @@ import {
   BarterMarketPostScreen,
   ConfluenceLandingScreen,
   ConfluenceAddPostScreen,
+  ConfluenceEditPostScreen,
 } from '../screens/everyone'
 
 const Stack = createNativeStackNavigator()
@@ -137,6 +138,7 @@ const MainNavigator = () => {
       {/* Confluence */}
       <Stack.Screen name="ConfluenceLanding" component={ConfluenceLandingScreen} />
       <Stack.Screen name="ConfluenceAddPost" component={ConfluenceAddPostScreen} />
+      <Stack.Screen name="ConfluenceEditPost" component={ConfluenceEditPostScreen} />
     </Stack.Navigator>
   )
 }

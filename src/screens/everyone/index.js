@@ -25,3 +25,4 @@ export { default as BarterMarketPostScreen } from './mutualaid/BarterMarketPostS
 // Confluence
 export { default as ConfluenceLandingScreen } from './confluence/ConfluenceLandingScreen'
 export { default as ConfluenceAddPostScreen } from './confluence/ConfluenceAddPostScreen'
+export { default as ConfluenceEditPostScreen } from './confluence/ConfluenceEditPostScreen'
