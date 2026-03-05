@@ -26,6 +26,7 @@ import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
 import { getGroupMembers, removeMember } from '../../services/groupService'
 import { ConfirmModal } from '../../components/common'
+import InviteContactsOverlay from '../../components/groups/InviteContactsOverlay'
 import LightTabBar from '../../components/navigation/LightTabBar'
 import { playClick } from '../../services/soundService'
 
@@ -39,6 +40,7 @@ const GroupMembersScreen = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [selectedMember, setSelectedMember] = useState(null)
+  const [showInviteOverlay, setShowInviteOverlay] = useState(false)
   const lightTabRef = useRef(null)
   const lastScrollY = useRef(0)
 
@@ -188,7 +190,7 @@ const GroupMembersScreen = ({ navigation, route }) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Members</Text>
+          <Text style={styles.title}>Current Members</Text>
 
           {/* Subtitle Row with Add Member Button */}
           <View style={styles.subtitleRow}>
@@ -197,7 +199,7 @@ const GroupMembersScreen = ({ navigation, route }) => {
             </Text>
             <TouchableOpacity
               style={styles.addMemberButtonOuter}
-              onPress={() => { playClick(); navigation.navigate('InviteMember', { groupId, groupName }); }}
+              onPress={() => { playClick(); setShowInviteOverlay(true); }}
             >
               <LinearGradient
                 colors={['#cafb6c', '#71f200', '#23ff0d']}
@@ -210,7 +212,7 @@ const GroupMembersScreen = ({ navigation, route }) => {
                   style={styles.addMemberButtonHighlight}
                 />
                 <Ionicons name="add" size={16} color={colors.textDark} />
-                <Text style={styles.addMemberText}>Member</Text>
+                <Text style={styles.addMemberText}>Friend</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -276,6 +278,15 @@ const GroupMembersScreen = ({ navigation, route }) => {
           }}
         />
       </View>
+
+      {/* Invite Contacts Overlay */}
+      <InviteContactsOverlay
+        visible={showInviteOverlay}
+        onClose={() => setShowInviteOverlay(false)}
+        groupId={groupId}
+        groupName={groupName}
+        existingMemberIds={members.map((m) => m.id)}
+      />
 
       {/* Light Tab Bar */}
       <LightTabBar ref={lightTabRef} />

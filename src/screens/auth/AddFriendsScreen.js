@@ -812,7 +812,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
             )}
 
             {/* Title */}
-            <Text style={styles.title}>{isProfileMode ? 'FIND FR13NDS' : 'ADD FR13NDS ON C0LL3CTIVE'}</Text>
+            <Text style={styles.title}>{isProfileMode ? (step === 2 ? 'INVITE FR13NDS TO COLLECTIVE' : 'FOLLOW FR13NDS ON COLLECTIVE') : 'ADD FR13NDS ON C0LL3CTIVE'}</Text>
             <Text style={styles.subtitle}>
               {isProfileMode
                 ? step === 2
@@ -837,7 +837,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
               {step === 1 && (
                 <>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Follow Friends</Text>
+                    <Text style={styles.sectionTitle}>from your contacts</Text>
                     {!isProfileMode && contactsOnCollective.length > 0 && (
                       <TouchableOpacity onPress={handleSelectAllCollective} activeOpacity={0.7}>
                         <Text style={styles.selectAllText}>
@@ -871,7 +871,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
               {step === 2 && (
                 <>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Invite Contacts</Text>
+                    <Text style={styles.sectionTitle}>from your contacts</Text>
                   </View>
                   {contactsNotOnCollective.length > 0 ? (
                     renderContactList(
@@ -947,7 +947,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
                     {step === 0 && !isProfileMode
                       ? 'add contacts'
                       : isProfileMode && step === 1
-                        ? 'add from contacts'
+                        ? 'next'
                         : step === 1
                           ? 'follow'
                           : 'invite'}

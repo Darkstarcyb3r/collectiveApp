@@ -1,6 +1,6 @@
 // MessageBubble - Chat bubble component
 // Lilac for sent messages, lime for received
-// Supports special message types: group_invite, chatroom_invite
+// Supports special message types: group_invite, chatroom_invite, event_invite
 // Detects URLs: renders as tappable links with OpenGraph preview cards
 // Long-press to add emoji reactions
 
@@ -35,13 +35,17 @@ const MessageBubble = ({
   onJoinGroup,
   onJoinChatroom,
   onViewGroup,
+  onViewEvent,
+  onViewPost,
   onReaction,
   onDelete,
   currentUserId,
 }) => {
   const isGroupInvite = message.type === 'group_invite'
   const isChatroomInvite = message.type === 'chatroom_invite'
-  const isInvite = isGroupInvite || isChatroomInvite
+  const isEventInvite = message.type === 'event_invite'
+  const isPostShare = message.type === 'post_share'
+  const isInvite = isGroupInvite || isChatroomInvite || isEventInvite || isPostShare
 
   const bubbleColor = isInvite
     ? colors.textSecondary
@@ -297,6 +301,30 @@ const MessageBubble = ({
                     </>
                   )}
                 </TouchableOpacity>
+              )}
+              {/* Show View Event button for event invitations received */}
+              {isEventInvite && !isCurrentUser && (
+                <View style={styles.inviteButtons}>
+                  <TouchableOpacity
+                    style={styles.viewGroupButton}
+                    onPress={() => onViewEvent && message.eventId && onViewEvent(message.eventId)}
+                  >
+                    <Ionicons name="eye-outline" size={16} color="#000000" />
+                    <Text style={styles.viewGroupButtonText}>View Event</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {/* Show View Post button for shared posts received */}
+              {isPostShare && !isCurrentUser && (
+                <View style={styles.inviteButtons}>
+                  <TouchableOpacity
+                    style={styles.viewGroupButton}
+                    onPress={() => onViewPost && message.postId && onViewPost(message.postId, message.groupId, message.groupName)}
+                  >
+                    <Ionicons name="eye-outline" size={16} color="#000000" />
+                    <Text style={styles.viewGroupButtonText}>View Post</Text>
+                  </TouchableOpacity>
+                </View>
               )}
               {isInvite && isCurrentUser && (
                 <Text style={styles.inviteSentLabel}>Invitation sent</Text>

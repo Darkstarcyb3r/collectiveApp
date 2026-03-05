@@ -304,9 +304,9 @@ const BarterMarketCreateScreen = ({ navigation }) => {
                 onPress={handlePublish}
                 disabled={publishing}
               >
-                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishButton}>
+                <LinearGradient colors={['#ff93bd', '#8b5cf6', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishButton}>
                   <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.publishButtonHighlight} />
-                  <Text style={styles.publishButtonText}>Publish</Text>
+                  <Text style={[styles.publishButtonText, { color: '#ffffff' }]}>Publish</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -504,9 +504,9 @@ const BarterMarketCreateScreen = ({ navigation }) => {
                 <Text style={styles.calCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.calApplyButtonOuter} onPress={applyCalendar}>
-                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.calApplyButton}>
+                <LinearGradient colors={['#ff93bd', '#8b5cf6', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.calApplyButton}>
                   <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.calApplyButtonHighlight} />
-                  <Text style={styles.calApplyText}>Apply</Text>
+                  <Text style={[styles.calApplyText, { color: '#ffffff' }]}>Apply</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   },
   publishButtonOuter: {
     borderRadius: 20,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   },
   calApplyButtonOuter: {
     borderRadius: 16,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

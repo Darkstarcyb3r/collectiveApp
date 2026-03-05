@@ -32,10 +32,13 @@ import {
   deletePost,
   getMemberProfiles,
   leaveGroup,
+  updateGroupVisibility,
 } from '../../services/groupService'
 import { getUserProfile } from '../../services/userService'
 import { playClick } from '../../services/soundService'
 import { ConfirmModal } from '../../components/common'
+import CustomToggle from '../../components/common/CustomToggle'
+import InviteContactsOverlay from '../../components/groups/InviteContactsOverlay'
 import LightTabBar from '../../components/navigation/LightTabBar'
 
 const GroupDetailScreen = ({ navigation, route }) => {
@@ -55,6 +58,8 @@ const GroupDetailScreen = ({ navigation, route }) => {
   const [leaveGroupConfirm, setLeaveGroupConfirm] = useState(false)
   const [deletePostConfirm, setDeletePostConfirm] = useState({ visible: false, postId: null })
   const [postLastViewed, setPostLastViewed] = useState({})
+  const [isPublic, setIsPublic] = useState(false)
+  const [showInviteOverlay, setShowInviteOverlay] = useState(false)
   const lightTabRef = useRef(null)
   const lastScrollY = useRef(0)
 
@@ -125,6 +130,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
       return
     }
     setGroup(groupResult.data)
+    setIsPublic(groupResult.data.isPublic || false)
 
     // Fetch creator info
     const creatorResult = await getUserProfile(groupResult.data.creatorId)
@@ -209,6 +215,15 @@ const GroupDetailScreen = ({ navigation, route }) => {
       navigation.goBack()
     } else {
       Alert.alert('Error', 'Could not leave group.')
+    }
+  }
+
+  const handleToggleVisibility = async (newValue) => {
+    setIsPublic(newValue) // Optimistic update
+    const result = await updateGroupVisibility(groupId, newValue)
+    if (!result.success) {
+      setIsPublic(!newValue) // Revert on failure
+      Alert.alert('Error', 'Could not update group visibility.')
     }
   }
 
@@ -356,30 +371,46 @@ const GroupDetailScreen = ({ navigation, route }) => {
               <Ionicons name="chevron-back" size={28} color={colors.textDark} />
             </TouchableOpacity>
 
-            {/* Creator section — avatar links to creator's profile (hidden if blocked) */}
-            {creator?.id && !excludedUsers.includes(creator.id) && (
-              <TouchableOpacity
-                style={styles.creatorSection}
-                onPress={() => {
-                  navigation.navigate('UserProfile', { userId: creator.id })
-                }}
-              >
-                {creator?.profilePhoto ? (
-                  <Image
-                    source={{ uri: creator.profilePhoto, cache: 'reload' }}
-                    style={styles.creatorAvatar}
+            <View style={styles.headerRight}>
+              {/* Public/Private Toggle (creator only) */}
+              {isCreator && (
+                <View style={styles.visibilityToggle}>
+                  <Text style={styles.visibilityLabel}>
+                    {isPublic ? 'Public' : 'Private'}
+                  </Text>
+                  <CustomToggle
+                    value={isPublic}
+                    onValueChange={handleToggleVisibility}
+                    size="small"
                   />
-                ) : (
-                  <View style={styles.creatorAvatarPlaceholder}>
-                    <Ionicons name="person" size={18} color="#666" />
-                  </View>
-                )}
-                <View style={styles.creatorInfo}>
-                  <Text style={styles.creatorName}>{creator?.name || 'creator'}</Text>
-                  <Text style={styles.creatorLabel}>creator</Text>
                 </View>
-              </TouchableOpacity>
-            )}
+              )}
+
+              {/* Creator section — avatar links to creator's profile (hidden if blocked) */}
+              {creator?.id && !excludedUsers.includes(creator.id) && (
+                <TouchableOpacity
+                  style={styles.creatorSection}
+                  onPress={() => {
+                    navigation.navigate('UserProfile', { userId: creator.id })
+                  }}
+                >
+                  {creator?.profilePhoto ? (
+                    <Image
+                      source={{ uri: creator.profilePhoto, cache: 'reload' }}
+                      style={styles.creatorAvatar}
+                    />
+                  ) : (
+                    <View style={styles.creatorAvatarPlaceholder}>
+                      <Ionicons name="person" size={18} color="#666" />
+                    </View>
+                  )}
+                  <View style={styles.creatorInfo}>
+                    <Text style={styles.creatorName}>{creator?.name || 'creator'}</Text>
+                    <Text style={styles.creatorLabel}>creator</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Group Name row + trash (creator only) + edit link (creator only) */}
@@ -438,6 +469,17 @@ const GroupDetailScreen = ({ navigation, route }) => {
                   <Ionicons name="add" size={16} color={colors.textDark} />
                   <Text style={styles.postButtonText}>Post</Text>
                 </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {/* Share / Invite Button */}
+            {isMember && (
+              <TouchableOpacity
+                style={styles.shareButton}
+                onPress={() => { playClick(); setShowInviteOverlay(true); }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="share-outline" size={20} color={colors.textDark} />
               </TouchableOpacity>
             )}
 
@@ -561,6 +603,15 @@ const GroupDetailScreen = ({ navigation, route }) => {
         />
       </View>
 
+      {/* Invite Contacts Overlay */}
+      <InviteContactsOverlay
+        visible={showInviteOverlay}
+        onClose={() => setShowInviteOverlay(false)}
+        groupId={groupId}
+        groupName={group?.name}
+        existingMemberIds={group?.members || []}
+      />
+
       {/* Light Tab Bar */}
       <LightTabBar ref={lightTabRef} />
     </SafeAreaView>
@@ -585,7 +636,7 @@ const styles = StyleSheet.create({
   },
   fixedHeader: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 10,
   },
   loadingContainer: {
     flex: 1,
@@ -603,10 +654,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   backButton: {
     paddingVertical: 8,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  visibilityToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  visibilityLabel: {
+    fontSize: 11,
+    fontFamily: fonts.italic,
+    color: colors.offline,
+  },
+  shareButton: {
+    padding: 6,
+    marginLeft: 6,
   },
   // Creator Section
   creatorSection: {
@@ -669,7 +739,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.italic,
     color: colors.offline,
-    marginBottom: 16,
+    marginBottom: 10,
     lineHeight: 20,
   },
 
@@ -678,7 +748,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 3,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   groupBannerPlaceholder: {
     width: '100%',
@@ -687,7 +757,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e8e6f0',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.borderLight,
     borderStyle: 'dashed',
@@ -698,7 +768,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
-    gap: 10,
+    gap: 6,
   },
   postButtonOuter: {
     borderRadius: 20,
@@ -742,7 +812,6 @@ const styles = StyleSheet.create({
   memberAvatarBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 'auto',
   },
   memberAvatarWrapper: {
     zIndex: 1,
@@ -813,7 +882,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   postsExpiry: {
     fontSize: 11,

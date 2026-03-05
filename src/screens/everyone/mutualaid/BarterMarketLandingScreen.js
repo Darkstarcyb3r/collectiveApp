@@ -286,10 +286,10 @@ const BarterMarketLandingScreen = ({ navigation }) => {
               style={styles.addButtonOuter}
               onPress={() => { playClick(); navigation.navigate('BarterMarketCreate') }}
             >
-              <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButton}>
+              <LinearGradient colors={['#ff93bd', '#8b5cf6', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.addButton}>
                 <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.addButtonHighlight} />
-                <Ionicons name="add" size={16} color={colors.textDark} />
-                <Text style={styles.addButtonText}>Post</Text>
+                <Ionicons name="add" size={16} color="#ffffff" />
+                <Text style={[styles.addButtonText, { color: '#ffffff' }]}>Post</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -546,7 +546,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
                           }}
                         >
                           <LinearGradient
-                            colors={['#d8f434', '#b3f425', '#93f478']}
+                            colors={['#ff93bd', '#8b5cf6', '#32259e']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.arrowButton}
@@ -555,7 +555,7 @@ const BarterMarketLandingScreen = ({ navigation }) => {
                               colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
                               style={styles.arrowButtonHighlight}
                             />
-                            <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+                            <Ionicons name="arrow-forward" size={20} color="#ffffff" />
                           </LinearGradient>
                         </TouchableOpacity>
                       </View>
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
   },
   addButtonOuter: {
     borderRadius: 20,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
   arrowButtonOuter: {
     borderRadius: 20,
     marginLeft: 8,
-    shadowColor: '#b3f425',
+    shadowColor: '#ff93bd',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

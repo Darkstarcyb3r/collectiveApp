@@ -28,6 +28,7 @@ import { playClick } from '../../services/soundService'
 const ActiveUsersScreen = ({ navigation }) => {
   const { user, userProfile } = useAuth()
   const [allNetworkUsers, setAllNetworkUsers] = useState([])
+  const [filter, setFilter] = useState('all') // 'all' | 'following' | 'followers'
 
   // Tab bar ref for scroll-based show/hide
   const tabBarRef = useRef(null)
@@ -84,6 +85,13 @@ useEffect(() => {
     .filter((u) => u.id !== myUid && u.name)
     .filter((u) => connectedUserIds.has(u.id))
 
+  // Apply filter
+  const displayedUsers = filter === 'following'
+    ? visibleUsers.filter((u) => myFollowingUsers.includes(u.id))
+    : filter === 'followers'
+      ? visibleUsers.filter((u) => (u.subscribedUsers || []).includes(myUid))
+      : visibleUsers
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
@@ -117,17 +125,39 @@ useEffect(() => {
 
           {/* User Counter */}
           <View style={styles.userCounterRow}>
-            <BlurView intensity={10} tint="dark" style={styles.userCounterButton}>
-              <View style={styles.userCounterInner}>
-                <Text style={styles.userCounterText}>
-                  {visibleUsers.length.toString().padStart(6, '0')} users
-                </Text>
-              </View>
-            </BlurView>
+            <Text style={styles.userCounterText}>
+              {displayedUsers.length.toString().padStart(8, '0')} users
+            </Text>
+          </View>
+
+          {/* Filter Buttons */}
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={styles.filterButtonWrap}
+              onPress={() => { playClick(); setFilter(filter === 'following' ? 'all' : 'following'); }}
+            >
+              <BlurView intensity={10} tint="dark" style={[styles.filterButton, filter === 'following' && styles.filterButtonActive]}>
+                <View style={styles.filterButtonInner}>
+                  <Ionicons name="people-outline" size={14} color={filter === 'following' ? colors.primary : '#ffffff'} />
+                  <Text style={[styles.filterButtonText, filter === 'following' && styles.filterButtonTextActive]}>following</Text>
+                </View>
+              </BlurView>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.filterButtonWrap}
+              onPress={() => { playClick(); setFilter(filter === 'followers' ? 'all' : 'followers'); }}
+            >
+              <BlurView intensity={10} tint="dark" style={[styles.filterButton, filter === 'followers' && styles.filterButtonActive]}>
+                <View style={styles.filterButtonInner}>
+                  <Ionicons name="person-add-outline" size={14} color={filter === 'followers' ? colors.primary : '#ffffff'} />
+                  <Text style={[styles.filterButtonText, filter === 'followers' && styles.filterButtonTextActive]}>followers</Text>
+                </View>
+              </BlurView>
+            </TouchableOpacity>
           </View>
 
           {/* Avatar Grid — 4 columns */}
-          {visibleUsers.length === 0 ? (
+          {displayedUsers.length === 0 ? (
             <View style={styles.emptyNetworkContainer}>
               <Ionicons name="people-outline" size={48} color="#888" />
               <Text style={styles.emptyNetworkText}>
@@ -136,7 +166,7 @@ useEffect(() => {
             </View>
           ) : (
             <View style={styles.grid}>
-              {visibleUsers.map((user) => (
+              {displayedUsers.map((user) => (
                 <TouchableOpacity
                   key={user.id}
                   style={styles.avatarContainer}
@@ -150,7 +180,7 @@ useEffect(() => {
                       />
                     ) : (
                       <View style={styles.avatarPlaceholder}>
-                        <Ionicons name="person" size={28} color="#666" />
+                        <Ionicons name="person" size={22} color="#666" />
                       </View>
                     )}
                     {/* Online/Offline indicator dot */}
@@ -236,31 +266,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  userCounterButton: {
+  userCounterText: {
+    fontSize: 13,
+    fontFamily: fonts.mono,
+    color: colors.primary,
+    letterSpacing: 2,
+  },
+
+  // Filter Buttons
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 28,
+  },
+  filterButtonWrap: {
+    width: 140,
+  },
+  filterButton: {
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     borderTopColor: 'rgba(255, 255, 255, 0.5)',
     borderLeftColor: 'rgba(255, 255, 255, 0.4)',
-    shadowColor: '#ffffff',
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+    borderRightColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  filterButtonActive: {
+    borderColor: colors.primary,
+    borderTopColor: colors.primary,
+    borderLeftColor: colors.primary,
+    borderBottomColor: colors.primary,
+    borderRightColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 18,
+    shadowRadius: 12,
     elevation: 6,
   },
-  userCounterInner: {
+  filterButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    paddingVertical: 7,
-    paddingHorizontal: 16,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
     gap: 6,
   },
-  userCounterText: {
-    fontSize: 10,
-    fontFamily: fonts.mono,
+  filterButtonText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
     color: '#ffffff',
+  },
+  filterButtonTextActive: {
+    color: colors.primary,
   },
 
   // Avatar Grid
@@ -270,22 +330,22 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   avatarContainer: {
-    width: '25%',
+    width: '20%',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   avatarWrapper: {
     position: 'relative',
   },
   avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
   avatarPlaceholder: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: '#a3a3a3',
     alignItems: 'center',
     justifyContent: 'center',
@@ -302,11 +362,11 @@ const styles = StyleSheet.create({
   // Online/Offline status dot
   statusDot: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    bottom: 1,
+    right: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     borderWidth: 2,
     borderColor: colors.background,
   },

@@ -467,7 +467,7 @@ const ProfileScreen = ({ navigation }) => {
                       style={styles.buttonHighlight}
                     />
                     <Ionicons name="search-outline" size={14} color="#000000" />
-                    <Text style={styles.navButtonText}>find friends</Text>
+                    <Text style={styles.navButtonText}>add friends</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>

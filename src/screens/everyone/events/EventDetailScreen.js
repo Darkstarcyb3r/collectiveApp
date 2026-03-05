@@ -37,6 +37,7 @@ import {
 import { STICKER_OPTIONS } from '../../../config/stickers'
 import AddEventCommentModal from './AddEventCommentModal'
 import { ConfirmModal } from '../../../components/common'
+import InviteContactsOverlay from '../../../components/groups/InviteContactsOverlay'
 import LightTabBar from '../../../components/navigation/LightTabBar'
 import { groupCommentsWithReplies } from '../../../utils/commentUtils'
 import { playClick } from '../../../services/soundService'
@@ -98,6 +99,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   })
   const [reactionPickerCommentId, setReactionPickerCommentId] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
+  const [showShareOverlay, setShowShareOverlay] = useState(false)
   const lightTabRef = useRef(null)
   const lastScrollY = useRef(0)
 
@@ -406,7 +408,7 @@ const EventDetailScreen = ({ route, navigation }) => {
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={handleShare}
+                    onPress={() => { playClick(); setShowShareOverlay(true); }}
                     style={styles.headerActionButton}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
@@ -692,6 +694,14 @@ const EventDetailScreen = ({ route, navigation }) => {
         onConfirm={handleConfirmDeleteComment}
         onCancel={() => setDeleteCommentConfirm({ visible: false, commentId: null })}
       />
+      {/* Share Event Overlay */}
+      <InviteContactsOverlay
+        visible={showShareOverlay}
+        onClose={() => setShowShareOverlay(false)}
+        eventId={eventId}
+        eventTitle={event?.title || ''}
+      />
+
       <LightTabBar ref={lightTabRef} />
     </SafeAreaView>
   )

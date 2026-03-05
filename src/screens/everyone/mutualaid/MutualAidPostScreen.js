@@ -267,7 +267,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
   if (loading || !group) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.backgroundLight} />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
@@ -277,42 +277,59 @@ const MutualAidPostScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.backgroundLight} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <View style={styles.mainContainer}>
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ padding: 4 }}
+          <View style={styles.headerOuter}>
+            <LinearGradient
+              colors={['#ff93bd', '#8b5cf6', '#32259e']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.header}
             >
-              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Mutual Aid Group</Text>
-            {!editing ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <TouchableOpacity
-                  onPress={handleShare}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    playClick()
-                    setReplyTarget(null)
-                    setShowCommentModal(true)
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="chatbubble-outline" size={20} color={colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={{ width: 20 }} />
-            )}
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                style={styles.headerHighlight}
+              />
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="chevron-back" size={24} color="#ffffff" />
+              </TouchableOpacity>
+              <Ionicons
+                name="globe-outline"
+                size={22}
+                color="#ffffff"
+                style={{ marginLeft: 4 }}
+              />
+              <Text style={styles.headerTitle}>Mutual Aid Group</Text>
+              {!editing ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity
+                    onPress={handleShare}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="share-outline" size={20} color="#ffffff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      playClick()
+                      setReplyTarget(null)
+                      setShowCommentModal(true)
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="chatbubble-outline" size={20} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={{ width: 20 }} />
+              )}
+            </LinearGradient>
           </View>
 
           {/* Content */}
@@ -425,7 +442,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                 <View style={styles.editActions}>
                   <TouchableOpacity style={styles.saveButtonOuter} onPress={() => { playClick(); handleSaveEdit() }}>
                     <LinearGradient
-                      colors={['#cafb6c', '#71f200', '#23ff0d']}
+                      colors={['#ff93bd', '#8b5cf6', '#32259e']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.saveButton}
@@ -434,7 +451,7 @@ const MutualAidPostScreen = ({ route, navigation }) => {
                         colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
                         style={styles.saveButtonHighlight}
                       />
-                      <Text style={styles.saveButtonText}>Save</Text>
+                      <Text style={[styles.saveButtonText, { color: '#ffffff' }]}>Save</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => { playClick(); setEditing(false) }}>
@@ -718,19 +735,42 @@ const styles = StyleSheet.create({
   },
 
   // Header
+  headerOuter: {
+    borderRadius: 10,
+    shadowColor: '#ff93bd',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderTopColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderRightColor: 'rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  headerHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
   headerTitle: {
     fontSize: 16,
     fontFamily: fonts.bold,
-    color: colors.textPrimary,
+    color: '#ffffff',
   },
 
   // Content
@@ -911,7 +951,7 @@ const styles = StyleSheet.create({
   },
   saveButtonOuter: {
     borderRadius: 16,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

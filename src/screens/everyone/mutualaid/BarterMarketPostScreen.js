@@ -324,10 +324,10 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
 
             {!isAuthor && (
               <TouchableOpacity style={styles.contactButtonOuter} onPress={handleContact}>
-                <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.contactButton}>
+                <LinearGradient colors={['#ff93bd', '#8b5cf6', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.contactButton}>
                   <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.contactButtonHighlight} />
-                  <Ionicons name="add" size={14} color={colors.textDark} />
-                  <Text style={styles.contactButtonText}>Contact</Text>
+                  <Ionicons name="add" size={14} color="#ffffff" />
+                  <Text style={[styles.contactButtonText, { color: '#ffffff' }]}>Contact</Text>
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -368,12 +368,12 @@ const BarterMarketPostScreen = ({ route, navigation }) => {
                       onPress={handleSaveEdit}
                       disabled={saving}
                     >
-                      <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveButton}>
+                      <LinearGradient colors={['#ff93bd', '#8b5cf6', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.saveButton}>
                         <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.saveButtonHighlight} />
                         {saving ? (
                           <ActivityIndicator size="small" color={colors.textDark} />
                         ) : (
-                          <Text style={styles.saveButtonText}>Save</Text>
+                          <Text style={[styles.saveButtonText, { color: '#ffffff' }]}>Save</Text>
                         )}
                       </LinearGradient>
                     </TouchableOpacity>
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
   },
   contactButtonOuter: {
     borderRadius: 20,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -928,7 +928,7 @@ const styles = StyleSheet.create({
   },
   saveButtonOuter: {
     borderRadius: 20,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

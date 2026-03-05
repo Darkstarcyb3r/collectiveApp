@@ -26,17 +26,19 @@ import { useAuth } from '../../contexts/AuthContext'
 import { createGroup } from '../../services/groupService'
 import { validateImageAsset } from '../../utils/imageValidation'
 import LightTabBar from '../../components/navigation/LightTabBar'
+import CustomToggle from '../../components/common/CustomToggle'
 import { playClick } from '../../services/soundService'
 
 const MAX_DESCRIPTION_WORDS = 50
 
-const CreateGroupScreen = ({ navigation }) => {
+const CreateGroupScreen = ({ navigation, route }) => {
   const { user, userProfile } = useAuth()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [bannerUri, setBannerUri] = useState(null)
   const [bannerMeta, setBannerMeta] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [isPublic, setIsPublic] = useState(route.params?.isPublic ?? false)
   const lightTabRef = useRef(null)
   const lastScrollY = useRef(0)
 
@@ -109,6 +111,7 @@ const CreateGroupScreen = ({ navigation }) => {
       description: description.trim(),
       bannerUri: bannerUri,
       bannerMeta: bannerMeta || {},
+      isPublic: isPublic,
     })
     setLoading(false)
 
@@ -163,31 +166,46 @@ const CreateGroupScreen = ({ navigation }) => {
               <View style={{ width: 28 }} />
             </View>
 
-            {/* Creator Avatar — links to own profile */}
-            <TouchableOpacity
-              style={styles.creatorSection}
-              onPress={() => {
-                playClick()
-                if (user?.uid) {
-                  navigation.navigate('UserProfile', { userId: user.uid })
-                }
-              }}
-            >
-              {userProfile?.profilePhoto ? (
-                <Image
-                  source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
-                  style={styles.creatorAvatar}
+            {/* Creator Row: toggle + avatar */}
+            <View style={styles.creatorRow}>
+              {/* Public/Private Toggle */}
+              <View style={styles.visibilityToggle}>
+                <Text style={styles.visibilityLabel}>
+                  {isPublic ? 'Public' : 'Private'}
+                </Text>
+                <CustomToggle
+                  value={isPublic}
+                  onValueChange={setIsPublic}
+                  size="small"
                 />
-              ) : (
-                <View style={styles.creatorAvatarPlaceholder}>
-                  <Ionicons name="person" size={22} color="#666" />
-                </View>
-              )}
-              <View style={styles.creatorInfo}>
-                <Text style={styles.creatorName}>{userProfile?.name || 'your name'}</Text>
-                <Text style={styles.creatorLabel}>creator</Text>
               </View>
-            </TouchableOpacity>
+
+              {/* Creator Avatar — links to own profile */}
+              <TouchableOpacity
+                style={styles.creatorSection}
+                onPress={() => {
+                  playClick()
+                  if (user?.uid) {
+                    navigation.navigate('UserProfile', { userId: user.uid })
+                  }
+                }}
+              >
+                {userProfile?.profilePhoto ? (
+                  <Image
+                    source={{ uri: userProfile.profilePhoto, cache: 'reload' }}
+                    style={styles.creatorAvatar}
+                  />
+                ) : (
+                  <View style={styles.creatorAvatarPlaceholder}>
+                    <Ionicons name="person" size={22} color="#666" />
+                  </View>
+                )}
+                <View style={styles.creatorInfo}>
+                  <Text style={styles.creatorName}>{userProfile?.name || 'your name'}</Text>
+                  <Text style={styles.creatorLabel}>creator</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
 
             {/* Group Name Input */}
             <View style={styles.inputSection}>
@@ -316,12 +334,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Creator
+  // Creator Row (toggle + avatar)
+  creatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  visibilityToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  visibilityLabel: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.textDark,
+  },
   creatorSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    alignSelf: 'flex-end',
   },
   creatorAvatar: {
     width: 44,

@@ -108,3 +108,4 @@ ios/.xcode.env.local
 # eas dev model
 eas.json
 *.eas*
+.claude/

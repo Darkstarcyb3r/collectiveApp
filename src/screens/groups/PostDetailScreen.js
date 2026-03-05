@@ -40,6 +40,7 @@ import {
 import { STICKER_OPTIONS } from '../../config/stickers'
 import AddCommentModal from './AddCommentModal'
 import { ConfirmModal } from '../../components/common'
+import InviteContactsOverlay from '../../components/groups/InviteContactsOverlay'
 import LightTabBar from '../../components/navigation/LightTabBar'
 import { groupCommentsWithReplies } from '../../utils/commentUtils'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -67,6 +68,7 @@ const PostDetailScreen = ({ navigation, route }) => {
   })
   const [reactionPickerCommentId, setReactionPickerCommentId] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
+  const [showShareOverlay, setShowShareOverlay] = useState(false)
   const [isSubscribed, setIsSubscribed] = useState(false)
   const subscribingRef = useRef(false)
   const scrollViewRef = useRef(null)
@@ -180,13 +182,9 @@ const PostDetailScreen = ({ navigation, route }) => {
     }
   }
 
-  const handleShare = async () => {
+  const handleShare = () => {
     playClick()
-    const { shareContent, buildGroupPostLink } = require('../../utils/shareLinks')
-    await shareContent(
-      `Check out "${post?.title}" in ${groupName || 'our group'} on Collective!`,
-      buildGroupPostLink(groupId, postId)
-    )
+    setShowShareOverlay(true)
   }
 
   const handleToggleSubscribe = async () => {
@@ -694,6 +692,16 @@ const PostDetailScreen = ({ navigation, route }) => {
         confirmText="Delete"
         onConfirm={handleConfirmDeleteComment}
         onCancel={() => setDeleteCommentConfirm({ visible: false, commentId: null })}
+      />
+
+      {/* Share Post Overlay */}
+      <InviteContactsOverlay
+        visible={showShareOverlay}
+        onClose={() => setShowShareOverlay(false)}
+        postId={postId}
+        postTitle={post?.title || ''}
+        groupId={groupId}
+        groupName={groupName || ''}
       />
 
       {/* Light Tab Bar */}

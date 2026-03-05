@@ -130,12 +130,12 @@ const AddMutualAidCommentModal = ({
             onPress={handlePublish}
             disabled={loading}
           >
-            <LinearGradient colors={['#cafb6c', '#71f200', '#23ff0d']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishButton}>
+            <LinearGradient colors={['#ff93bd', '#8b5cf6', '#32259e']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.publishButton}>
               <LinearGradient colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']} style={styles.publishButtonHighlight} />
               {loading ? (
                 <ActivityIndicator size="small" color={colors.textDark} />
               ) : (
-                <Text style={styles.publishText}>Publish</Text>
+                <Text style={[styles.publishText, { color: '#ffffff' }]}>Publish</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   // Publish
   publishButtonOuter: {
     borderRadius: 24,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

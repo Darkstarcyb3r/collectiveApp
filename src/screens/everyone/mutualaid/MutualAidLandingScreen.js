@@ -134,7 +134,7 @@ const MutualAidLandingScreen = ({ navigation }) => {
           {/* Header */}
           <View style={styles.headerOuter}>
             <LinearGradient
-              colors={['#d8f434', '#b3f425', '#93f478']}
+              colors={['#ff93bd', '#8b5cf6', '#32259e']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.headerRow}
@@ -148,15 +148,15 @@ const MutualAidLandingScreen = ({ navigation }) => {
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={{ padding: 4 }}
               >
-                <Ionicons name="chevron-back" size={24} color={colors.textDark} />
+                <Ionicons name="chevron-back" size={24} color="#ffffff" />
               </TouchableOpacity>
               <Ionicons
                 name="globe-outline"
                 size={22}
-                color={colors.textDark}
+                color="#ffffff"
                 style={{ marginLeft: 4 }}
               />
-              <Text style={styles.title}>Mutual Aid</Text>
+              <Text style={[styles.title, { color: '#ffffff' }]}>Mutual Aid</Text>
             </LinearGradient>
           </View>
 
@@ -210,7 +210,7 @@ const MutualAidLandingScreen = ({ navigation }) => {
                     }}
                   >
                     <LinearGradient
-                      colors={['#d8f434', '#b3f425', '#93f478']}
+                      colors={['#ff93bd', '#8b5cf6', '#32259e']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.arrowButton}
@@ -219,7 +219,7 @@ const MutualAidLandingScreen = ({ navigation }) => {
                         colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
                         style={styles.arrowButtonHighlight}
                       />
-                      <Ionicons name="arrow-forward" size={20} color={colors.textDark} />
+                      <Ionicons name="arrow-forward" size={20} color="#ffffff" />
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   headerOuter: {
     borderRadius: 10,
     marginBottom: 12,
-    shadowColor: '#b3f425',
+    shadowColor: '#ff93bd',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   arrowButtonOuter: {
     borderRadius: 20,
     marginLeft: 8,
-    shadowColor: '#b3f425',
+    shadowColor: '#ff93bd',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

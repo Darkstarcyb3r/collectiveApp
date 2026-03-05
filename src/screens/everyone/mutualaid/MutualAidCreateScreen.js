@@ -166,7 +166,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
             {/* Header */}
             <View style={styles.headerOuter}>
               <LinearGradient
-                colors={['#d8f434', '#b3f425', '#93f478']}
+                colors={['#ff93bd', '#8b5cf6', '#32259e']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.header}
@@ -180,9 +180,15 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   style={{ padding: 4 }}
                 >
-                  <Ionicons name="chevron-back" size={24} color={colors.textDark} />
+                  <Ionicons name="chevron-back" size={24} color="#ffffff" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Add a Mutual Aid Group</Text>
+                <Ionicons
+                  name="globe-outline"
+                  size={22}
+                  color="#ffffff"
+                  style={{ marginLeft: 4 }}
+                />
+                <Text style={[styles.headerTitle, { color: '#ffffff', marginLeft: 8 }]}>Add a Mutual Aid Group</Text>
                 <View style={{ width: 24 }} />
               </LinearGradient>
             </View>
@@ -196,7 +202,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
                 disabled={publishing}
               >
                 <LinearGradient
-                  colors={['#cafb6c', '#71f200', '#23ff0d']}
+                  colors={['#ff93bd', '#8b5cf6', '#32259e']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.publishButton}
@@ -205,7 +211,7 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
                     colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
                     style={styles.publishButtonHighlight}
                   />
-                  <Text style={styles.publishButtonText}>Publish</Text>
+                  <Text style={[styles.publishButtonText, { color: '#ffffff' }]}>Publish</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -371,7 +377,7 @@ const styles = StyleSheet.create({
   // Header
   headerOuter: {
     borderRadius: 10,
-    shadowColor: '#b3f425',
+    shadowColor: '#ff93bd',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -419,7 +425,7 @@ const styles = StyleSheet.create({
   },
   publishButtonOuter: {
     borderRadius: 20,
-    shadowColor: '#23ff0d',
+    shadowColor: '#8b5cf6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,

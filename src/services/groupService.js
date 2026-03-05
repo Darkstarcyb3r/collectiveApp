@@ -26,6 +26,7 @@ export const createGroup = async (creatorId, groupData) => {
       bannerUrl: null,
       creatorId: creatorId,
       members: [creatorId],
+      isPublic: groupData.isPublic || false,
       createdAt: firestore.FieldValue.serverTimestamp(),
       updatedAt: firestore.FieldValue.serverTimestamp(),
       postCount: 0,
@@ -94,6 +95,22 @@ export const updateGroup = async (groupId, updates) => {
       .doc(groupId)
       .update({
         ...updates,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      })
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Update group visibility (public/private)
+export const updateGroupVisibility = async (groupId, isPublic) => {
+  try {
+    await firestore()
+      .collection('groups')
+      .doc(groupId)
+      .update({
+        isPublic: isPublic,
         updatedAt: firestore.FieldValue.serverTimestamp(),
       })
     return { success: true }
@@ -218,6 +235,27 @@ export const getUserGroups = async (userId) => {
 export const getAllGroups = async () => {
   try {
     const querySnapshot = await firestore().collection('groups').orderBy('createdAt', 'desc').limit(50).get()
+
+    const groups = []
+    querySnapshot.forEach((doc) => {
+      groups.push({ id: doc.id, ...doc.data() })
+    })
+
+    return { success: true, data: groups }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Get public groups (visible to all users in the network)
+export const getPublicGroups = async () => {
+  try {
+    const querySnapshot = await firestore()
+      .collection('groups')
+      .where('isPublic', '==', true)
+      .orderBy('updatedAt', 'desc')
+      .limit(50)
+      .get()
 
     const groups = []
     querySnapshot.forEach((doc) => {

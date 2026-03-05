@@ -348,6 +348,14 @@ const ChatScreen = ({ route, navigation }) => {
     navigation.navigate('GroupDetail', { groupId })
   }
 
+  const handleViewEvent = (eventId) => {
+    navigation.navigate('EventDetail', { eventId })
+  }
+
+  const handleViewPost = (postId, groupId, groupName) => {
+    navigation.navigate('PostDetail', { postId, groupId, groupName })
+  }
+
   // Handle joining a group from an invitation message
   const handleJoinGroup = async (groupId, groupName) => {
     if (!user?.uid) return
@@ -410,6 +418,8 @@ const ChatScreen = ({ route, navigation }) => {
           onJoinGroup={handleJoinGroup}
           onJoinChatroom={handleJoinChatroom}
           onViewGroup={handleViewGroup}
+          onViewEvent={handleViewEvent}
+          onViewPost={handleViewPost}
           onReaction={handleReaction}
           onDelete={handleDeleteMessage}
           currentUserId={user?.uid}

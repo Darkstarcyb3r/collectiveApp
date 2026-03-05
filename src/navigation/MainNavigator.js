@@ -25,7 +25,6 @@ import {
   PostDetailScreen,
   EditGroupScreen,
   EditPostScreen,
-  InviteMemberScreen,
   GroupMembersScreen,
 } from '../screens/groups'
 
@@ -103,7 +102,6 @@ const MainNavigator = () => {
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="EditGroup" component={EditGroupScreen} />
       <Stack.Screen name="EditPost" component={EditPostScreen} />
-      <Stack.Screen name="InviteMember" component={InviteMemberScreen} />
       <Stack.Screen name="GroupMembers" component={GroupMembersScreen} />
 
       {/* Messages Stack */}
@@ -111,7 +109,7 @@ const MainNavigator = () => {
       <Stack.Screen name="Chat" component={ChatScreen} />
 
       {/* Everyone Stack */}
-      <Stack.Screen name="ActiveUsers" component={ActiveUsersScreen} />
+      <Stack.Screen name="ActiveUsers" component={ActiveUsersScreen} options={{ animation: 'fade', animationDuration: 200 }} />
 
       {/* Cyber Lounge */}
       <Stack.Screen name="CyberLoungeCreate" component={CyberLoungeCreateScreen} />

@@ -500,6 +500,163 @@ export const sendGroupInvitation = async (
   }
 }
 
+// Send an event invitation message to a user
+export const sendEventInvitation = async (
+  currentUserId,
+  currentUserProfile,
+  targetUserId,
+  targetUserProfile,
+  eventId,
+  eventTitle
+) => {
+  try {
+    const convoResult = await getOrCreateConversation(
+      currentUserId,
+      targetUserId,
+      currentUserProfile,
+      targetUserProfile
+    )
+
+    if (!convoResult.success) {
+      return { success: false, error: 'Could not create conversation' }
+    }
+
+    // Fetch fresh sender profile to avoid stale photos on invite messages
+    let freshName = currentUserProfile?.name || ''
+    let freshPhoto = currentUserProfile?.profilePhoto || null
+    try {
+      const senderDoc = await firestore().collection('users').doc(currentUserId).get()
+      if (senderDoc.exists) {
+        const data = senderDoc.data()
+        freshName = data.name || freshName
+        freshPhoto = data.profilePhoto || freshPhoto
+      }
+    } catch (_err) {}
+
+    const conversationId = convoResult.conversationId
+    const batch = firestore().batch()
+    const now = firestore.FieldValue.serverTimestamp()
+
+    const messageRef = firestore()
+      .collection('conversations')
+      .doc(conversationId)
+      .collection('messages')
+      .doc()
+
+    const inviteText = `Check out this event: "${eventTitle}"!`
+
+    batch.set(messageRef, {
+      text: inviteText,
+      senderId: currentUserId,
+      senderName: freshName,
+      senderPhoto: freshPhoto,
+      createdAt: now,
+      type: 'event_invite',
+      eventId: eventId,
+      eventTitle: eventTitle,
+    })
+
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
+    batch.update(conversationRef, {
+      lastMessage: {
+        text: inviteText,
+        senderId: currentUserId,
+        createdAt: now,
+      },
+      lastMessageAt: now,
+      updatedAt: now,
+      [`unread_${targetUserId}`]: true,
+    })
+
+    await batch.commit()
+
+    return { success: true, conversationId }
+  } catch (error) {
+    console.log('🔴 sendEventInvitation error:', error.message)
+    return { success: false, error: error.message }
+  }
+}
+
+// Send a post share message to a user
+export const sendPostShare = async (
+  currentUserId,
+  currentUserProfile,
+  targetUserId,
+  targetUserProfile,
+  postId,
+  postTitle,
+  groupId,
+  groupName
+) => {
+  try {
+    const convoResult = await getOrCreateConversation(
+      currentUserId,
+      targetUserId,
+      currentUserProfile,
+      targetUserProfile
+    )
+
+    if (!convoResult.success) {
+      return { success: false, error: 'Could not create conversation' }
+    }
+
+    let freshName = currentUserProfile?.name || ''
+    let freshPhoto = currentUserProfile?.profilePhoto || null
+    try {
+      const senderDoc = await firestore().collection('users').doc(currentUserId).get()
+      if (senderDoc.exists) {
+        const data = senderDoc.data()
+        freshName = data.name || freshName
+        freshPhoto = data.profilePhoto || freshPhoto
+      }
+    } catch (_err) {}
+
+    const conversationId = convoResult.conversationId
+    const batch = firestore().batch()
+    const now = firestore.FieldValue.serverTimestamp()
+
+    const messageRef = firestore()
+      .collection('conversations')
+      .doc(conversationId)
+      .collection('messages')
+      .doc()
+
+    const shareText = `Check out this post: "${postTitle}" in ${groupName}!`
+
+    batch.set(messageRef, {
+      text: shareText,
+      senderId: currentUserId,
+      senderName: freshName,
+      senderPhoto: freshPhoto,
+      createdAt: now,
+      type: 'post_share',
+      postId: postId,
+      postTitle: postTitle,
+      groupId: groupId,
+      groupName: groupName,
+    })
+
+    const conversationRef = firestore().collection('conversations').doc(conversationId)
+    batch.update(conversationRef, {
+      lastMessage: {
+        text: shareText,
+        senderId: currentUserId,
+        createdAt: now,
+      },
+      lastMessageAt: now,
+      updatedAt: now,
+      [`unread_${targetUserId}`]: true,
+    })
+
+    await batch.commit()
+
+    return { success: true, conversationId }
+  } catch (error) {
+    console.log('🔴 sendPostShare error:', error.message)
+    return { success: false, error: error.message }
+  }
+}
+
 // Send a chatroom invitation message to a user
 export const sendChatroomInvitation = async (
   currentUserId,
@@ -719,6 +876,8 @@ export default {
   markConversationAsRead,
   loadEarlierMessages,
   sendGroupInvitation,
+  sendEventInvitation,
+  sendPostShare,
   deleteConversation,
   deleteMessage,
   acceptMessageRequest,
