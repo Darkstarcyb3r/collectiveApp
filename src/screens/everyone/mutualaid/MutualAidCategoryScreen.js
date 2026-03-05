@@ -817,11 +817,6 @@ const styles = StyleSheet.create({
   vetButtonTextActive: {
     color: colors.textDark,
   },
-  vetNote: {
-    fontSize: 9,
-    fontFamily: fonts.italic,
-    color: colors.offline,
-  },
   vettedByButton: {
     borderWidth: 1,
     borderColor: colors.borderLight,

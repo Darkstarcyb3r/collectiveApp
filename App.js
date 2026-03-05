@@ -76,8 +76,6 @@ export default function App() {
             'RobotoMono-Medium': require('./src/assets/fonts/roboto-mono/RobotoMono-Medium.ttf'),
             'RobotoMono-Italic': require('./src/assets/fonts/roboto-mono/RobotoMono-Italic.ttf'),
             'RobotoMono-SemiBold': require('./src/assets/fonts/roboto-mono/RobotoMono-Medium.ttf'),
-            'PressStart2P-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
-            'FiraCode-Regular': require('./src/assets/fonts/roboto-mono/RobotoMono-Regular.ttf'),
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Font load timeout')), 3000)),
         ]);
@@ -87,9 +85,9 @@ export default function App() {
         fonts.bold = 'RobotoMono-Bold';
         fonts.medium = 'RobotoMono-Medium';
         fonts.italic = 'RobotoMono-Italic';
-        fonts.semiBold = 'RobotoMono-SemiBold' || 'RobotoMono-Bold';
-        fonts.pixel = 'PressStart2P-Regular';
-        fonts.mono = 'FiraCode-Regular';
+        fonts.semiBold = 'RobotoMono-SemiBold';
+        fonts.pixel = 'RobotoMono-Regular';
+        fonts.mono = 'RobotoMono-Regular';
 
         // Load UI sounds — fire-and-forget (don't block startup)
         loadSounds().catch(() => {});

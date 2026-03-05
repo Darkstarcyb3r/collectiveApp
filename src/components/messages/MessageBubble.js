@@ -15,7 +15,6 @@ import {
   Linking,
   Modal,
   Dimensions,
-  SafeAreaView,
   Animated,
   ScrollView,
   Pressable,

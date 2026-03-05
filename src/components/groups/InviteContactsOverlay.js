@@ -60,6 +60,7 @@ const InviteContactsOverlay = ({
       setSearchQuery('')
       setInvited([])
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, user?.uid])
 
   const fetchContacts = async () => {

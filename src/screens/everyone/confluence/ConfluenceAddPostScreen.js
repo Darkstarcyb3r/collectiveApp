@@ -150,7 +150,6 @@ const ConfluenceAddPostScreen = ({ navigation }) => {
   const SHARED_CHAR_LIMIT = 75
   const combinedLength = caption.length + linkLabel.length
   const captionRemaining = SHARED_CHAR_LIMIT - linkLabel.length
-  const linkLabelRemaining = SHARED_CHAR_LIMIT - caption.length
 
   const isMaxed = monthlyCount >= MAX_MONTHLY
 
@@ -590,13 +589,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 12,
   },
-  countText: {
-    fontSize: 12,
-    fontFamily: fonts.mono,
-    color: colors.textGreen,
-    marginTop: 0,
-  },
-
   // Logo
   logoContainer: {
     alignItems: 'flex-end',

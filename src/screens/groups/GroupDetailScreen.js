@@ -99,7 +99,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
   }
 
   // Check if a post has unseen changes
-  const isPostUnseen = (post) => {
+  const _isPostUnseen = (post) => {
     const lastViewed = postLastViewed[post.id] || 0
     // Check updatedAt (post edits)
     const updatedMs = post.updatedAt?.toDate
@@ -262,7 +262,6 @@ const GroupDetailScreen = ({ navigation, route }) => {
 
   const renderPostCard = ({ item }) => {
     const isPostAuthor = item.authorId === user?.uid
-    const unseen = isPostUnseen(item)
 
     const postCard = (
       <TouchableOpacity
@@ -906,17 +905,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     position: 'relative',
   },
-  unseenDot: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
-    zIndex: 2,
-  },
-
   // Post Header Layout
   postHeader: {
     flexDirection: 'row',

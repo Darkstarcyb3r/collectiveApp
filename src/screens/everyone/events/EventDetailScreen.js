@@ -202,15 +202,6 @@ const EventDetailScreen = ({ route, navigation }) => {
     })
   }
 
-  const handleShare = async () => {
-    playClick()
-    const { shareContent, buildEventLink } = require('../../../utils/shareLinks')
-    await shareContent(
-      `Check out this event: ${event?.title} on Collective!`,
-      buildEventLink(eventId)
-    )
-  }
-
   const handleDeleteComment = (commentId) => {
     playClick()
     setDeleteCommentConfirm({ visible: true, commentId })

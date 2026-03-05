@@ -16,7 +16,6 @@ import {
   Alert,
   Linking,
   TextInput,
-  ActivityIndicator,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { STICKER_OPTIONS } from '../../../config/stickers'

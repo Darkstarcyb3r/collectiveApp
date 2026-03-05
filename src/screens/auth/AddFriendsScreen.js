@@ -35,10 +35,6 @@ const { width, height } = Dimensions.get('window')
 
 // Matrix rain characters — random numbers only
 const MATRIX_CHARS = '0123456789'
-const NUM_COLUMNS = 32
-const CHAR_SIZE = 13
-const COLUMN_WIDTH = (width - 40) / NUM_COLUMNS
-
 // Preview contact photos for "On Collective" step
 
 // ── Matrix Rain inside Nokia Phone Frame ──
@@ -133,6 +129,7 @@ const MatrixColumn = React.memo(({ column, index, colWidth }) => {
         useNativeDriver: true,
       })
     ).start()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Render chars twice for seamless wrap — when the loop resets,
@@ -467,7 +464,7 @@ const AddFriendsScreen = ({ navigation, route }) => {
     try {
       await updateUserProfile(user.uid, { addFriendsComplete: true })
       await refreshUserProfile()
-    } catch (err) {
+    } catch (_err) {
       // Even if update fails, let the user through
       await refreshUserProfile()
     }
@@ -488,7 +485,6 @@ const AddFriendsScreen = ({ navigation, route }) => {
     if (isProfileMode) {
       handleAddContactsRef.current?.()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProfileMode])
 
   // Fetch user's following list so we can dim already-followed contacts (profile mode)

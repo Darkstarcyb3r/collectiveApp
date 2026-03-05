@@ -97,6 +97,7 @@ const SkeletonBar = ({ width = '100%', height = 12, style, delay = 0 }) => {
     );
     anim.start();
     return () => anim.stop();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <Animated.View style={[{ width, height, borderRadius: 6, backgroundColor: '#2a2a2a', opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] }) }, style]} />
@@ -150,7 +151,7 @@ const DashboardScreen = ({ navigation }) => {
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadDMCount, setUnreadDMCount] = useState(0);
+  const [_unreadDMCount, setUnreadDMCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [notificationModalVisible, setNotificationModalVisible] = useState(false);
   const [allNetworkUsers, setAllNetworkUsers] = useState([]);
@@ -221,6 +222,7 @@ const DashboardScreen = ({ navigation }) => {
         } catch (_e) {}
       }
     }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   const fetchGroups = async () => {
@@ -391,6 +393,7 @@ const DashboardScreen = ({ navigation }) => {
         pulseAnimRef.current.stop();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboardingComplete]);
 
   // Always-on accent diamond pulse (Active Users + Mutual Aid buttons)
@@ -418,6 +421,7 @@ const DashboardScreen = ({ navigation }) => {
     mutualAidSpinRef.current = spin;
 
     return () => { pulse.stop(); spin.stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Bell shake when unread count changes and is > 0
@@ -431,6 +435,7 @@ const DashboardScreen = ({ navigation }) => {
         Animated.timing(bellShake, { toValue: 0, duration: 80, useNativeDriver: true }),
       ]).start();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unreadCount]);
 
   // Bell glow pulse when unread
@@ -447,6 +452,7 @@ const DashboardScreen = ({ navigation }) => {
     } else {
       bellGlow.setValue(1);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unreadCount > 0]);
 
   // Activity dot breathing on active groups
@@ -465,6 +471,7 @@ const DashboardScreen = ({ navigation }) => {
     );
     dotPulse.start();
     return () => dotPulse.stop();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Card entrance animations — fade + slide up on mount
@@ -479,12 +486,14 @@ const DashboardScreen = ({ navigation }) => {
         Animated.timing(sectionSlidePublic, { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       ]),
     ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Section title shimmer — looping light sweep
   // Sync pinned groups from userProfile
   useEffect(() => {
     setLocalPinnedIds(userProfile?.pinnedGroupIds || []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile?.pinnedGroupIds?.length]);
 
   useEffect(() => {
@@ -512,6 +521,7 @@ const DashboardScreen = ({ navigation }) => {
     shimmerLoop2.start();
     shimmerLoop3.start();
     return () => { shimmerLoop.stop(); shimmerLoop2.stop(); shimmerLoop3.stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Real-time subscription to network users (for 2-degree filtering)
@@ -842,9 +852,6 @@ const DashboardScreen = ({ navigation }) => {
     }
   };
 
-  const formatUserCount = (count) => {
-    return count.toString().padStart(6, '0');
-  };
 
   // --- Group Activity Helpers ---
 
@@ -941,7 +948,6 @@ const DashboardScreen = ({ navigation }) => {
     return { scale, glowOpacity, onPressIn, onPressOut };
   }, []);
   const bounceMutualAid = useRef(makeGlowBounce()).current;
-  const bounceUsers = useRef(makeGlowBounce()).current;
   const bounceAddFriends = useRef(makeGlowBounce()).current;
   const bounceNetwork = useRef(makeGlowBounce()).current;
   const bounceAddGroup = useRef(makeBounce()).current;
@@ -1520,7 +1526,7 @@ const DashboardScreen = ({ navigation }) => {
                   scrollEventThrottle={16}
                   scrollEnabled={sortedGroups.length > 2}
                 >
-                  {sortedGroups.map((group, idx) => {
+                  {sortedGroups.map((group, _idx) => {
                     const active = isGroupActive(group);
                     const creator = groupCreators[group.creatorId];
                     return (
@@ -1947,17 +1953,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: '#1a1a1a',
   },
-  activityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginLeft: 8,
-  },
-  pinButton: {
-    marginLeft: 6,
-    padding: 2,
-  },
   groupDeleteAction: {
     backgroundColor: colors.tertiary,
     justifyContent: 'center',
@@ -2029,51 +2024,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.medium,
     color: colors.textDark,
-  },
-
-  // ---- Users Button ----
-  usersButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderTopColor: 'rgba(255, 255, 255, 0.5)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.4)',
-    shadowColor: '#ffffff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  usersButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  usersButtonText: {
-    fontSize: 10,
-    fontFamily: fonts.mono,
-    color: '#ffffff',
-  },
-  userCountInner: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-  },
-  userCountNumber: {
-    fontSize: 11,
-    fontFamily: fonts.mono,
-    color: '#ffffff',
-  },
-  userCountLabel: {
-    fontSize: 8,
-    fontFamily: fonts.regular,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginTop: 1,
   },
 
   // ---- Action Buttons Row ----

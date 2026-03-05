@@ -29,7 +29,7 @@ const TABS = [
   { name: 'ConfluenceTab', icon: 'globe-outline' },
 ]
 
-const LightTabBar = forwardRef(({ dark, ...props }, ref) => {
+const LightTabBar = forwardRef(({ dark, ..._props }, ref) => {
   const navigation = useNavigation()
   const { user } = useAuth()
   const insets = useSafeAreaInsets()

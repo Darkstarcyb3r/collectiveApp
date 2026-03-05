@@ -2,7 +2,7 @@
 // Matches the Figma design with rounded buttons
 
 import React from 'react'
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native'
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { colors } from '../../theme'
 
@@ -124,6 +124,7 @@ const Button = ({
   )
 }
 
+/* eslint-disable react-native/no-unused-styles -- size styles are accessed dynamically via styles[size] and styles[`${size}Text`] */
 const styles = StyleSheet.create({
   base: {
     borderRadius: 50,

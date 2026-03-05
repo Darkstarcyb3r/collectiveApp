@@ -20,7 +20,6 @@ import { fonts } from '../../../theme/typography'
 import { useAuth } from '../../../contexts/AuthContext'
 import { getVettedMembers } from '../../../services/everyoneService'
 import LightTabBar from '../../../components/navigation/LightTabBar'
-import { playClick } from '../../../services/soundService'
 
 const VettedMemberScreen = ({ route, navigation }) => {
   const { groupId } = route.params

@@ -1,9 +1,8 @@
 // Message Service - Using @react-native-firebase
 // Handles conversations and messaging operations
 
-import { firestore, functions } from '../config/firebase'
+import { firestore } from '../config/firebase'
 import { validateText } from '../utils/validation'
-import * as Notifications from 'expo-notifications';
 
 // Helper: generate deterministic conversation ID from two user IDs
 const getConversationId = (uid1, uid2) => {

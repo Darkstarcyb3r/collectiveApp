@@ -13,7 +13,6 @@ import {
   Alert,
   ScrollView,
   Image,
-  ActivityIndicator,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -117,17 +116,6 @@ const MutualAidCreateScreen = ({ route, navigation }) => {
     } else {
       Alert.alert('Error', 'Could not create group.')
     }
-  }
-
-  const handleDelete = () => {
-    playClick()
-    setName('')
-    setCaption('')
-    setLink('')
-    setLinkLabel('')
-    setCity('')
-    setIsGlobal(false)
-    setDescription('')
   }
 
   const handleScroll = (event) => {
