@@ -1120,7 +1120,6 @@ const DashboardScreen = ({ navigation }) => {
           {userProfile?.everyoneNetworkEnabled && (
           <>
           {/* ---- Cyber Lounge ---- */}
-          {(rooms.length > 0 || !roomsLoaded) && (
           <View style={styles.cyberLoungeContainer}>
             <View style={styles.cyberLoungeHeader}>
               <Text style={styles.subSectionTitle}>Cyber Lounge {'>'}</Text>
@@ -1218,7 +1217,6 @@ const DashboardScreen = ({ navigation }) => {
               )}
             </View>
           </View>
-          )}
 
           {/* ---- Confluence ---- */}
           {confluencePosts.length > 0 && (
