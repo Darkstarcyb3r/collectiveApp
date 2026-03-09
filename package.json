@@ -1,6 +1,6 @@
 {
   "name": "collective-app",
-  "version": "1.3.2",
+  "version": "2.0.0",
   "description": "A community-first social platform built with React Native and Firebase for building authentic collective networks",
   "license": "MIT",
   "repository": {
