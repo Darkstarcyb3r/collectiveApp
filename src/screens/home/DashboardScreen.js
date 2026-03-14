@@ -2375,13 +2375,12 @@ const styles = StyleSheet.create({
 
   // ---- Reorder Mode ----
   reorderArrows: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
   },
   reorderArrowBtn: {
     paddingHorizontal: 4,
-    paddingVertical: 1,
   },
   reorderRowGlow: {
     shadowColor: '#22ff0a',
