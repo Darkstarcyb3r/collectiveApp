@@ -71,6 +71,14 @@ const RootNavigator = () => {
         navigationRef.current.navigate('MutualAidPost', {
           groupId: data.groupId,
         })
+      } else if (data?.type === 'follow_request' && navigationRef.current) {
+        // Navigate to follow requests screen
+        navigationRef.current.navigate('FollowRequests')
+      } else if (data?.type === 'follow_request_accepted' && data?.accepterId && navigationRef.current) {
+        // Navigate to the user who accepted the follow request
+        navigationRef.current.navigate('UserProfile', {
+          userId: data.accepterId,
+        })
       }
     })
 

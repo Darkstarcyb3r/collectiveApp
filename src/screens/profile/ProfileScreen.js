@@ -27,6 +27,8 @@ import { useTabBar } from '../../contexts/TabBarContext'
 import { logOut, deleteAccount } from '../../services/authService'
 import {
   toggleEveryoneNetwork,
+  togglePrivateProfile,
+  subscribeToFollowRequests,
   updateUserProfile,
   uploadProfilePhoto,
 } from '../../services/userService'
@@ -58,6 +60,7 @@ const ProfileScreen = ({ navigation }) => {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [monthlyConfluenceCount, setMonthlyConfluenceCount] = useState(0)
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false)
+  const [followRequestCount, setFollowRequestCount] = useState(0)
 
   // Keep editableName in sync with profile
   useEffect(() => {
@@ -106,6 +109,15 @@ const ProfileScreen = ({ navigation }) => {
       setUnreadMessages(count)
     })
 
+    return () => unsubscribe()
+  }, [user?.uid])
+
+  // Subscribe to incoming follow requests for badge count
+  useEffect(() => {
+    if (!user?.uid) return
+    const unsubscribe = subscribeToFollowRequests(user.uid, (requests) => {
+      setFollowRequestCount(requests.length)
+    })
     return () => unsubscribe()
   }, [user?.uid])
 
@@ -170,6 +182,12 @@ const ProfileScreen = ({ navigation }) => {
   const handleToggleEveryoneNetwork = async (enabled) => {
     if (!user?.uid) return
     await toggleEveryoneNetwork(user.uid, enabled)
+    await refreshUserProfile()
+  }
+
+  const handleTogglePrivateProfile = async (enabled) => {
+    if (!user?.uid) return
+    await togglePrivateProfile(user.uid, enabled)
     await refreshUserProfile()
   }
 
@@ -314,27 +332,16 @@ const ProfileScreen = ({ navigation }) => {
               )}
             </View>
 
-            {/* Everyone logo and toggle */}
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons
-                name="globe-outline"
-                size={16}
-                color={userProfile?.everyoneNetworkEnabled ? '#00FF00' : '#888888'}
-              />
-              <Text
-                style={[
-                  styles.everyoneToggleLabel,
-                  { color: userProfile?.everyoneNetworkEnabled ? '#00FF00' : '#888888' },
-                ]}
-              >
-                Public Collective
-              </Text>
-              <CustomToggle
-                value={!!userProfile?.everyoneNetworkEnabled}
-                onValueChange={handleToggleEveryoneNetwork}
-                size="small"
-                activeColor="#00FF00"
-              />
+            {/* Profile toggles */}
+            <View style={styles.toggleRow}>
+              <Ionicons name="globe-outline" size={14} color={userProfile?.everyoneNetworkEnabled ? '#00FF00' : '#888888'} />
+              <Text numberOfLines={1} style={[styles.toggleLabel, { color: userProfile?.everyoneNetworkEnabled ? '#00FF00' : '#888888' }]}>Public Collective</Text>
+              <CustomToggle value={!!userProfile?.everyoneNetworkEnabled} onValueChange={handleToggleEveryoneNetwork} size="small" activeColor="#00FF00" />
+            </View>
+            <View style={styles.toggleRow}>
+              <Ionicons name="lock-closed-outline" size={14} color={userProfile?.isPrivate ? '#00FF00' : '#888888'} />
+              <Text numberOfLines={1} style={[styles.toggleLabel, { color: userProfile?.isPrivate ? '#00FF00' : '#888888' }]}>Private Profile</Text>
+              <CustomToggle value={!!userProfile?.isPrivate} onValueChange={handleTogglePrivateProfile} size="small" activeColor="#00FF00" />
             </View>
           </View>
 
@@ -441,6 +448,21 @@ const ProfileScreen = ({ navigation }) => {
                     </View>
                   </BlurView>
                 </TouchableOpacity>
+                {(userProfile?.isPrivate || followRequestCount > 0) && (
+                  <TouchableOpacity
+                    style={styles.glassyButtonWrap}
+                    onPress={() => { playClick(); navigation.navigate('FollowRequests'); }}
+                  >
+                    <BlurView intensity={10} tint="dark" style={styles.glassyButton}>
+                      <View style={styles.glassyButtonInner}>
+                        <Ionicons name="hand-left-outline" size={14} color={followRequestCount > 0 ? '#00FF00' : '#ffffff'} />
+                        <Text style={[styles.glassyButtonText, followRequestCount > 0 && { color: '#00FF00' }]}>
+                          requests{followRequestCount > 0 ? ` (${followRequestCount})` : ''}
+                        </Text>
+                      </View>
+                    </BlurView>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={styles.glassyButtonWrap}
                   onPress={() => { playClick(); setNetworkDropdownOpen(true); }}
@@ -618,6 +640,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     marginLeft: 8,
     marginRight: 8,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  toggleLabel: {
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    marginLeft: 6,
+    flex: 1,
   },
 
   // Middle Section with Photo

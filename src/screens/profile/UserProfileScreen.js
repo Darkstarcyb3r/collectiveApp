@@ -18,6 +18,7 @@ import {
 } from 'react-native'
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useFocusEffect } from '@react-navigation/native'
 import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
@@ -32,6 +33,8 @@ import {
   updateSubscriptionPreferences,
   reportUser,
   checkExistingReport,
+  checkPendingFollowRequest,
+  cancelFollowRequest,
 } from '../../services/userService'
 import { sendChatRequest } from '../../services/messageService'
 import { playClick } from '../../services/soundService'
@@ -45,6 +48,7 @@ const UserProfileScreen = ({ route, navigation }) => {
 
   // Track relationship states
   const [isFollowing, setIsFollowing] = useState(false)
+  const [isRequested, setIsRequested] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
   const [isBlocked, setIsBlocked] = useState(false)
 
@@ -114,11 +118,28 @@ const UserProfileScreen = ({ route, navigation }) => {
     }
   }, [userProfile, userId])
 
+  // Check for pending follow request (re-checks on screen focus)
+  useFocusEffect(
+    useCallback(() => {
+      const checkRequest = async () => {
+        if (!user?.uid || !userId) return
+        const result = await checkPendingFollowRequest(user.uid, userId)
+        if (result.success) {
+          setIsRequested(result.pending)
+        }
+      }
+      checkRequest()
+    }, [user?.uid, userId])
+  )
+
   const getModalMessage = () => {
     const name = userData?.name || 'this user'
     switch (modalAction) {
       case 'follow':
-        return isFollowing ? `Unfollow ${name}?` : `Follow ${name}?`
+        if (isFollowing) return `Unfollow ${name}?`
+        if (isRequested) return `Cancel follow request to ${name}?`
+        if (userData?.isPrivate) return `Send follow request to ${name}?`
+        return `Follow ${name}?`
       case 'hide':
         return isHidden ? `Unhide ${name}?` : `Hide ${name}?`
       case 'block':
@@ -137,20 +158,34 @@ const UserProfileScreen = ({ route, navigation }) => {
     let result
     switch (modalAction) {
       case 'follow':
-        result = isFollowing
-          ? await unfollowUser(user.uid, userId)
-          : await followUser(user.uid, userId, userProfile?.name)
-        if (result.success) {
-          const wasFollowing = !isFollowing
-          setIsFollowing(!isFollowing)
-          if (wasFollowing) {
-            // Just followed — navigate directly to notification preferences
-            await refreshUserProfile()
-            setActionLoading(false)
-            setModalVisible(false)
-            // Small delay so the confirm modal closes first
-            setTimeout(() => openNotifPrefs(), 300)
-            return
+        if (isFollowing) {
+          // Unfollow
+          result = await unfollowUser(user.uid, userId)
+          if (result.success) setIsFollowing(false)
+        } else if (isRequested) {
+          // Cancel pending follow request
+          result = await cancelFollowRequest(user.uid, userId)
+          if (result.success) setIsRequested(false)
+        } else {
+          // Follow (or send request if private)
+          result = await followUser(user.uid, userId, userProfile?.name, userProfile?.profilePhoto)
+          if (result.success) {
+            if (result.requested) {
+              // Private profile — request sent, no notif prefs
+              setIsRequested(true)
+              setActionLoading(false)
+              setModalVisible(false)
+              Alert.alert('Request Sent', `${userData?.name || 'User'} will be notified of your follow request.`)
+              return
+            } else {
+              // Public profile — instant follow
+              setIsFollowing(true)
+              await refreshUserProfile()
+              setActionLoading(false)
+              setModalVisible(false)
+              setTimeout(() => openNotifPrefs(), 300)
+              return
+            }
           }
         }
         break
@@ -732,7 +767,7 @@ const UserProfileScreen = ({ route, navigation }) => {
 
             {/* Profile Photo */}
             <View style={styles.photoWrapper}>
-              <View style={[styles.photoGlowWrapper, isFollowing && styles.photoGlow]}>
+              <View style={[styles.photoGlowWrapper, (isFollowing || isRequested) && styles.photoGlow]}>
                 <View style={styles.photoContainer}>
                   {userData?.profilePhoto ? (
                     <Image
@@ -760,8 +795,8 @@ const UserProfileScreen = ({ route, navigation }) => {
                   hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
                   style={styles.quipLinkTouchable}
                 >
-                  <Text style={[styles.quipLink, !isFollowing && styles.quipLinkActive]}>
-                    {isFollowing ? 'following' : 'follow?'}
+                  <Text style={[styles.quipLink, !isFollowing && !isRequested && styles.quipLinkActive]}>
+                    {isFollowing ? 'following' : isRequested ? 'requested' : 'follow?'}
                   </Text>
                 </TouchableOpacity>
                 {isFollowing && (

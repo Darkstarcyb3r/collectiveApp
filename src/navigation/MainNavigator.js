@@ -13,6 +13,7 @@ import {
   UserProfileScreen,
   UserListScreen,
   EditQuipScreen,
+  FollowRequestsScreen,
 } from '../screens/profile'
 import { AddFriendsScreen } from '../screens/auth'
 
@@ -94,6 +95,7 @@ const MainNavigator = () => {
         component={UserListScreen}
         initialParams={{ type: 'blocked' }}
       />
+      <Stack.Screen name="FollowRequests" component={FollowRequestsScreen} />
 
       {/* Groups Stack */}
       <Stack.Screen name="MyGroups" component={MyGroupsScreen} />

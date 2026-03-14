@@ -622,10 +622,8 @@ const AddFriendsScreen = ({ navigation, route }) => {
     setPhoneFollowed(false)
     try {
       const result = await searchUserByPhone(digits)
-      if (result && result.id !== user?.uid) {
-        setPhoneSearchResult(result)
-      } else if (result && result.id === user?.uid) {
-        setPhoneSearchResult('not_found') // don't show self
+      if (result.success && result.data && result.data.id !== user?.uid) {
+        setPhoneSearchResult(result.data)
       } else {
         setPhoneSearchResult('not_found')
       }

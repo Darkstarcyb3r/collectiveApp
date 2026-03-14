@@ -36,6 +36,10 @@ const getNotificationIcon = (type) => {
     case 'follower':
     case 'subscriber':
       return 'person-add-outline'
+    case 'follow_request':
+      return 'hand-left-outline'
+    case 'follow_request_accepted':
+      return 'checkmark-circle-outline'
     case 'group_invite':
       return 'people-outline'
     case 'chatroom_invite':
@@ -92,6 +96,12 @@ const getNavigationTarget = (notification) => {
     case 'subscriber':
       return data.subscriberId
         ? { route: 'UserProfile', params: { userId: data.subscriberId } }
+        : null
+    case 'follow_request':
+      return { route: 'FollowRequests' }
+    case 'follow_request_accepted':
+      return data.accepterId
+        ? { route: 'UserProfile', params: { userId: data.accepterId } }
         : null
     case 'message':
     case 'chat_request':

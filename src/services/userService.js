@@ -93,9 +93,17 @@ export const updateQuip = async (userId, quip) => {
   }
 }
 
-// Follow a user
-export const followUser = async (currentUserId, targetUserId, _followerName) => {
+// Follow a user — checks privacy setting first
+export const followUser = async (currentUserId, targetUserId, followerName, followerPhoto) => {
   try {
+    // Check if target user has a private profile
+    const targetDoc = await firestore().collection('users').doc(targetUserId).get()
+    if (targetDoc.exists && targetDoc.data().isPrivate === true) {
+      // Private profile — send a follow request instead
+      return await sendFollowRequest(currentUserId, targetUserId, followerName, followerPhoto)
+    }
+
+    // Public profile — immediate follow
     await firestore()
       .collection('users')
       .doc(currentUserId)
@@ -105,6 +113,129 @@ export const followUser = async (currentUserId, targetUserId, _followerName) => 
 
     // Notification handled server-side by onFollowChange Cloud Function
 
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Send a follow request to a private user
+export const sendFollowRequest = async (currentUserId, targetUserId, requesterName, requesterPhoto) => {
+  try {
+    const requestId = `${currentUserId}_${targetUserId}`
+    await firestore()
+      .collection('followRequests')
+      .doc(requestId)
+      .set({
+        requesterId: currentUserId,
+        targetUserId: targetUserId,
+        requesterName: requesterName || 'Someone',
+        requesterPhoto: requesterPhoto || null,
+        status: 'pending',
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      })
+    return { success: true, requested: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Cancel a pending follow request (requester side)
+export const cancelFollowRequest = async (currentUserId, targetUserId) => {
+  try {
+    const requestId = `${currentUserId}_${targetUserId}`
+    await firestore().collection('followRequests').doc(requestId).delete()
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Accept a follow request (target side)
+export const acceptFollowRequest = async (currentUserId, requesterId) => {
+  try {
+    const requestId = `${requesterId}_${currentUserId}`
+    // Add currentUserId to requester's subscribedUsers + initialize default notif prefs
+    const defaultPrefs = {
+      groupPosts: true,
+      hostedChats: true,
+      events: true,
+      barterMarketPosts: true,
+      mutualAidPosts: true,
+    }
+    await firestore()
+      .collection('users')
+      .doc(requesterId)
+      .update({
+        subscribedUsers: firestore.FieldValue.arrayUnion(currentUserId),
+        [`subscriptionPreferences.${currentUserId}`]: defaultPrefs,
+      })
+    // Delete the follow request doc
+    await firestore().collection('followRequests').doc(requestId).delete()
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Decline a follow request (target side)
+export const declineFollowRequest = async (currentUserId, requesterId) => {
+  try {
+    const requestId = `${requesterId}_${currentUserId}`
+    await firestore().collection('followRequests').doc(requestId).delete()
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
+// Check if a pending follow request exists
+export const checkPendingFollowRequest = async (currentUserId, targetUserId) => {
+  try {
+    const requestId = `${currentUserId}_${targetUserId}`
+    const doc = await firestore().collection('followRequests').doc(requestId).get()
+    return { success: true, pending: doc.exists }
+  } catch (error) {
+    return { success: false, pending: false }
+  }
+}
+
+// Get all incoming follow requests
+export const getIncomingFollowRequests = async (userId) => {
+  try {
+    const snapshot = await firestore()
+      .collection('followRequests')
+      .where('targetUserId', '==', userId)
+      .get()
+    const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    return { success: true, data: requests }
+  } catch (error) {
+    return { success: false, data: [], error: error.message }
+  }
+}
+
+// Real-time listener for incoming follow requests
+export const subscribeToFollowRequests = (userId, callback) => {
+  if (!userId) {
+    callback([])
+    return () => {}
+  }
+  return firestore()
+    .collection('followRequests')
+    .where('targetUserId', '==', userId)
+    .onSnapshot(
+      (snapshot) => {
+        const requests = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        callback(requests)
+      },
+      () => callback([])
+    )
+}
+
+// Toggle private profile setting
+export const togglePrivateProfile = async (userId, isPrivate) => {
+  try {
+    await firestore().collection('users').doc(userId).update({ isPrivate })
     return { success: true }
   } catch (error) {
     return { success: false, error: error.message }
@@ -204,6 +335,14 @@ export const blockUser = async (currentUserId, targetUserId) => {
     }
     // Note: target user's subscriptionPreferences are left as-is
     // (stale data is harmless, and cross-user writes are restricted to blockedBy/subscribedUsers/groups)
+
+    // Clean up any pending follow requests in both directions
+    try {
+      await firestore().collection('followRequests').doc(`${currentUserId}_${targetUserId}`).delete()
+    } catch (_e) { /* may not exist */ }
+    try {
+      await firestore().collection('followRequests').doc(`${targetUserId}_${currentUserId}`).delete()
+    } catch (_e) { /* may not exist */ }
 
     return { success: true }
   } catch (error) {

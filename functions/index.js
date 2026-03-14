@@ -1085,6 +1085,26 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
     logger.error(`Step 14 failed (reports cleanup):`, err);
   }
 
+  // Step 14b: Delete user's follow requests (sent and received)
+  try {
+    const sentRequests = await db.collection("followRequests")
+      .where("requesterId", "==", userId).get();
+    const receivedRequests = await db.collection("followRequests")
+      .where("targetUserId", "==", userId).get();
+    let followRequestsDeleted = 0;
+    for (const doc of sentRequests.docs) {
+      await doc.ref.delete();
+      followRequestsDeleted++;
+    }
+    for (const doc of receivedRequests.docs) {
+      await doc.ref.delete();
+      followRequestsDeleted++;
+    }
+    logger.info(`Step 14b done: deleted ${followRequestsDeleted} follow requests`);
+  } catch (err) {
+    logger.error(`Step 14b failed (follow requests cleanup):`, err);
+  }
+
   // Note: Step 15 (original user doc delete) is now handled in Step 0.5
   // Keeping this as a safety net in case Step 0.5 failed
   try {
@@ -2702,6 +2722,14 @@ exports.onFollowChange = onDocumentUpdated(
 
       for (const targetUserId of newFollows) {
         try {
+          // Skip "New Follower" notification for private profiles —
+          // the accept flow (onFollowRequestDelete) handles this instead
+          const targetDoc = await db.collection("users").doc(targetUserId).get();
+          if (targetDoc.exists && targetDoc.data().isPrivate === true) {
+            logger.info(`Skipping follower notification for private user ${targetUserId}`);
+            continue;
+          }
+
           // In-app notification
           await db.collection("users").doc(targetUserId)
             .collection("notifications").add({
@@ -2713,8 +2741,7 @@ exports.onFollowChange = onDocumentUpdated(
               createdAt: FieldValue.serverTimestamp(),
             });
 
-          // Push notification
-          const targetDoc = await db.collection("users").doc(targetUserId).get();
+          // Push notification (reuse targetDoc from private check above)
           if (targetDoc.exists && targetDoc.data().notificationsMuted !== true) {
             const tokenDoc = await db.collection("users").doc(targetUserId)
               .collection("private").doc("tokens").get();
@@ -3476,6 +3503,133 @@ exports.createBotChatroom = onSchedule(
       }
     } catch (writeErr) {
       logger.error("createBotChatroom: Firestore write failed", writeErr);
+    }
+  }
+);
+
+// =============================================================
+// FUNCTION 30: onFollowRequestCreate
+// Notify private user of incoming follow request
+// =============================================================
+exports.onFollowRequestCreate = onDocumentCreated(
+  "followRequests/{requestId}",
+  async (event) => {
+    const data = event.data.data();
+    const { requesterId, targetUserId, requesterName } = data;
+    if (!targetUserId || !requesterId) return;
+
+    try {
+      // In-app notification
+      await db.collection("users").doc(targetUserId)
+        .collection("notifications").add({
+          title: "Follow Request",
+          body: `${requesterName || "Someone"} wants to follow you`,
+          type: "follow_request",
+          data: { type: "follow_request", requesterId },
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+      // Push notification
+      const targetDoc = await db.collection("users").doc(targetUserId).get();
+      if (targetDoc.exists && targetDoc.data().notificationsMuted !== true) {
+        const tokenDoc = await db.collection("users").doc(targetUserId)
+          .collection("private").doc("tokens").get();
+        const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+        if (pushToken) {
+          const fetch = require("node-fetch");
+          const badgeCount = await getUnreadNotificationCount(targetUserId);
+          await fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Accept-Encoding": "gzip, deflate",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              to: pushToken,
+              sound: "default",
+              title: "Follow Request",
+              body: `${requesterName || "Someone"} wants to follow you`,
+              data: { type: "follow_request", requesterId },
+              badge: badgeCount,
+            }),
+          });
+        }
+      }
+      logger.info(`Follow request notification sent to ${targetUserId} from ${requesterId}`);
+    } catch (error) {
+      logger.error("Follow request notification error:", error);
+    }
+  }
+);
+
+// =============================================================
+// FUNCTION 31: onFollowRequestDelete
+// Notify requester when their follow request is accepted
+// =============================================================
+exports.onFollowRequestDelete = onDocumentDeleted(
+  "followRequests/{requestId}",
+  async (event) => {
+    const data = event.data.data();
+    const { requesterId, targetUserId } = data;
+    if (!requesterId || !targetUserId) return;
+
+    try {
+      // Check if the follow actually happened (= accepted, not declined/cancelled)
+      const requesterDoc = await db.collection("users").doc(requesterId).get();
+      if (!requesterDoc.exists) return;
+
+      const subscribedUsers = requesterDoc.data().subscribedUsers || [];
+      if (!subscribedUsers.includes(targetUserId)) {
+        // Request was declined or cancelled — no notification
+        return;
+      }
+
+      // Request was accepted — notify the requester
+      const targetDoc = await db.collection("users").doc(targetUserId).get();
+      const targetName = targetDoc.exists ? (targetDoc.data().name || "Someone") : "Someone";
+
+      // In-app notification
+      await db.collection("users").doc(requesterId)
+        .collection("notifications").add({
+          title: "Follow Request Accepted",
+          body: `${targetName} accepted your follow request`,
+          type: "follow_request_accepted",
+          data: { type: "follow_request_accepted", userId: targetUserId },
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+      // Push notification
+      if (requesterDoc.data().notificationsMuted !== true) {
+        const tokenDoc = await db.collection("users").doc(requesterId)
+          .collection("private").doc("tokens").get();
+        const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+        if (pushToken) {
+          const fetch = require("node-fetch");
+          const badgeCount = await getUnreadNotificationCount(requesterId);
+          await fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Accept-Encoding": "gzip, deflate",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              to: pushToken,
+              sound: "default",
+              title: "Follow Request Accepted",
+              body: `${targetName} accepted your follow request`,
+              data: { type: "follow_request_accepted", userId: targetUserId },
+              badge: badgeCount,
+            }),
+          });
+        }
+      }
+      logger.info(`Follow request accepted notification sent to ${requesterId}`);
+    } catch (error) {
+      logger.error("Follow request accepted notification error:", error);
     }
   }
 );
