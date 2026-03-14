@@ -53,7 +53,6 @@ const db = getFirestore();
 setGlobalOptions({
   maxInstances: 5,
   region: "us-central1",
-  memory: "256MiB",
 });
 
 // Cloudinary credentials (loaded from functions/.env)
@@ -3281,7 +3280,7 @@ const FALLBACK_TOPICS = [
 // v1 scheduled function — avoids Cloud Run CPU quota (uses gen1 infrastructure)
 const functionsV1 = require("firebase-functions/v1");
 exports.createBotChatroom = functionsV1
-  .runWith({ memory: "256MB", secrets: ["NEWS_API_KEY", "GEMINI_API_KEY"] })
+  .runWith({ secrets: ["NEWS_API_KEY", "GEMINI_API_KEY"] })
   .pubsub.schedule("0 8,12,16 * * *")
   .timeZone("America/Los_Angeles")
   .onRun(async () => {
