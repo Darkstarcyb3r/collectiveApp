@@ -1346,8 +1346,9 @@ const DashboardScreen = ({ navigation }) => {
                               colors={['#d8f434', '#b3f425', '#93f478']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
-                              style={[styles.pubGroupRow, isReorderingPublic && styles.reorderingRowAccentPublic]}
+                              style={styles.pubGroupRow}
                             >
+                              {isReorderingPublic && <View style={styles.reorderAccentStripePublic} />}
                               <View style={styles.pubGroupCreatorAvatar}>
                                 {pgCreator?.profilePhoto ? (
                                   <Image source={{ uri: pgCreator.profilePhoto }} style={styles.groupCreatorImage} />
@@ -1528,7 +1529,8 @@ const DashboardScreen = ({ navigation }) => {
                             delayLongPress={400}
                             activeOpacity={0.9}
                           >
-                            <View style={[styles.groupRow, { backgroundColor: '#222222' }, isReorderingPrivate && styles.reorderingRowAccentPrivate]}>
+                            <View style={[styles.groupRow, { backgroundColor: '#222222' }]}>
+                              {isReorderingPrivate && <View style={styles.reorderAccentStripe} />}
                               <View style={styles.groupCreatorAvatar}>
                                 {creator?.profilePhoto ? (
                                   <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
@@ -2394,13 +2396,25 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: '#1a1a1a',
   },
-  reorderingRowAccentPrivate: {
-    borderLeftWidth: 3,
-    borderLeftColor: 'rgba(255,255,255,0.25)',
+  reorderAccentStripe: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: 'rgba(187,187,187,0.7)',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
-  reorderingRowAccentPublic: {
-    borderLeftWidth: 3,
-    borderLeftColor: 'rgba(0,0,0,0.2)',
+  reorderAccentStripePublic: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
   },
 
 });
