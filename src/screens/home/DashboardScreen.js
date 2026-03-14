@@ -697,6 +697,9 @@ const DashboardScreen = ({ navigation }) => {
 
   const handleScrollBeginDrag = () => {
     showTabBar();
+    // Exit reorder mode when user starts scrolling away
+    if (isReorderingPrivate) exitReorderMode('private', sortedGroups);
+    if (isReorderingPublic) exitReorderMode('public', sortedPublicGroups);
   };
 
   const handleRoomsScroll = (event) => {
@@ -1248,17 +1251,17 @@ const DashboardScreen = ({ navigation }) => {
 
           {/* ==================== PUBLIC COLLECTIVE GROUPS ==================== */}
           <View style={styles.publicGroupsSection}>
-            <View style={[styles.sectionHeaderRow, { alignItems: 'flex-start' }]}>
+            <TouchableOpacity
+              style={[styles.sectionHeaderRow, { alignItems: 'flex-start' }]}
+              onPress={isReorderingPublic ? () => exitReorderMode('public', sortedPublicGroups) : undefined}
+              activeOpacity={isReorderingPublic ? 0.7 : 1}
+            >
               <View>
                 <Animated.Text style={[styles.publicGroupsTitle, { opacity: shimmerPublicGroups.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>Public Groups</Animated.Text>
                 {groups.length > 0 && <Text style={styles.publicGroupCounter}>{groups.length}/{MAX_GROUPS} groups created</Text>}
-                <Text style={styles.pinHintText}>hold to reorder</Text>
+                <Text style={styles.pinHintText}>{(isReorderingPrivate || isReorderingPublic) ? 'tap here to finish' : 'hold to reorder'}</Text>
               </View>
-              {isReorderingPublic ? (
-                <TouchableOpacity style={styles.doneReorderButton} onPress={() => exitReorderMode('public', sortedPublicGroups)}>
-                  <Text style={styles.doneReorderText}>Done</Text>
-                </TouchableOpacity>
-              ) : (
+              {!isReorderingPublic && (
                 <Animated.View style={{ transform: [{ scale: bounceAddPublicGroup.scale }] }}>
                 <TouchableOpacity
                   style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
@@ -1284,7 +1287,7 @@ const DashboardScreen = ({ navigation }) => {
                 </TouchableOpacity>
                 </Animated.View>
               )}
-            </View>
+            </TouchableOpacity>
 
             {/* Glass container wraps only the group buttons */}
             <BlurView intensity={10} tint="dark" style={styles.publicGroupsGlass}>
@@ -1424,8 +1427,8 @@ const DashboardScreen = ({ navigation }) => {
         <Animated.View style={{ opacity: sectionFadePrivate, transform: [{ translateY: sectionSlidePrivate }] }}>
         <BlurView intensity={10} tint="dark" style={styles.privateGroupsGlass}>
           <View style={styles.privateGroupsSection}>
-            {/* Section Header — tappable toggle (disabled during reorder) */}
-            <TouchableOpacity style={styles.sectionHeaderRow} onPress={isReorderingPrivate ? undefined : togglePrivateGroups} activeOpacity={isReorderingPrivate ? 1 : 0.7}>
+            {/* Section Header — tap to toggle collapse, or tap to exit reorder mode */}
+            <TouchableOpacity style={styles.sectionHeaderRow} onPress={isReorderingPrivate ? () => exitReorderMode('private', sortedGroups) : togglePrivateGroups} activeOpacity={0.7}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 {!isReorderingPrivate && (
                   <Animated.View style={{ transform: [{ rotate: privateChevronRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) }], marginRight: 8 }}>
@@ -1435,14 +1438,10 @@ const DashboardScreen = ({ navigation }) => {
                 <View>
                   <Animated.Text style={[styles.privateGroupsTitle, { opacity: shimmerPrivate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Private Groups</Animated.Text>
                   {groups.length > 0 && <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} groups created</Text>}
-                  <Text style={styles.pinHintText}>hold to reorder</Text>
+                  <Text style={styles.pinHintText}>{(isReorderingPrivate || isReorderingPublic) ? 'tap here to finish' : 'hold to reorder'}</Text>
                 </View>
               </View>
-              {isReorderingPrivate ? (
-                <TouchableOpacity style={styles.doneReorderButton} onPress={() => exitReorderMode('private', sortedGroups)}>
-                  <Text style={styles.doneReorderText}>Done</Text>
-                </TouchableOpacity>
-              ) : privateGroupsExpanded ? (
+              {!isReorderingPrivate && privateGroupsExpanded ? (
                 <Animated.View style={{ transform: [{ scale: bounceAddGroup.scale }] }}>
                 <TouchableOpacity
                   style={[styles.addButton, { shadowColor: 'transparent', shadowOpacity: 0 }, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
