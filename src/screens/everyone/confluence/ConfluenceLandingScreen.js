@@ -462,7 +462,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                       onPress={() => {
                         playClick()
                         setSelectedPost(null)
-                        navigation.navigate('CyberLoungeCreate', { initialName: 'confluence: ' })
+                        navigation.navigate('CyberLoungeCreate', { initialName: 're: confluence' })
                       }}
                     >
                       <LinearGradient
