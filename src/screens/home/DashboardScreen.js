@@ -1360,7 +1360,7 @@ const DashboardScreen = ({ navigation }) => {
                           enabled={!isReorderingPublic}
                         >
                           <TouchableOpacity
-                            style={[styles.pubGroupRowOuter, !pgActive && styles.groupRowInactive, isReorderingPublic && !pg.members?.includes(user?.uid) && { opacity: 0.4 }]}
+                            style={[styles.pubGroupRowOuter, isReorderingPublic && !pg.members?.includes(user?.uid) && { opacity: 0.4 }]}
                             onPress={() => { if (!isReorderingPublic) { playSwoosh(); markGroupVisited(pg.id); navigation.navigate('GroupDetail', { groupId: pg.id }); } }}
                             onLongPress={() => { if (!isReorderingPublic) enterReorderMode('public'); }}
                             delayLongPress={400}
@@ -1568,7 +1568,7 @@ const DashboardScreen = ({ navigation }) => {
                           enabled={!isReorderingPrivate}
                         >
                           <TouchableOpacity
-                            style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
+                            style={styles.groupRowOuter}
                             onPress={() => { if (!isReorderingPrivate) handleGroupPress(group.id); }}
                             onLongPress={() => { if (!isReorderingPrivate) enterReorderMode('private'); }}
                             delayLongPress={400}
