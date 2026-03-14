@@ -28,6 +28,7 @@ import { colors } from '../../theme'
 import { fonts } from '../../theme/typography'
 import { useAuth } from '../../contexts/AuthContext'
 import { searchUserByPhone, followUser, updateUserProfile, getFollowingUsers, getUserProfile } from '../../services/userService'
+import { formatPhoneNumber, stripPhoneFormatting } from '../../utils/formatPhoneNumber'
 import { playClick } from '../../services/soundService'
 import { firestore } from '../../config/firebase'
 
@@ -422,6 +423,9 @@ const AddFriendsScreen = ({ navigation, route }) => {
   const [searchInvite, setSearchInvite] = useState('')
   const [followingIds, setFollowingIds] = useState(new Set())
   const [invitedPhones, setInvitedPhones] = useState(new Set())
+  const [phoneInput, setPhoneInput] = useState('')
+  const [phoneSearchResult, setPhoneSearchResult] = useState(null) // null | 'searching' | 'not_found' | { user object }
+  const [phoneFollowed, setPhoneFollowed] = useState(false)
 
   // Filter contacts by search text
   const filteredCollective = useMemo(() => {
@@ -609,6 +613,37 @@ const AddFriendsScreen = ({ navigation, route }) => {
 
   // Keep ref in sync so the auto-load effect can call it
   handleAddContactsRef.current = handleAddContacts
+
+  // Search for a user by phone number
+  const handlePhoneSearch = useCallback(async (digitsOverride) => {
+    const digits = digitsOverride || stripPhoneFormatting(phoneInput)
+    if (digits.length < 10) return
+    setPhoneSearchResult('searching')
+    setPhoneFollowed(false)
+    try {
+      const result = await searchUserByPhone(digits)
+      if (result && result.id !== user?.uid) {
+        setPhoneSearchResult(result)
+      } else if (result && result.id === user?.uid) {
+        setPhoneSearchResult('not_found') // don't show self
+      } else {
+        setPhoneSearchResult('not_found')
+      }
+    } catch {
+      setPhoneSearchResult('not_found')
+    }
+  }, [phoneInput, user?.uid])
+
+  const handlePhoneFollow = useCallback(async () => {
+    if (!phoneSearchResult || typeof phoneSearchResult === 'string') return
+    try {
+      await followUser(user.uid, phoneSearchResult.id)
+      setPhoneFollowed(true)
+      setFollowingIds((prev) => new Set([...prev, phoneSearchResult.id]))
+    } catch (err) {
+      Alert.alert('Error', 'Could not follow this user.')
+    }
+  }, [phoneSearchResult, user?.uid])
 
   // Follow selected contacts on Collective
   const handleFollowSelected = useCallback(async () => {
@@ -832,6 +867,65 @@ const AddFriendsScreen = ({ navigation, route }) => {
 
               {step === 1 && (
                 <>
+                  {/* Phone number search */}
+                  <View style={styles.phoneSearchContainer}>
+                    <Text style={styles.sectionTitle}>search by phone number</Text>
+                    <View style={styles.phoneSearchRow}>
+                      <TextInput
+                        style={styles.phoneInput}
+                        placeholder="(555) 555-5555"
+                        placeholderTextColor="#666"
+                        keyboardType="phone-pad"
+                        value={phoneInput}
+                        onChangeText={(t) => {
+                          const formatted = formatPhoneNumber(t)
+                          setPhoneInput(formatted)
+                          const digits = stripPhoneFormatting(formatted)
+                          if (digits.length === 10) {
+                            handlePhoneSearch(digits)
+                          } else {
+                            setPhoneSearchResult(null)
+                            setPhoneFollowed(false)
+                          }
+                        }}
+                        maxLength={14}
+                      />
+                      <TouchableOpacity
+                        style={[styles.phoneSearchButton, stripPhoneFormatting(phoneInput).length < 10 && { opacity: 0.4 }]}
+                        onPress={handlePhoneSearch}
+                        disabled={stripPhoneFormatting(phoneInput).length < 10}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="search" size={16} color={colors.textDark} />
+                      </TouchableOpacity>
+                    </View>
+                    {phoneSearchResult === 'searching' && (
+                      <ActivityIndicator color={colors.primary} size="small" style={{ marginTop: 8 }} />
+                    )}
+                    {phoneSearchResult === 'not_found' && (
+                      <Text style={styles.phoneNotFound}>No user found with that number</Text>
+                    )}
+                    {phoneSearchResult && typeof phoneSearchResult === 'object' && (
+                      <View style={styles.phoneResultRow}>
+                        {phoneSearchResult.profilePhoto ? (
+                          <Image source={{ uri: phoneSearchResult.profilePhoto }} style={styles.phoneResultAvatar} />
+                        ) : (
+                          <View style={[styles.phoneResultAvatar, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
+                            <Ionicons name="person" size={16} color="#666" />
+                          </View>
+                        )}
+                        <Text style={styles.phoneResultName} numberOfLines={1}>{phoneSearchResult.name}</Text>
+                        {phoneFollowed || followingIds.has(phoneSearchResult.id) ? (
+                          <Text style={styles.phoneFollowedLabel}>following</Text>
+                        ) : (
+                          <TouchableOpacity style={styles.phoneFollowButton} onPress={handlePhoneFollow} activeOpacity={0.7}>
+                            <Text style={styles.phoneFollowText}>follow</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                  </View>
+
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>from your contacts</Text>
                     {!isProfileMode && contactsOnCollective.length > 0 && (
@@ -1100,6 +1194,75 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 14,
     fontFamily: fonts.bold,
+  },
+  phoneSearchContainer: {
+    marginBottom: 16,
+  },
+  phoneSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.textPrimary,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+  },
+  phoneSearchButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    padding: 10,
+  },
+  phoneNotFound: {
+    color: '#888',
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    marginTop: 8,
+  },
+  phoneResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  phoneResultAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+  phoneResultName: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  phoneFollowButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  phoneFollowText: {
+    color: colors.textDark,
+    fontFamily: fonts.bold,
+    fontSize: 12,
+  },
+  phoneFollowedLabel: {
+    color: colors.primary,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    opacity: 0.7,
   },
 })
 

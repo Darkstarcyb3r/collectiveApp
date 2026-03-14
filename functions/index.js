@@ -3265,21 +3265,26 @@ exports.onConfluencePostCreate = onDocumentCreated(
 // =============================================================
 
 const BOT_ID = "collective-bot";
-const BOT_NAME = "Collective";
-const BOT_PHOTO = null;
+const BOT_NAME = "Collective Bot";
+const BOT_PHOTO = "https://res.cloudinary.com/dvnslqkuw/image/upload/v1773477166/collective/collective_bot_avatar.jpg";
 const BOT_CHATROOM_HOURS = 4;
 
+const BOT_BACKGROUNDS = [
+  "chaoticOcean", "chromGirlie", "clouds", "feelingCute", "glitchGoddess",
+  "mountain", "organicGlitch", "slime", "spaceBase", "spring", "touchGrass", "water",
+];
+
 const FALLBACK_TOPICS = [
-  "What would you change about the world today",
-  "The most underrated skill everyone should learn",
-  "Would you live off the grid if you could",
-  "What does community mean to you right now",
-  "The future of cities — what are we building toward",
-  "Is social media making us more or less connected",
-  "What tech are you most excited about this year",
-  "What local issue deserves more national attention",
-  "If you could redesign one thing about daily life, what would it be",
-  "What does success look like to you in five years",
+  "ok but would you actually live off the grid",
+  "what's something you changed your mind about recently",
+  "drop your most unpopular opinion",
+  "what's the most underrated thing about where you live",
+  "if you could mass text the whole world what would you say",
+  "what's one thing you wish people talked about more",
+  "are we actually more connected now or just more online",
+  "what's the best advice you've ever ignored",
+  "what's something that's overhyped right now",
+  "what would you do different if you could start over tomorrow",
 ];
 
 exports.createBotChatroom = onSchedule(
@@ -3292,6 +3297,18 @@ exports.createBotChatroom = onSchedule(
   async (event) => {
     const newsApiKey = NEWS_API_KEY_SECRET.value();
     const geminiApiKey = GEMINI_API_KEY_SECRET.value();
+
+    // Guard: skip if an active bot room already exists
+    const existing = await db.collection("cyberLoungeRooms")
+      .where("isBot", "==", true)
+      .where("isActive", "==", true)
+      .where("expiresAt", ">", Timestamp.now())
+      .limit(1)
+      .get();
+    if (!existing.empty) {
+      logger.info("createBotChatroom: active bot room already exists, skipping.");
+      return;
+    }
 
     let roomName = null;
 
@@ -3316,6 +3333,15 @@ exports.createBotChatroom = onSchedule(
     }
 
     // --- Step 2: call Gemini Flash for a chat title ---
+    const TOPIC_VIBES = [
+      "current news events and what they mean for everyday people",
+      "community building, local culture, or collective action",
+      "technology, innovation, and what's next",
+      "pop culture, music, art, and trending entertainment",
+    ];
+    const vibeIndex = Math.floor(Date.now() / 1000) % TOPIC_VIBES.length;
+    const vibe = TOPIC_VIBES[vibeIndex];
+
     if (headlines.length > 0 && geminiApiKey && !geminiApiKey.startsWith("YOUR_")) {
       try {
         const { GoogleGenerativeAI } = require("@google/generative-ai");
@@ -3323,9 +3349,12 @@ exports.createBotChatroom = onSchedule(
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const prompt = [
-          "Based on the news headlines below, write ONE engaging live chat room title (5-9 words).",
-          "The title should invite broad, curious conversation — not political or divisive.",
-          "Return ONLY the title text. No quotes, no period at the end, nothing else.",
+          "You're writing a casual group chat topic for a social app. Think group chat energy, not a TED talk.",
+          "Based on the news headlines below, write ONE chat room title that sounds like something a friend would text you.",
+          `TOPIC ANGLE: Focus on ${vibe}.`,
+          "TONE: Casual, lowercase ok, conversational. Like a tweet or group chat message. Not a homework question.",
+          "STRICT RULES: Maximum 75 characters. No quotes, no period at the end. Not political or divisive.",
+          "Return ONLY the title text, nothing else.",
           "",
           "Headlines:",
           ...headlines.map((h, i) => `${i + 1}. ${h}`),
@@ -3333,7 +3362,7 @@ exports.createBotChatroom = onSchedule(
 
         const result = await model.generateContent(prompt);
         const text = result.response.text().trim().replace(/^["']|["']$/g, "");
-        if (text && text.length > 3 && text.length < 120) {
+        if (text && text.length > 3 && text.length <= 75) {
           roomName = text;
         }
       } catch (geminiErr) {
@@ -3352,7 +3381,7 @@ exports.createBotChatroom = onSchedule(
     const expiresAt = new Date(now.getTime() + BOT_CHATROOM_HOURS * 60 * 60 * 1000);
 
     try {
-      await db.collection("cyberLoungeRooms").add({
+      const roomRef = await db.collection("cyberLoungeRooms").add({
         name: roomName,
         hostId: BOT_ID,
         hostName: BOT_NAME,
@@ -3364,11 +3393,87 @@ exports.createBotChatroom = onSchedule(
         isActive: true,
         vibe: "none",
         stickers: [],
-        background: "none",
+        background: BOT_BACKGROUNDS[Math.floor(Math.random() * BOT_BACKGROUNDS.length)],
         customBackground: null,
         isBot: true,
       });
       logger.info("createBotChatroom: room created →", roomName);
+
+      // --- Step 5: notify connected users ---
+      try {
+        const usersSnapshot = await db.collection("users")
+          .where("everyoneNetworkEnabled", "==", true)
+          .get();
+
+        const eligibleUsers = usersSnapshot.docs.filter((doc) => {
+          const data = doc.data();
+          return Array.isArray(data.subscribedUsers) && data.subscribedUsers.length > 0;
+        });
+
+        if (eligibleUsers.length === 0) {
+          logger.info("createBotChatroom: no connected users to notify");
+        } else {
+          // Fetch push tokens
+          const tokenDocs = await Promise.all(
+            eligibleUsers.map((u) =>
+              db.collection("users").doc(u.id).collection("private").doc("tokens").get()
+            )
+          );
+
+          const messages = [];
+          for (const tokenDoc of tokenDocs) {
+            const token = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+            if (token) {
+              messages.push({
+                to: token,
+                sound: "default",
+                title: BOT_NAME,
+                body: `New chatroom: ${roomName}`,
+                data: { type: "cyber_lounge_room", roomId: roomRef.id },
+              });
+            }
+          }
+
+          if (messages.length > 0) {
+            const fetch = require("node-fetch");
+            // Expo recommends chunks of 100
+            for (let i = 0; i < messages.length; i += 100) {
+              const chunk = messages.slice(i, i + 100);
+              await fetch("https://exp.host/--/api/v2/push/send", {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Accept-Encoding": "gzip, deflate",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(chunk),
+              });
+            }
+            logger.info(`createBotChatroom: notified ${messages.length} user(s)`);
+          }
+
+          // Store in-app notifications (Firestore batch limit: 500)
+          for (let i = 0; i < eligibleUsers.length; i += 500) {
+            const batchChunk = eligibleUsers.slice(i, i + 500);
+            const batch = db.batch();
+            for (const userDoc of batchChunk) {
+              const notifRef = db.collection("users").doc(userDoc.id)
+                .collection("notifications").doc();
+              batch.set(notifRef, {
+                title: BOT_NAME,
+                body: `New chatroom: ${roomName}`,
+                type: "cyber_lounge_room",
+                data: { roomId: roomRef.id },
+                read: false,
+                createdAt: Timestamp.fromDate(now),
+              });
+            }
+            await batch.commit();
+          }
+        }
+      } catch (notifyErr) {
+        logger.warn("createBotChatroom: notification failed", notifyErr.message);
+      }
     } catch (writeErr) {
       logger.error("createBotChatroom: Firestore write failed", writeErr);
     }

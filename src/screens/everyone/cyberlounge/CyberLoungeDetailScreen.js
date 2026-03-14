@@ -742,7 +742,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
             >
               <Ionicons name="chevron-back" size={24} color={colors.primary} />
             </TouchableOpacity>
-            <Text style={styles.title} numberOfLines={1}>
+            <Text style={styles.title} numberOfLines={2}>
               {room?.name || 'Chatroom'}
             </Text>
             <View style={{ width: 24 }} />
@@ -1231,11 +1231,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    fontSize: 16,
+    fontSize: 13,
     fontFamily: fonts.bold,
     color: colors.primary,
     flex: 1,
     textAlign: 'center',
+    lineHeight: 18,
   },
 
   // Participant Counter

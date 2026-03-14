@@ -586,7 +586,7 @@ const DashboardScreen = ({ navigation }) => {
     const connectedUserIds = buildConnectedUserIds(user.uid, allNetworkUsers, excludedUsers, myFollowingUsers);
 
     const unsubRooms = subscribeToActiveRooms((roomList) => {
-      setRooms(roomList.filter((r) => !excludedUsers.includes(r.hostId) && connectedUserIds.has(r.hostId)));
+      setRooms(roomList.filter((r) => r.isBot || (!excludedUsers.includes(r.hostId) && connectedUserIds.has(r.hostId))));
       setRoomsLoaded(true);
       Animated.timing(roomsFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     });
@@ -1198,7 +1198,11 @@ const DashboardScreen = ({ navigation }) => {
                         onPress={() => navigation.navigate('CyberLoungeDetail', { roomId: room.id })}
                       >
                         <View style={styles.roomAvatarBanner}>
-                          {(roomParticipantProfiles[room.id] || []).slice(0, 4).map((p, idx) => (
+                          {room.isBot && room.hostPhoto ? (
+                            <Image source={{ uri: room.hostPhoto, cache: 'reload' }} style={styles.roomAvatar} />
+                          ) : (roomParticipantProfiles[room.id] || []).length === 0 && room.hostPhoto ? (
+                            <Image source={{ uri: room.hostPhoto, cache: 'reload' }} style={styles.roomAvatar} />
+                          ) : (roomParticipantProfiles[room.id] || []).slice(0, 4).map((p, idx) => (
                             <View key={p.id} style={{ marginLeft: idx > 0 ? -6 : 0, zIndex: 1 }}>
                               {p.profilePhoto ? (
                                 <Image source={{ uri: p.profilePhoto, cache: 'reload' }} style={styles.roomAvatar} />

@@ -2,6 +2,9 @@
   "expo": {
     "ios": {
       "bundleIdentifier": "com.darkstarcyb3r.functions"
+    },
+    "android": {
+      "package": "com.darkstarcyb3r.functions"
     }
   }
 }

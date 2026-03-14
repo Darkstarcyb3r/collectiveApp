@@ -1,0 +1,14 @@
+# Dependencies (reinstalled during cloud build)
+node_modules/
+
+# Expo/native directories (not needed for Cloud Functions)
+ios/
+android/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local files
+*.local

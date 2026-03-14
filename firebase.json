@@ -14,7 +14,9 @@
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",
-        "*.local"
+        "*.local",
+        "ios",
+        "android"
       ],
       "source": "functions"
     }
