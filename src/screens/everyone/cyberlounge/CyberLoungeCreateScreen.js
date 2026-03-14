@@ -29,9 +29,9 @@ import { STICKER_OPTIONS, MAX_STICKERS } from '../../../config/stickers'
 import { BACKGROUNDS, DEFAULT_BACKGROUND_ID, getBackgroundById } from '../../../config/backgrounds'
 import { playClick } from '../../../services/soundService'
 
-const CyberLoungeCreateScreen = ({ navigation }) => {
+const CyberLoungeCreateScreen = ({ navigation, route }) => {
   const { user, userProfile } = useAuth()
-  const [roomName, setRoomName] = useState('')
+  const [roomName, setRoomName] = useState(route?.params?.initialName || '')
   const [selectedVibe, setSelectedVibe] = useState(DEFAULT_VIBE_ID)
   const [vibeDropdownOpen, setVibeDropdownOpen] = useState(false)
   const [selectedStickers, setSelectedStickers] = useState([])

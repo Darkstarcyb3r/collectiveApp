@@ -377,56 +377,104 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                 />
               )}
               <View style={styles.popupCaptionBar}>
-                {/* Caption row */}
-                {selectedPost?.caption ? (
-                  <Text style={styles.popupCaptionText}>// {selectedPost.caption}</Text>
-                ) : null}
-
-                {/* Link + icons row */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: selectedPost?.caption ? 6 : 0 }}>
-                  {selectedPost?.link ? (
-                    <TouchableOpacity
-                      onPress={() => {
-                        playClick()
-                        const url = selectedPost.link.startsWith('http')
-                          ? selectedPost.link
-                          : `https://${selectedPost.link}`
-                        Linking.openURL(url).catch(() => {})
-                      }}
-                      style={{ flex: 1 }}
-                    >
-                      <Text style={styles.popupLinkText} numberOfLines={1}>
-                        {selectedPost.linkLabel || selectedPost.link}
-                      </Text>
-                    </TouchableOpacity>
+                {/* Author row */}
+                <View style={styles.popupAuthorRow}>
+                  {selectedPost?.authorPhoto ? (
+                    <Image source={{ uri: selectedPost.authorPhoto }} style={styles.popupAuthorAvatar} />
                   ) : (
-                    <View style={{ flex: 1 }} />
+                    <View style={[styles.popupAuthorAvatar, styles.popupAuthorAvatarPlaceholder]}>
+                      <Ionicons name="person" size={12} color="#666" />
+                    </View>
                   )}
+                  <Text style={styles.popupAuthorName} numberOfLines={1}>{selectedPost?.authorName || 'anonymous'}</Text>
+                  <View style={{ flex: 1 }} />
                   {selectedPost?.authorId === user?.uid ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginLeft: 12 }}>
-                      <TouchableOpacity
-                        onPress={handleEditPost}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                      <TouchableOpacity onPress={handleEditPost} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                         <Ionicons name="pencil-outline" size={16} color={colors.textPrimary} />
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={handleDeletePost}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
+                      <TouchableOpacity onPress={handleDeletePost} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                         <Ionicons name="trash-outline" size={16} color="#ff6b6b" />
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <TouchableOpacity
-                      onPress={openFlagModal}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      style={{ marginLeft: 12 }}
-                    >
+                    <TouchableOpacity onPress={openFlagModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                       <Ionicons name="flag-outline" size={16} color={colors.textPrimary} />
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {/* Caption row */}
+                {selectedPost?.caption ? (
+                  <Text style={[styles.popupCaptionText, { marginTop: 8 }]}>// {selectedPost.caption}</Text>
+                ) : null}
+
+                {/* Link row */}
+                {selectedPost?.link ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      playClick()
+                      const url = selectedPost.link.startsWith('http')
+                        ? selectedPost.link
+                        : `https://${selectedPost.link}`
+                      Linking.openURL(url).catch(() => {})
+                    }}
+                    style={{ marginTop: 6 }}
+                  >
+                    <Text style={styles.popupLinkText} numberOfLines={1}>
+                      {selectedPost.linkLabel || selectedPost.link}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                {/* Action buttons — only shown for other users' posts */}
+                {selectedPost?.authorId !== user?.uid && (
+                  <View style={styles.popupActionRow}>
+                    <TouchableOpacity
+                      style={styles.popupActionBtnOuter}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        playClick()
+                        navigation.navigate('Chat', {
+                          otherUserId: selectedPost?.authorId,
+                          otherUserName: selectedPost?.authorName || 'Unknown',
+                          otherUserPhoto: selectedPost?.authorPhoto || null,
+                        })
+                      }}
+                    >
+                      <LinearGradient
+                        colors={['#d8f434', '#b3f425', '#93f478']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.popupActionBtn}
+                      >
+                        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} style={styles.popupActionBtnHighlight} />
+                        <Ionicons name="chatbubble-outline" size={13} color="#000" />
+                        <Text style={styles.popupActionBtnText}>DM author</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.popupActionBtnOuter}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        playClick()
+                        navigation.navigate('CyberLoungeCreate', { initialName: 'confluence: ' })
+                      }}
+                    >
+                      <LinearGradient
+                        colors={['#d8f434', '#b3f425', '#93f478']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.popupActionBtn}
+                      >
+                        <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} style={styles.popupActionBtnHighlight} />
+                        <Ionicons name="radio-outline" size={13} color="#000" />
+                        <Text style={styles.popupActionBtnText}>re: create live chat</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             </View>
           </View>
@@ -676,6 +724,26 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
+  popupAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  popupAuthorAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  popupAuthorAvatarPlaceholder: {
+    backgroundColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popupAuthorName: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textPrimary,
+  },
   popupCaptionText: {
     fontSize: 13,
     fontFamily: fonts.mono,
@@ -686,6 +754,50 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     color: colors.textPrimary,
     textDecorationLine: 'underline',
+  },
+  popupActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  popupActionBtnOuter: {
+    flex: 1,
+    borderRadius: 14,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  popupActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.8)',
+    borderLeftColor: 'rgba(255,255,255,0.6)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    borderRightColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    gap: 5,
+  },
+  popupActionBtnHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+  },
+  popupActionBtnText: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: '#000',
+    fontWeight: '600',
   },
 
   // Flag/Report Modal
