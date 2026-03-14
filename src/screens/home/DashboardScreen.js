@@ -1574,7 +1574,7 @@ const DashboardScreen = ({ navigation }) => {
                             delayLongPress={400}
                             activeOpacity={0.9}
                           >
-                            <View style={[styles.groupRow, { backgroundColor: isReorderingPrivate ? colors.primary : '#222222' }]}>
+                            <View style={[styles.groupRow, { backgroundColor: isReorderingPrivate ? '#ffffff' : '#222222' }]}>
                               <View style={styles.groupCreatorAvatar}>
                                 {creator?.profilePhoto ? (
                                   <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
@@ -1584,7 +1584,7 @@ const DashboardScreen = ({ navigation }) => {
                                   </View>
                                 )}
                               </View>
-                              <Text style={[styles.groupName, { color: isReorderingPrivate ? '#1a1a1a' : '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
+                              <Text style={[styles.groupName, { color: isReorderingPrivate ? '#000000' : '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
                               {active && !isReorderingPrivate && (
                                 <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
                               )}
