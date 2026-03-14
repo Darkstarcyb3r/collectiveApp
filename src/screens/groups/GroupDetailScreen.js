@@ -409,10 +409,22 @@ const GroupDetailScreen = ({ navigation, route }) => {
                     <TouchableOpacity
                       onPress={handleJoinGroup}
                       disabled={joiningGroup}
-                      style={styles.joinGroupBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={styles.joinGroupBtnOuter}
+                      activeOpacity={0.8}
                     >
-                      <Text style={styles.joinGroupBtnText}>{joiningGroup ? '…' : 'Join'}</Text>
+                      <LinearGradient
+                        colors={['#d8f434', '#b3f425', '#93f478']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.joinGroupBtn}
+                      >
+                        <LinearGradient
+                          colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']}
+                          style={styles.joinGroupBtnHighlight}
+                        />
+                        <Ionicons name="add" size={14} color={colors.textDark} />
+                        <Text style={styles.joinGroupBtnText}>{joiningGroup ? '…' : 'Join'}</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -711,18 +723,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  joinGroupBtn: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+  joinGroupBtnOuter: {
+    borderRadius: 16,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
     marginRight: 10,
   },
+  joinGroupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.8)',
+    borderLeftColor: 'rgba(255,255,255,0.6)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    borderRightColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+  },
+  joinGroupBtnHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
   joinGroupBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: fonts.medium,
-    color: colors.textPrimary,
-    fontWeight: '600',
+    color: colors.textDark,
+    marginLeft: 4,
   },
   creatorSection: {
     flexDirection: 'row',
