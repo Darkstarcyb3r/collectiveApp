@@ -1356,7 +1356,13 @@ const DashboardScreen = ({ navigation }) => {
                             activeOpacity={0.9}
                           >
                             <LinearGradient
-                              colors={isReorderingPublic ? [colors.primary, colors.primary] : ['#cafb6c', '#71f200', '#23ff0d']}
+                              colors={
+                                isReorderingPublic
+                                  ? [colors.primary, colors.primary]
+                                  : pg.members?.includes(user?.uid)
+                                    ? ['#cafb6c', '#71f200', '#23ff0d']
+                                    : ['#f9a8d4', '#e879f9', '#a855f7']
+                              }
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={styles.pubGroupRow}
