@@ -1189,27 +1189,8 @@ export const deleteBarterPost = async (postId) => {
 export const createConfluencePost = async (postData) => {
   try {
 
-    // Check monthly post count — single-field query, filter by date client-side
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const allUserPosts = await firestore().collection('confluencePosts')
-      .where('authorId', '==', postData.authorId)
-      .get();
-
-    let monthlyCount = 0;
-    allUserPosts.forEach((doc) => {
-      const data = doc.data();
-      const postDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-      if (postDate >= startOfMonth) {
-        monthlyCount++;
-      }
-    });
-
-
-    if (monthlyCount >= 10) {
-      return { success: false, error: 'You have reached your 10 confluence contributions for this month.' };
-    }
+    // Monthly post limit temporarily disabled to encourage content during early growth
+    // TODO: re-enable when platform has sufficient activity
 
     // Validate text fields
     postData.caption = validateText(postData.caption, 'confluenceCaption');

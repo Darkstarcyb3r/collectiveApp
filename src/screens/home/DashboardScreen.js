@@ -33,6 +33,12 @@ import { getUserGroups, deleteGroup, leaveGroup, getMemberProfiles, getPublicGro
 import { updateUserProfile } from '../../services/userService';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {
+  ScaleDecorator,
+  ShadowDecorator,
+  NestableScrollContainer,
+  NestableDraggableFlatList,
+} from 'react-native-draggable-flatlist';
+import {
   subscribeToActiveRooms,
   subscribeToConfluencePosts,
   subscribeToEvents,
@@ -158,7 +164,8 @@ const DashboardScreen = ({ navigation }) => {
   const [groupsLoaded, setGroupsLoaded] = useState(false);
   const [publicGroups, setPublicGroups] = useState([]);
   const [publicGroupCreators, setPublicGroupCreators] = useState({});
-  const [localPinnedIds, setLocalPinnedIds] = useState([]);
+  const [manualPrivateOrder, setManualPrivateOrder] = useState(null); // null = activity sort
+  const [manualPublicOrder, setManualPublicOrder] = useState(null);
   const [roomsLoaded, setRoomsLoaded] = useState(false);
   const [privateGroupsExpanded, setPrivateGroupsExpanded] = useState(false);
   const privateGroupsHeight = useRef(new Animated.Value(0)).current;
@@ -166,8 +173,6 @@ const DashboardScreen = ({ navigation }) => {
   const groupsFade = useRef(new Animated.Value(0)).current;
   const roomsFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
-  const groupsScrollThumb = useRef(new Animated.Value(0)).current;
-  const publicGroupsScrollThumb = useRef(new Animated.Value(0)).current;
   const roomsScrollThumbAnim = useRef(new Animated.Value(0)).current;
   const [groupConfirmModal, setGroupConfirmModal] = useState({ visible: false, group: null });
   const onboardingComplete = userProfile?.onboardingComplete === true;
@@ -490,11 +495,12 @@ const DashboardScreen = ({ navigation }) => {
   }, []);
 
   // Section title shimmer — looping light sweep
-  // Sync pinned groups from userProfile
+  // Load saved group order from userProfile (only when not actively reordering)
   useEffect(() => {
-    setLocalPinnedIds(userProfile?.pinnedGroupIds || []);
+    if (userProfile?.groupOrder) setManualPrivateOrder(userProfile.groupOrder);
+    if (userProfile?.publicGroupOrder) setManualPublicOrder(userProfile.publicGroupOrder);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile?.pinnedGroupIds?.length]);
+  }, [userProfile?.groupOrder?.length, userProfile?.publicGroupOrder?.length]);
 
   useEffect(() => {
     const shimmerLoop = Animated.loop(
@@ -696,30 +702,6 @@ const DashboardScreen = ({ navigation }) => {
     showTabBar();
   };
 
-  const handleGroupsScroll = (event) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const scrollableHeight = contentSize.height - layoutMeasurement.height;
-    if (scrollableHeight > 0) {
-      const scrollPercent = contentOffset.y / scrollableHeight;
-      const trackHeight = 97; // matches groupsScrollView height
-      const thumbHeight = 40;
-      const maxThumbOffset = trackHeight - thumbHeight;
-      groupsScrollThumb.setValue(scrollPercent * maxThumbOffset);
-    }
-  };
-
-  const handlePublicGroupsScroll = (event) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const scrollableHeight = contentSize.height - layoutMeasurement.height;
-    if (scrollableHeight > 0) {
-      const scrollPercent = contentOffset.y / scrollableHeight;
-      const trackHeight = 210; // matches public groups container height
-      const thumbHeight = 40;
-      const maxThumbOffset = trackHeight - thumbHeight;
-      publicGroupsScrollThumb.setValue(scrollPercent * maxThumbOffset);
-    }
-  };
-
   const handleRoomsScroll = (event) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const scrollableHeight = contentSize.height - layoutMeasurement.height;
@@ -770,13 +752,9 @@ const DashboardScreen = ({ navigation }) => {
       ? await deleteGroup(group.id, group.creatorId)
       : await leaveGroup(group.id, user.uid);
     if (result.success) {
-      // Clean up pin if this group was pinned
-      if (localPinnedIds.includes(group.id)) {
-        setLocalPinnedIds((prev) => prev.filter((id) => id !== group.id));
-        updateUserProfile(user.uid, {
-          pinnedGroupIds: firestore.FieldValue.arrayRemove(group.id),
-        }).catch(() => {});
-      }
+      // Clean up this group from saved order if present
+      setManualPrivateOrder((prev) => prev ? prev.filter((id) => id !== group.id) : prev);
+      setManualPublicOrder((prev) => prev ? prev.filter((id) => id !== group.id) : prev);
       fetchGroups();
       fetchPublicGroups();
     } else {
@@ -799,57 +777,113 @@ const DashboardScreen = ({ navigation }) => {
     );
   };
 
-  const MAX_PINS_PER_SECTION = 3;
+  // --- Drag Reorder ---
 
-  const handleTogglePin = async (groupId, sectionGroupIds) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Vibration.vibrate();
-    const isPinned = localPinnedIds.includes(groupId);
+  const onPrivateDragEnd = ({ data }) => {
+    const newOrder = data.map((g) => g.id);
+    setManualPrivateOrder(newOrder);
+    updateUserProfile(user.uid, { groupOrder: newOrder }).catch(() => {});
+  };
 
-    let removedPinId = null;
+  const onPublicDragEnd = ({ data }) => {
+    const newOrder = data.map((g) => g.id);
+    setManualPublicOrder(newOrder);
+    updateUserProfile(user.uid, { publicGroupOrder: newOrder }).catch(() => {});
+  };
 
-    if (!isPinned) {
-      // Check if section is full — if so, replace the oldest pin in this section
-      const sectionPins = localPinnedIds.filter((id) => sectionGroupIds.includes(id));
-      if (sectionPins.length >= MAX_PINS_PER_SECTION) {
-        removedPinId = sectionPins[0]; // oldest pin (first added)
-      }
-    }
+  const renderPrivateGroupItem = ({ item: group, drag, isActive }) => {
+    const active = isGroupActive(group);
+    const creator = groupCreators[group.creatorId];
+    return (
+      <ScaleDecorator>
+        <ShadowDecorator>
+          <Swipeable
+            renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
+            rightThreshold={40}
+            overshootRight={false}
+            enabled={!isActive}
+          >
+            <TouchableOpacity
+              style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
+              onPress={() => { if (!isActive) handleGroupPress(group.id); }}
+              onLongPress={drag}
+              delayLongPress={200}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.groupRow, { backgroundColor: '#222222' }]}>
+                <View style={styles.groupCreatorAvatar}>
+                  {creator?.profilePhoto ? (
+                    <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
+                  ) : (
+                    <View style={styles.groupCreatorPlaceholder}>
+                      <Ionicons name="person" size={12} color="#999" />
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.groupName, { color: '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
+                {active && !isActive && (
+                  <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
+                )}
+                <Ionicons name="chevron-forward" size={16} color="rgba(187,187,187,0.6)" style={{ marginLeft: 8 }} />
+              </View>
+            </TouchableOpacity>
+          </Swipeable>
+        </ShadowDecorator>
+      </ScaleDecorator>
+    );
+  };
 
-    // Optimistic update
-    let newPinnedIds;
-    if (isPinned) {
-      newPinnedIds = localPinnedIds.filter((id) => id !== groupId);
-    } else if (removedPinId) {
-      // Replace oldest pin with new one
-      newPinnedIds = [...localPinnedIds.filter((id) => id !== removedPinId), groupId];
-    } else {
-      newPinnedIds = [...localPinnedIds, groupId];
-    }
-    setLocalPinnedIds(newPinnedIds);
-
-    // Persist to Firestore
-    try {
-      if (removedPinId) {
-        // Remove old pin and add new one
-        await updateUserProfile(user.uid, {
-          pinnedGroupIds: firestore.FieldValue.arrayRemove(removedPinId),
-        });
-        await updateUserProfile(user.uid, {
-          pinnedGroupIds: firestore.FieldValue.arrayUnion(groupId),
-        });
-      } else {
-        await updateUserProfile(user.uid, {
-          pinnedGroupIds: isPinned
-            ? firestore.FieldValue.arrayRemove(groupId)
-            : firestore.FieldValue.arrayUnion(groupId),
-        });
-      }
-    } catch (_error) {
-      // Rollback on failure
-      setLocalPinnedIds(localPinnedIds);
-      Alert.alert('Error', 'Could not update pin. Please try again.');
-    }
+  const renderPublicGroupItem = ({ item: pg, drag, isActive }) => {
+    const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
+    const pgActive = isGroupActive(pg);
+    return (
+      <ScaleDecorator>
+        <ShadowDecorator>
+          <Swipeable
+            renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, pg)}
+            rightThreshold={40}
+            overshootRight={false}
+            enabled={!isActive}
+          >
+            <TouchableOpacity
+              style={[styles.pubGroupRowOuter, !pgActive && styles.groupRowInactive]}
+              onPress={() => {
+                if (!isActive) {
+                  playSwoosh();
+                  markGroupVisited(pg.id);
+                  navigation.navigate('GroupDetail', { groupId: pg.id });
+                }
+              }}
+              onLongPress={drag}
+              delayLongPress={200}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={['#d8f434', '#b3f425', '#93f478']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.pubGroupRow}
+              >
+                <View style={styles.pubGroupCreatorAvatar}>
+                  {pgCreator?.profilePhoto ? (
+                    <Image source={{ uri: pgCreator.profilePhoto }} style={styles.groupCreatorImage} />
+                  ) : (
+                    <View style={styles.groupCreatorPlaceholder}>
+                      <Ionicons name="person" size={14} color="#666" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.pubGroupName} numberOfLines={1}>{pg.name || '------'}</Text>
+                {pgActive && !isActive && (
+                  <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1a1a1a', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
+                )}
+                <Ionicons name="chevron-forward" size={18} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </Swipeable>
+        </ShadowDecorator>
+      </ScaleDecorator>
+    );
   };
 
 
@@ -881,27 +915,35 @@ const DashboardScreen = ({ navigation }) => {
     }
   });
 
-  const pinnedSet = new Set(localPinnedIds);
+  const sortedGroups = manualPrivateOrder && manualPrivateOrder.length > 0
+    ? [...privateGroups].sort((a, b) => {
+        const ai = manualPrivateOrder.indexOf(a.id);
+        const bi = manualPrivateOrder.indexOf(b.id);
+        if (ai === -1 && bi === -1) return 0;
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      })
+    : [...privateGroups].sort((a, b) => {
+        const aActive = isGroupActive(a) ? 1 : 0;
+        const bActive = isGroupActive(b) ? 1 : 0;
+        return bActive - aActive;
+      });
 
-  const sortedGroups = [...privateGroups].sort((a, b) => {
-    const aPinned = pinnedSet.has(a.id) ? 1 : 0;
-    const bPinned = pinnedSet.has(b.id) ? 1 : 0;
-    if (aPinned !== bPinned) return bPinned - aPinned;
-    if (aPinned && bPinned) return localPinnedIds.indexOf(a.id) - localPinnedIds.indexOf(b.id);
-    const aActive = isGroupActive(a) ? 1 : 0;
-    const bActive = isGroupActive(b) ? 1 : 0;
-    return bActive - aActive;
-  });
-
-  const sortedPublicGroups = [...displayedPublicGroups].sort((a, b) => {
-    const aPinned = pinnedSet.has(a.id) ? 1 : 0;
-    const bPinned = pinnedSet.has(b.id) ? 1 : 0;
-    if (aPinned !== bPinned) return bPinned - aPinned;
-    if (aPinned && bPinned) return localPinnedIds.indexOf(a.id) - localPinnedIds.indexOf(b.id);
-    const aActive = isGroupActive(a) ? 1 : 0;
-    const bActive = isGroupActive(b) ? 1 : 0;
-    return bActive - aActive;
-  });
+  const sortedPublicGroups = manualPublicOrder && manualPublicOrder.length > 0
+    ? [...displayedPublicGroups].sort((a, b) => {
+        const ai = manualPublicOrder.indexOf(a.id);
+        const bi = manualPublicOrder.indexOf(b.id);
+        if (ai === -1 && bi === -1) return 0;
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      })
+    : [...displayedPublicGroups].sort((a, b) => {
+        const aActive = isGroupActive(a) ? 1 : 0;
+        const bActive = isGroupActive(b) ? 1 : 0;
+        return bActive - aActive;
+      });
 
   // --- Event Date Formatter ---
   const formatEventDate = (dateVal) => {
@@ -960,7 +1002,7 @@ const DashboardScreen = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
-      <ScrollView
+      <NestableScrollContainer
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         onScroll={handleScroll}
@@ -1230,26 +1272,28 @@ const DashboardScreen = ({ navigation }) => {
               activeOpacity={0.9}
             >
               <Text style={styles.subSectionTitleLight}>Confluence {'>'}</Text>
-              <View style={styles.confluenceImagesRow}>
-                {confluencePosts.length > 0 ? (
-                  <>
+              <View style={{ gap: 8 }}>
+                <View style={styles.confluenceImagesRow}>
+                  <View style={styles.confluenceImageFrame}>
+                    <Image source={{ uri: confluencePosts[0]?.imageUrl }} style={styles.confluenceImage} />
+                  </View>
+                  {confluencePosts.length > 1 && (
                     <View style={styles.confluenceImageFrame}>
-                      <Image
-                        source={{ uri: confluencePosts[0]?.imageUrl }}
-                        style={styles.confluenceImage}
-                      />
+                      <Image source={{ uri: confluencePosts[1]?.imageUrl }} style={styles.confluenceImage} />
                     </View>
-                    {confluencePosts.length > 1 && (
+                  )}
+                </View>
+                {confluencePosts.length > 2 && (
+                  <View style={styles.confluenceImagesRow}>
+                    <View style={styles.confluenceImageFrame}>
+                      <Image source={{ uri: confluencePosts[2]?.imageUrl }} style={styles.confluenceImage} />
+                    </View>
+                    {confluencePosts.length > 3 && (
                       <View style={styles.confluenceImageFrame}>
-                        <Image
-                          source={{ uri: confluencePosts[1]?.imageUrl }}
-                          style={styles.confluenceImage}
-                        />
+                        <Image source={{ uri: confluencePosts[3]?.imageUrl }} style={styles.confluenceImage} />
                       </View>
                     )}
-                  </>
-                ) : (
-                  <Text style={styles.confluenceEmptyText}>No posts yet</Text>
+                  </View>
                 )}
               </View>
             </TouchableOpacity>
@@ -1292,6 +1336,7 @@ const DashboardScreen = ({ navigation }) => {
               <View>
                 <Animated.Text style={[styles.publicGroupsTitle, { opacity: shimmerPublicGroups.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>Public Groups</Animated.Text>
                 {groups.length > 0 && <Text style={styles.publicGroupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>}
+                <Text style={styles.pinHintText}>hold to reorder</Text>
               </View>
               <Animated.View style={{ transform: [{ scale: bounceAddPublicGroup.scale }] }}>
               <TouchableOpacity
@@ -1322,94 +1367,22 @@ const DashboardScreen = ({ navigation }) => {
             {/* Glass container wraps only the group buttons */}
             <BlurView intensity={10} tint="dark" style={styles.publicGroupsGlass}>
               <View style={styles.publicGroupsContainer}>
-                <View style={styles.groupsScrollRow}>
-                  <ScrollView
-                    style={[styles.groupsScrollView, { height: 97 }]}
-                    nestedScrollEnabled={true}
+                <View style={{ maxHeight: 190, overflow: 'hidden' }}>
+                  <NestableDraggableFlatList
+                    data={sortedPublicGroups}
+                    renderItem={renderPublicGroupItem}
+                    keyExtractor={(item) => item.id}
+                    onDragEnd={onPublicDragEnd}
+                    onDragBegin={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
                     showsVerticalScrollIndicator={false}
-                    onScroll={handlePublicGroupsScroll}
-                    scrollEventThrottle={16}
-                    scrollEnabled={sortedPublicGroups.length > 3}
-                  >
-                    {sortedPublicGroups.map((pg) => {
-                      const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
-                      const pgActive = isGroupActive(pg);
-                      return (
-                        <Swipeable
-                          key={pg.id}
-                          renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, pg)}
-                          rightThreshold={40}
-                          overshootRight={false}
-                        >
-                        <BounceWrap>
-                          {({ onPressIn, onPressOut }) => (
-                        <TouchableOpacity
-                          style={[styles.pubGroupRowOuter, !pgActive && styles.groupRowInactive]}
-                          onPress={() => {
-                            playSwoosh();
-                            markGroupVisited(pg.id);
-                            navigation.navigate('GroupDetail', { groupId: pg.id });
-                          }}
-                          onLongPress={() => handleTogglePin(pg.id, sortedPublicGroups.map((g) => g.id))}
-                          delayLongPress={400}
-                          onPressIn={onPressIn}
-                          onPressOut={onPressOut}
-                          activeOpacity={0.9}
-                        >
-                          <LinearGradient
-                            colors={['#d8f434', '#b3f425', '#93f478']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.pubGroupRow}
-                          >
-                            {/* Pin Icon — only visible when pinned */}
-                            {pinnedSet.has(pg.id) && (
-                              <Ionicons name="pin" size={12} color="#000000" style={{ marginRight: 4 }} />
-                            )}
-
-                            <View style={styles.pubGroupCreatorAvatar}>
-                              {pgCreator?.profilePhoto ? (
-                                <Image source={{ uri: pgCreator.profilePhoto }} style={styles.groupCreatorImage} />
-                              ) : (
-                                <View style={styles.groupCreatorPlaceholder}>
-                                  <Ionicons name="person" size={14} color="#666" />
-                                </View>
-                              )}
-                            </View>
-                            <Text style={styles.pubGroupName} numberOfLines={1}>{pg.name || '------'}</Text>
-
-                            {/* Activity dot for active groups */}
-                            {pgActive && (
-                              <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1a1a1a', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
-                            )}
-
-                            <Ionicons name="chevron-forward" size={18} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
-                          </LinearGradient>
+                    ListFooterComponent={
+                      sortedPublicGroups.length < 3 ? (
+                        <TouchableOpacity style={styles.pubGroupPlaceholder} onPress={() => handleCreateGroup(true)}>
+                          <Text style={styles.emptyText}>make your group public</Text>
                         </TouchableOpacity>
-                          )}
-                        </BounceWrap>
-                        </Swipeable>
-                      );
-                    })}
-                    {/* Ghost placeholder row */}
-                    {sortedPublicGroups.length < 3 && (
-                      <TouchableOpacity key="pub-placeholder" style={styles.pubGroupPlaceholder} onPress={() => handleCreateGroup(true)}>
-                        <Text style={styles.emptyText}>make your group public</Text>
-                      </TouchableOpacity>
-                    )}
-                  </ScrollView>
-
-                  {/* Scroll track — always visible */}
-                  <View style={styles.groupsScrollTrack}>
-                    {sortedPublicGroups.length > 3 && (
-                      <Animated.View
-                        style={[
-                          styles.groupsScrollThumb,
-                          { transform: [{ translateY: publicGroupsScrollThumb }] },
-                        ]}
-                      />
-                    )}
-                  </View>
+                      ) : null
+                    }
+                  />
                 </View>
               </View>
             </BlurView>
@@ -1484,6 +1457,7 @@ const DashboardScreen = ({ navigation }) => {
                 <View>
                   <Animated.Text style={[styles.privateGroupsTitle, { opacity: shimmerPrivate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Private Groups</Animated.Text>
                   {groups.length > 0 && <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>}
+                  <Text style={styles.pinHintText}>hold to reorder</Text>
                 </View>
               </View>
               {privateGroupsExpanded && (
@@ -1506,7 +1480,7 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
 
           {/* Groups Scrollable Container — collapsible */}
-          <Animated.View style={{ maxHeight: privateGroupsHeight.interpolate({ inputRange: [0, 1], outputRange: [0, 300] }), overflow: 'hidden', opacity: privateGroupsHeight }}>
+          <Animated.View style={{ maxHeight: privateGroupsHeight.interpolate({ inputRange: [0, 1], outputRange: [0, 400] }), overflow: 'hidden', opacity: privateGroupsHeight }}>
           <View style={styles.groupsContainer}>
             {!groupsLoaded ? (
               <View style={{ paddingVertical: 4 }}>
@@ -1515,93 +1489,22 @@ const DashboardScreen = ({ navigation }) => {
                 <SkeletonGroupRow delay={300} />
               </View>
             ) : (
-              <Animated.View style={[styles.groupsScrollRow, { opacity: groupsFade }]}>
-                <ScrollView
-                  style={[styles.groupsScrollView, { height: 97 }]}
-                  nestedScrollEnabled={true}
+              <Animated.View style={[{ opacity: groupsFade }, { maxHeight: 190, overflow: 'hidden' }]}>
+                <NestableDraggableFlatList
+                  data={sortedGroups}
+                  renderItem={renderPrivateGroupItem}
+                  keyExtractor={(item) => item.id}
+                  onDragEnd={onPrivateDragEnd}
+                  onDragBegin={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
                   showsVerticalScrollIndicator={false}
-                  onScroll={handleGroupsScroll}
-                  scrollEventThrottle={16}
-                  scrollEnabled={sortedGroups.length > 2}
-                >
-                  {sortedGroups.map((group, _idx) => {
-                    const active = isGroupActive(group);
-                    const creator = groupCreators[group.creatorId];
-                    return (
-                      <Swipeable
-                        key={group.id}
-                        renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
-                        rightThreshold={40}
-                        overshootRight={false}
-                      >
-                        <BounceWrap>
-                          {({ onPressIn, onPressOut }) => (
-                        <TouchableOpacity
-                          style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
-                          onPress={() => handleGroupPress(group.id)}
-                          onLongPress={() => handleTogglePin(group.id, privateGroups.map((g) => g.id))}
-                          delayLongPress={400}
-                          onPressIn={onPressIn}
-                          onPressOut={onPressOut}
-                          activeOpacity={0.9}
-                        >
-                          <View style={[styles.groupRow, { backgroundColor: '#222222' }]}>
-                            {/* Pin Icon — only visible when pinned */}
-                            {pinnedSet.has(group.id) && (
-                              <Ionicons name="pin" size={12} color="#bbbbbb" style={{ marginRight: 4 }} />
-                            )}
-
-                            {/* Creator Avatar */}
-                            <View style={styles.groupCreatorAvatar}>
-                              {creator?.profilePhoto ? (
-                                <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
-                              ) : (
-                                <View style={styles.groupCreatorPlaceholder}>
-                                  <Ionicons name="person" size={12} color="#999" />
-                                </View>
-                              )}
-                            </View>
-
-                            {/* Group Name */}
-                            <Text style={[styles.groupName, { color: '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
-
-                            {/* Activity dot for active groups */}
-                            {active && (
-                              <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
-                            )}
-
-                            {/* Arrow */}
-                            <Ionicons name="chevron-forward" size={16} color="rgba(187,187,187,0.6)" style={{ marginLeft: 8 }} />
-                          </View>
-                        </TouchableOpacity>
-                          )}
-                        </BounceWrap>
-                      </Swipeable>
-                    );
-                  })}
-                  {/* Ghost placeholder row */}
-                  {sortedGroups.length < MAX_GROUPS && (
-                    <TouchableOpacity
-                      key="placeholder"
-                      style={styles.groupPlaceholder}
-                      onPress={() => handleCreateGroup(false)}
-                    >
-                      <Text style={styles.emptyText}>create a group</Text>
-                    </TouchableOpacity>
-                  )}
-                </ScrollView>
-
-                {/* Always-visible scroll track */}
-                <View style={styles.groupsScrollTrack}>
-                  {sortedGroups.length > 2 && (
-                    <Animated.View
-                      style={[
-                        styles.groupsScrollThumb,
-                        { transform: [{ translateY: groupsScrollThumb }] },
-                      ]}
-                    />
-                  )}
-                </View>
+                  ListFooterComponent={
+                    sortedGroups.length < MAX_GROUPS ? (
+                      <TouchableOpacity style={styles.groupPlaceholder} onPress={() => handleCreateGroup(false)}>
+                        <Text style={styles.emptyText}>create a group</Text>
+                      </TouchableOpacity>
+                    ) : null
+                  }
+                />
               </Animated.View>
             )}
           </View>
@@ -1610,7 +1513,7 @@ const DashboardScreen = ({ navigation }) => {
         </BlurView>
         </Animated.View>
 
-      </ScrollView>
+      </NestableScrollContainer>
 
       {/* Notification Modal */}
       <NotificationListModal
@@ -2210,6 +2113,12 @@ const styles = StyleSheet.create({
     color: '#8a8a8a',
     marginTop: 5,
   },
+  pinHintText: {
+    fontSize: 10,
+    fontFamily: fonts.regular,
+    color: '#666666',
+    marginTop: 3,
+  },
   publicGroupsContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: 8,
@@ -2303,7 +2212,7 @@ const styles = StyleSheet.create({
   },
   confluenceImageFrame: {
     flex: 1,
-    aspectRatio: 1,
+    aspectRatio: 5/6,
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#1a1a1a',

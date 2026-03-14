@@ -33,6 +33,7 @@ export const signUp = async (email, password, phoneNumber) => {
       await user.sendEmailVerification()
     } catch (_emailError) {
       // Don't block account creation — user can resend from the verification screen
+      console.log('⚠️ sendEmailVerification error:', _emailError.code, _emailError.message)
     }
 
     return { success: true, user }

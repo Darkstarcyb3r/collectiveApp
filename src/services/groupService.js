@@ -250,16 +250,23 @@ export const getAllGroups = async () => {
 // Get public groups (visible to all users in the network)
 export const getPublicGroups = async () => {
   try {
+    // No orderBy — avoids composite index requirement that caused silent failures for non-members
+    // Sort client-side by updatedAt instead
     const querySnapshot = await firestore()
       .collection('groups')
       .where('isPublic', '==', true)
-      .orderBy('updatedAt', 'desc')
       .limit(50)
       .get()
 
     const groups = []
     querySnapshot.forEach((doc) => {
       groups.push({ id: doc.id, ...doc.data() })
+    })
+
+    groups.sort((a, b) => {
+      const aTime = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0
+      const bTime = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0
+      return bTime - aTime
     })
 
     return { success: true, data: groups }

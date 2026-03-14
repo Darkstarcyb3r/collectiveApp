@@ -3,7 +3,7 @@
  *
  * Function 1:  getCloudinarySignature   — Signed Cloudinary uploads (+ daily upload limit)
  * Function 2:  cleanupExpiredPosts      — Scheduled daily post cleanup + rate limit resets
- * Function 3:  onPostCreate             — Post creation validation (10/month limit)
+ * Function 3:  onPostCreate             — Post creation validation (10/month limit) + notify all group members
  * Function 4:  onMessageCreate          — Server-side push notifications (+ daily message limit)
  * Function 5:  deleteUserAccount        — User cleanup + account deletion (callable)
  * Function 6:  onReportCreate           — Notify admins when a user is reported
@@ -14,7 +14,7 @@
  * Function 11: onBarterPostCreate       — Barter market post rate limiting + notify followers
  * Function 12: onMutualAidGroupCreate   — Mutual aid group creation rate limiting
  * Function 13: onEventCreate            — Event creation rate limiting
- * Function 14: onUserBlockUpdate        — Clean up stale subscriptionPreferences on block
+ * Function 14: onUserBlockUpdate        — Notify admin by email on block + clean up stale subscriptionPreferences
  * Function 15: cleanupExpiredMessages   — Scheduled daily cleanup of messages older than 90 days
  * Function 16: onCyberLoungeRoomCreate  — Notify subscribers when host creates a Cyberlounge room
  * Function 17: onUserProfileUpdate      — Sync profile photo/name across all collections (conversations, events, mutual aid, barter, cyberlounge)
@@ -28,6 +28,7 @@
  * Function 25: onGroupCommentReaction  — Notify comment author when someone reacts to their group post comment
  * Function 26: onMutualAidCommentReaction — Notify comment author when someone reacts to their mutual aid comment
  * Function 27: requestCategoryChat       — "Request another category" creates a DM request to the app creator (callable)
+ * Function 28: onConfluencePostCreate   — Notify followers when someone posts to Confluence
  */
 
 const { setGlobalOptions } = require("firebase-functions/v2");
@@ -455,9 +456,73 @@ exports.onPostCreate = onDocumentCreated(
         await db.collection("groups").doc(groupId).update({
           postCount: FieldValue.increment(-1),
         });
+        return;
       }
     } catch (error) {
       logger.error("Monthly limit check error:", error);
+    }
+
+    // Notify all group members when a new post is created
+    try {
+      const groupDoc = await db.collection("groups").doc(groupId).get();
+      if (!groupDoc.exists) return;
+
+      const groupData = groupDoc.data();
+      const members = groupData.members || [];
+      const groupName = groupData.name || "your group";
+
+      const authorDoc = await db.collection("users").doc(authorId).get();
+      const authorName = authorDoc.exists ? authorDoc.data().name : "Someone";
+      const postTitle = postData.title || "a new post";
+
+      const fetch = require("node-fetch");
+
+      for (const memberId of members) {
+        if (memberId === authorId) continue;
+
+        const memberDoc = await db.collection("users").doc(memberId).get();
+        if (!memberDoc.exists) continue;
+        const memberData = memberDoc.data();
+
+        // In-app notification
+        await db.collection("users").doc(memberId)
+          .collection("notifications").add({
+            title: `New Post in ${groupName}`,
+            body: `${authorName} posted "${postTitle}"`,
+            type: "groupPost",
+            data: { type: "groupPost", groupId, postId: event.params.postId, authorId },
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+
+        // Push notification
+        if (memberData.notificationsMuted !== true) {
+          const tokenDoc = await db.collection("users").doc(memberId)
+            .collection("private").doc("tokens").get();
+          const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+          if (pushToken) {
+            const badgeCount = await getUnreadNotificationCount(memberId);
+            await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: pushToken,
+                sound: "default",
+                title: `New Post in ${groupName}`,
+                body: `${authorName} posted "${postTitle}"`,
+                data: { type: "groupPost", groupId, postId: event.params.postId, authorId },
+                badge: badgeCount,
+              }),
+            });
+          }
+        }
+      }
+    } catch (error) {
+      logger.error("Group post member notification error:", error);
     }
   }
 );
@@ -1046,7 +1111,7 @@ exports.deleteUserAccount = onCall({ timeoutSeconds: 300 }, async (request) => {
 // FUNCTION 6: Notify Admins on User Report
 // =============================================================
 exports.onReportCreate = onDocumentCreated(
-  "reports/{reportId}",
+  { document: "reports/{reportId}", secrets: ["GMAIL_APP_PASSWORD"] },
   async (event) => {
     const snapshot = event.data;
     if (!snapshot) return;
@@ -1112,6 +1177,27 @@ exports.onReportCreate = onDocumentCreated(
         notifBody = details
           ? `${reporterName} reported ${reportedName} for: ${reason} — "${details}"`
           : `${reporterName} reported ${reportedName} for: ${reason}`;
+      }
+
+      // Send email to admin
+      try {
+        const nodemailer = require("nodemailer");
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: "collectiveNetworkSupport@gmail.com",
+            pass: process.env.GMAIL_APP_PASSWORD,
+          },
+        });
+        await transporter.sendMail({
+          from: "collectiveNetworkSupport@gmail.com",
+          to: "collective.app@proton.me",
+          subject: `[Collective] ${notifTitle}`,
+          text: `${notifBody}\n\nReport ID: ${reportId}`,
+        });
+        logger.info("Admin report email sent");
+      } catch (emailErr) {
+        logger.error("Admin report email error:", emailErr.message);
       }
 
       // Send push notification to all admin devices via Expo Push API
@@ -1913,7 +1999,7 @@ exports.onEventCreate = onDocumentCreated(
 // server-side because Firestore rules restrict cross-user writes
 // to blockedBy/subscribedUsers/groups fields only.
 exports.onUserBlockUpdate = onDocumentUpdated(
-  "users/{userId}",
+  { document: "users/{userId}", secrets: ["GMAIL_APP_PASSWORD"] },
   async (event) => {
     const before = event.data.before.data();
     const after = event.data.after.data();
@@ -1926,6 +2012,39 @@ exports.onUserBlockUpdate = onDocumentUpdated(
     if (addedBlockers.length === 0) return;
 
     const blockedUserId = event.params.userId;
+
+    // Notify admin by email for each new block
+    try {
+      const nodemailer = require("nodemailer");
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: "collectiveNetworkSupport@gmail.com",
+          pass: process.env.GMAIL_APP_PASSWORD,
+        },
+      });
+
+      for (const blockerId of addedBlockers) {
+        let blockerName = blockerId;
+        let blockedName = blockedUserId;
+        try {
+          const blockerDoc = await db.collection("users").doc(blockerId).get();
+          if (blockerDoc.exists) blockerName = blockerDoc.data().name || blockerId;
+          const blockedDoc = await db.collection("users").doc(blockedUserId).get();
+          if (blockedDoc.exists) blockedName = blockedDoc.data().name || blockedUserId;
+        } catch (_e) { /* fallback to IDs */ }
+
+        await transporter.sendMail({
+          from: "collectiveNetworkSupport@gmail.com",
+          to: "collective.app@proton.me",
+          subject: "[Collective] User Blocked",
+          text: `${blockerName} blocked ${blockedName}.\n\nBlocker ID: ${blockerId}\nBlocked ID: ${blockedUserId}`,
+        });
+        logger.info(`Admin block email sent: ${blockerId} blocked ${blockedUserId}`);
+      }
+    } catch (emailErr) {
+      logger.error("onUserBlockUpdate email error:", emailErr.message);
+    }
 
     // For each new blocker, remove their entry from this user's subscriptionPreferences
     const updates = {};
@@ -3056,3 +3175,81 @@ exports.requestCategoryChat = onCall(async (request) => {
   logger.info(`Category chat request created: ${callerId} -> creator`);
   return { conversationId, status: "pending", creatorUid: APP_CREATOR_UID };
 });
+
+// =============================================================
+// FUNCTION 28: Confluence Post Creation — Notify Followers
+// =============================================================
+exports.onConfluencePostCreate = onDocumentCreated(
+  "confluencePosts/{postId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const postData = snapshot.data();
+    const authorId = postData.authorId;
+    if (!authorId) return;
+
+    const { postId } = event.params;
+
+    // Notify followers who have confluencePosts notifications enabled
+    try {
+      const followersSnapshot = await db.collection("users")
+        .where("subscribedUsers", "array-contains", authorId)
+        .get();
+
+      if (followersSnapshot.empty) return;
+
+      const authorDoc = await db.collection("users").doc(authorId).get();
+      const authorName = authorDoc.exists ? authorDoc.data().name : "Someone";
+      const caption = postData.caption ? `"${postData.caption}"` : "something new";
+
+      for (const followerDoc of followersSnapshot.docs) {
+        if (followerDoc.id === authorId) continue;
+
+        const followerData = followerDoc.data();
+        const prefs = followerData.subscriptionPreferences?.[authorId];
+        if (prefs && prefs.confluencePosts === false) continue;
+
+        // In-app notification
+        await db.collection("users").doc(followerDoc.id)
+          .collection("notifications").add({
+            title: "New Confluence Post",
+            body: `${authorName} posted ${caption} to Confluence`,
+            type: "confluencePost",
+            data: { type: "confluencePost", postId, authorId },
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+
+        // Push notification
+        if (followerData.notificationsMuted !== true) {
+          const tokenDoc = await db.collection("users").doc(followerDoc.id)
+            .collection("private").doc("tokens").get();
+          const pushToken = tokenDoc.exists ? tokenDoc.data().pushToken : null;
+          if (pushToken) {
+            const fetch = require("node-fetch");
+            const badgeCount = await getUnreadNotificationCount(followerDoc.id);
+            await fetch("https://exp.host/--/api/v2/push/send", {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                to: pushToken,
+                sound: "default",
+                title: "New Confluence Post",
+                body: `${authorName} posted ${caption} to Confluence`,
+                data: { type: "confluencePost", postId, authorId },
+                badge: badgeCount,
+              }),
+            });
+          }
+        }
+      }
+    } catch (error) {
+      logger.error("Confluence post follower notification error:", error);
+    }
+  }
+);
