@@ -168,7 +168,6 @@ const DashboardScreen = ({ navigation }) => {
   const privateGroupsHeight = useRef(new Animated.Value(0)).current;
   const privateChevronRotation = useRef(new Animated.Value(0)).current;
   // Reorder arrow pulse animation (shared across all rows)
-  const reorderArrowScale = useRef(new Animated.Value(1)).current;
   const reorderArrowOpacity = useRef(new Animated.Value(1)).current;
   const reorderArrowPulseRef = useRef(null);
   const groupsFade = useRef(new Animated.Value(0)).current;
@@ -483,18 +482,11 @@ const DashboardScreen = ({ navigation }) => {
   // Reorder arrow pulse — runs while any section is in reorder mode
   useEffect(() => {
     if (isReorderingPrivate || isReorderingPublic) {
-      reorderArrowScale.setValue(1);
       reorderArrowOpacity.setValue(1);
       const pulse = Animated.loop(
         Animated.sequence([
-          Animated.parallel([
-            Animated.timing(reorderArrowScale, { toValue: 1.3, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            Animated.timing(reorderArrowOpacity, { toValue: 0.4, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(reorderArrowScale, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            Animated.timing(reorderArrowOpacity, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          ]),
+          Animated.timing(reorderArrowOpacity, { toValue: 0.4, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(reorderArrowOpacity, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
         ])
       );
       pulse.start();
@@ -504,7 +496,6 @@ const DashboardScreen = ({ navigation }) => {
         reorderArrowPulseRef.current.stop();
         reorderArrowPulseRef.current = null;
       }
-      reorderArrowScale.setValue(1);
       reorderArrowOpacity.setValue(1);
     }
     return () => { if (reorderArrowPulseRef.current) reorderArrowPulseRef.current.stop(); };
@@ -1374,7 +1365,7 @@ const DashboardScreen = ({ navigation }) => {
                                     disabled={index === 0}
                                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                    <Animated.View style={{ opacity: reorderArrowOpacity }}>
                                       <Ionicons name="chevron-up" size={16} color="rgba(0,0,0,0.85)" />
                                     </Animated.View>
                                   </TouchableOpacity>
@@ -1384,7 +1375,7 @@ const DashboardScreen = ({ navigation }) => {
                                     disabled={index === sortedPublicGroups.length - 1}
                                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                    <Animated.View style={{ opacity: reorderArrowOpacity }}>
                                       <Ionicons name="chevron-down" size={16} color="rgba(0,0,0,0.85)" />
                                     </Animated.View>
                                   </TouchableOpacity>
@@ -1553,7 +1544,7 @@ const DashboardScreen = ({ navigation }) => {
                                     disabled={index === 0}
                                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                    <Animated.View style={{ opacity: reorderArrowOpacity }}>
                                       <Ionicons name="chevron-up" size={16} color="rgba(0,0,0,0.85)" />
                                     </Animated.View>
                                   </TouchableOpacity>
@@ -1563,7 +1554,7 @@ const DashboardScreen = ({ navigation }) => {
                                     disabled={index === sortedGroups.length - 1}
                                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                    <Animated.View style={{ opacity: reorderArrowOpacity }}>
                                       <Ionicons name="chevron-down" size={16} color="rgba(0,0,0,0.85)" />
                                     </Animated.View>
                                   </TouchableOpacity>
