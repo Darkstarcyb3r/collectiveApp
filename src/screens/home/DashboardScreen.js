@@ -1313,7 +1313,7 @@ const DashboardScreen = ({ navigation }) => {
                             activeOpacity={0.9}
                           >
                             <LinearGradient
-                              colors={isReorderingPublic ? [colors.primary, colors.primary] : ['#d8f434', '#b3f425', '#93f478']}
+                              colors={['#cafb6c', '#71f200', '#23ff0d']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={styles.pubGroupRow}
@@ -1476,7 +1476,7 @@ const DashboardScreen = ({ navigation }) => {
                     const active = isGroupActive(group);
                     const creator = groupCreators[group.creatorId];
                     return (
-                      <View key={group.id} style={isReorderingPrivate ? styles.reorderRowGlow : null}>
+                      <View key={group.id}>
                         <Swipeable
                           renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
                           rightThreshold={40}
