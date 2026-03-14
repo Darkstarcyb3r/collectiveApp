@@ -33,6 +33,7 @@ const CyberLoungeCreateScreen = ({ navigation, route }) => {
   const { user, userProfile } = useAuth()
   const [roomName, setRoomName] = useState(route?.params?.initialName || '')
   const initialImageUrl = route?.params?.initialImageUrl || null
+  const [useCustomBg, setUseCustomBg] = useState(!!initialImageUrl)
   const [selectedVibe, setSelectedVibe] = useState(DEFAULT_VIBE_ID)
   const [vibeDropdownOpen, setVibeDropdownOpen] = useState(false)
   const [selectedStickers, setSelectedStickers] = useState([])
@@ -75,7 +76,7 @@ const CyberLoungeCreateScreen = ({ navigation, route }) => {
       selectedVibe,
       selectedStickers,
       selectedBackground,
-      initialImageUrl
+      useCustomBg ? initialImageUrl : null
     )
 
     if (result.success) {
@@ -245,13 +246,13 @@ const CyberLoungeCreateScreen = ({ navigation, route }) => {
                 }}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name="image-outline"
-                  size={14}
-                  color={colors.primary}
-                />
+                {useCustomBg && initialImageUrl ? (
+                  <Image source={{ uri: initialImageUrl }} style={styles.bgTriggerThumb} />
+                ) : (
+                  <Ionicons name="image-outline" size={14} color={colors.primary} />
+                )}
                 <Text style={styles.bgPickerLabel} numberOfLines={1}>
-                  {getBackgroundById(selectedBackground).label}
+                  {useCustomBg && initialImageUrl ? 'from confluence' : getBackgroundById(selectedBackground).label}
                 </Text>
                 <Ionicons
                   name={bgPickerOpen ? 'chevron-up' : 'chevron-down'}
@@ -266,14 +267,27 @@ const CyberLoungeCreateScreen = ({ navigation, route }) => {
                   style={styles.bgScrollStrip}
                   contentContainerStyle={styles.bgScrollContent}
                 >
+                  {/* Confluence image option — only shown when triggered from a post */}
+                  {initialImageUrl && (
+                    <TouchableOpacity
+                      style={[styles.bgThumbWrap, useCustomBg && styles.bgThumbWrapSelected]}
+                      onPress={() => { playClick(); setUseCustomBg(true) }}
+                      activeOpacity={0.7}
+                    >
+                      <Image source={{ uri: initialImageUrl }} style={styles.bgThumbImage} />
+                      <Text style={[styles.bgThumbLabel, useCustomBg && styles.bgThumbLabelSelected]} numberOfLines={1}>
+                        confluence
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                   {BACKGROUNDS.map((bg) => (
                     <TouchableOpacity
                       key={bg.id}
                       style={[
                         styles.bgThumbWrap,
-                        selectedBackground === bg.id && styles.bgThumbWrapSelected,
+                        !useCustomBg && selectedBackground === bg.id && styles.bgThumbWrapSelected,
                       ]}
-                      onPress={() => { playClick(); setSelectedBackground(bg.id) }}
+                      onPress={() => { playClick(); setUseCustomBg(false); setSelectedBackground(bg.id) }}
                       activeOpacity={0.7}
                     >
                       {bg.source ? (
@@ -286,7 +300,7 @@ const CyberLoungeCreateScreen = ({ navigation, route }) => {
                       <Text
                         style={[
                           styles.bgThumbLabel,
-                          selectedBackground === bg.id && styles.bgThumbLabelSelected,
+                          !useCustomBg && selectedBackground === bg.id && styles.bgThumbLabelSelected,
                         ]}
                         numberOfLines={1}
                       >
@@ -648,6 +662,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(34, 255, 10, 0.15)',
     borderWidth: 1,
     borderColor: colors.primary,
+  },
+  bgTriggerThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    marginRight: 2,
   },
   bgThumbImage: {
     width: 48,
