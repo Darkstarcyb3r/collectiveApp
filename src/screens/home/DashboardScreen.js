@@ -167,8 +167,6 @@ const DashboardScreen = ({ navigation }) => {
   const [privateGroupsExpanded, setPrivateGroupsExpanded] = useState(false);
   const privateGroupsHeight = useRef(new Animated.Value(0)).current;
   const privateChevronRotation = useRef(new Animated.Value(0)).current;
-  const wiggleAnims = useRef({}).current;   // { [groupId]: Animated.Value }
-  const wiggleLoops = useRef({}).current;   // { [groupId]: Animated.CompositeAnimation }
   const groupsFade = useRef(new Animated.Value(0)).current;
   const roomsFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
@@ -776,48 +774,20 @@ const DashboardScreen = ({ navigation }) => {
     );
   };
 
-  // --- Wiggle Reorder ---
+  // --- Reorder ---
 
-  const startWiggle = (groupId) => {
-    if (!wiggleAnims[groupId]) wiggleAnims[groupId] = new Animated.Value(0);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(wiggleAnims[groupId], { toValue: 1, duration: 70, useNativeDriver: true }),
-        Animated.timing(wiggleAnims[groupId], { toValue: -1, duration: 70, useNativeDriver: true }),
-        Animated.timing(wiggleAnims[groupId], { toValue: 0.6, duration: 55, useNativeDriver: true }),
-        Animated.timing(wiggleAnims[groupId], { toValue: -0.6, duration: 55, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    wiggleLoops[groupId] = loop;
-  };
-
-  const stopWiggle = (groupId) => {
-    if (wiggleLoops[groupId]) { wiggleLoops[groupId].stop(); wiggleLoops[groupId] = null; }
-    if (wiggleAnims[groupId]) {
-      Animated.timing(wiggleAnims[groupId], { toValue: 0, duration: 100, useNativeDriver: true }).start();
-    }
-  };
-
-  const enterReorderMode = (section, groups) => {
+  const enterReorderMode = (section) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (section === 'private') {
-      setIsReorderingPrivate(true);
-      groups.forEach((g) => startWiggle(g.id));
-    } else {
-      setIsReorderingPublic(true);
-      groups.forEach((g) => startWiggle(g.id));
-    }
+    if (section === 'private') setIsReorderingPrivate(true);
+    else setIsReorderingPublic(true);
   };
 
   const exitReorderMode = (section, orderedGroups) => {
     if (section === 'private') {
       setIsReorderingPrivate(false);
-      orderedGroups.forEach((g) => stopWiggle(g.id));
       updateUserProfile(user.uid, { groupOrder: orderedGroups.map((g) => g.id) }).catch(() => {});
     } else {
       setIsReorderingPublic(false);
-      orderedGroups.forEach((g) => stopWiggle(g.id));
       updateUserProfile(user.uid, { publicGroupOrder: orderedGroups.map((g) => g.id) }).catch(() => {});
     }
   };
@@ -1323,12 +1293,8 @@ const DashboardScreen = ({ navigation }) => {
                   {sortedPublicGroups.slice(0, MAX_PUBLIC_GROUPS).map((pg, index) => {
                     const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
                     const pgActive = isGroupActive(pg);
-                    if (!wiggleAnims[pg.id]) wiggleAnims[pg.id] = new Animated.Value(0);
                     return (
-                      <Animated.View
-                        key={pg.id}
-                        style={{ transform: [{ rotate: wiggleAnims[pg.id].interpolate({ inputRange: [-1, 0, 1], outputRange: ['-2deg', '0deg', '2deg'] }) }] }}
-                      >
+                      <View key={pg.id}>
                         <Swipeable
                           renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, pg)}
                           rightThreshold={40}
@@ -1338,7 +1304,7 @@ const DashboardScreen = ({ navigation }) => {
                           <TouchableOpacity
                             style={[styles.pubGroupRowOuter, !pgActive && styles.groupRowInactive]}
                             onPress={() => { if (!isReorderingPublic) { playSwoosh(); markGroupVisited(pg.id); navigation.navigate('GroupDetail', { groupId: pg.id }); } }}
-                            onLongPress={() => { if (!isReorderingPublic) enterReorderMode('public', sortedPublicGroups); }}
+                            onLongPress={() => { if (!isReorderingPublic) enterReorderMode('public'); }}
                             delayLongPress={400}
                             activeOpacity={0.9}
                           >
@@ -1385,7 +1351,7 @@ const DashboardScreen = ({ navigation }) => {
                             </LinearGradient>
                           </TouchableOpacity>
                         </Swipeable>
-                      </Animated.View>
+                      </View>
                     );
                   })}
                   {groups.length < MAX_GROUPS && sortedPublicGroups.length < MAX_PUBLIC_GROUPS && !isReorderingPublic && (
@@ -1510,12 +1476,8 @@ const DashboardScreen = ({ navigation }) => {
                   {sortedGroups.map((group, index) => {
                     const active = isGroupActive(group);
                     const creator = groupCreators[group.creatorId];
-                    if (!wiggleAnims[group.id]) wiggleAnims[group.id] = new Animated.Value(0);
                     return (
-                      <Animated.View
-                        key={group.id}
-                        style={{ transform: [{ rotate: wiggleAnims[group.id].interpolate({ inputRange: [-1, 0, 1], outputRange: ['-2deg', '0deg', '2deg'] }) }] }}
-                      >
+                      <View key={group.id}>
                         <Swipeable
                           renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
                           rightThreshold={40}
@@ -1525,7 +1487,7 @@ const DashboardScreen = ({ navigation }) => {
                           <TouchableOpacity
                             style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
                             onPress={() => { if (!isReorderingPrivate) handleGroupPress(group.id); }}
-                            onLongPress={() => { if (!isReorderingPrivate) enterReorderMode('private', sortedGroups); }}
+                            onLongPress={() => { if (!isReorderingPrivate) enterReorderMode('private'); }}
                             delayLongPress={400}
                             activeOpacity={0.9}
                           >
@@ -1567,7 +1529,7 @@ const DashboardScreen = ({ navigation }) => {
                             </View>
                           </TouchableOpacity>
                         </Swipeable>
-                      </Animated.View>
+                      </View>
                     );
                   })}
                   {sortedGroups.length < MAX_GROUPS && !isReorderingPrivate && (
