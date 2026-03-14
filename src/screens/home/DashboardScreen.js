@@ -167,6 +167,10 @@ const DashboardScreen = ({ navigation }) => {
   const [privateGroupsExpanded, setPrivateGroupsExpanded] = useState(false);
   const privateGroupsHeight = useRef(new Animated.Value(0)).current;
   const privateChevronRotation = useRef(new Animated.Value(0)).current;
+  // Reorder arrow pulse animation (shared across all rows)
+  const reorderArrowScale = useRef(new Animated.Value(1)).current;
+  const reorderArrowOpacity = useRef(new Animated.Value(1)).current;
+  const reorderArrowPulseRef = useRef(null);
   const groupsFade = useRef(new Animated.Value(0)).current;
   const roomsFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
@@ -475,6 +479,37 @@ const DashboardScreen = ({ navigation }) => {
     return () => dotPulse.stop();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reorder arrow pulse — runs while any section is in reorder mode
+  useEffect(() => {
+    if (isReorderingPrivate || isReorderingPublic) {
+      reorderArrowScale.setValue(1);
+      reorderArrowOpacity.setValue(1);
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(reorderArrowScale, { toValue: 1.3, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(reorderArrowOpacity, { toValue: 0.4, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(reorderArrowScale, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(reorderArrowOpacity, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+        ])
+      );
+      pulse.start();
+      reorderArrowPulseRef.current = pulse;
+    } else {
+      if (reorderArrowPulseRef.current) {
+        reorderArrowPulseRef.current.stop();
+        reorderArrowPulseRef.current = null;
+      }
+      reorderArrowScale.setValue(1);
+      reorderArrowOpacity.setValue(1);
+    }
+    return () => { if (reorderArrowPulseRef.current) reorderArrowPulseRef.current.stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReorderingPrivate, isReorderingPublic]);
 
   // Card entrance animations — fade + slide up on mount
   useEffect(() => {
@@ -1337,15 +1372,21 @@ const DashboardScreen = ({ navigation }) => {
                                     onPress={() => handleMoveGroup('public', index, -1, sortedPublicGroups)}
                                     style={[styles.reorderArrowBtn, index === 0 && { opacity: 0.2 }]}
                                     disabled={index === 0}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Ionicons name="chevron-up" size={14} color="rgba(0,0,0,0.5)" />
+                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                      <Ionicons name="chevron-up" size={16} color="rgba(0,0,0,0.85)" />
+                                    </Animated.View>
                                   </TouchableOpacity>
                                   <TouchableOpacity
                                     onPress={() => handleMoveGroup('public', index, 1, sortedPublicGroups)}
                                     style={[styles.reorderArrowBtn, index === sortedPublicGroups.length - 1 && { opacity: 0.2 }]}
                                     disabled={index === sortedPublicGroups.length - 1}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Ionicons name="chevron-down" size={14} color="rgba(0,0,0,0.5)" />
+                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                      <Ionicons name="chevron-down" size={16} color="rgba(0,0,0,0.85)" />
+                                    </Animated.View>
                                   </TouchableOpacity>
                                 </View>
                               ) : (
@@ -1510,15 +1551,21 @@ const DashboardScreen = ({ navigation }) => {
                                     onPress={() => handleMoveGroup('private', index, -1, sortedGroups)}
                                     style={[styles.reorderArrowBtn, index === 0 && { opacity: 0.2 }]}
                                     disabled={index === 0}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Ionicons name="chevron-up" size={14} color="rgba(0,0,0,0.6)" />
+                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                      <Ionicons name="chevron-up" size={16} color="rgba(0,0,0,0.85)" />
+                                    </Animated.View>
                                   </TouchableOpacity>
                                   <TouchableOpacity
                                     onPress={() => handleMoveGroup('private', index, 1, sortedGroups)}
                                     style={[styles.reorderArrowBtn, index === sortedGroups.length - 1 && { opacity: 0.2 }]}
                                     disabled={index === sortedGroups.length - 1}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
-                                    <Ionicons name="chevron-down" size={14} color="rgba(0,0,0,0.6)" />
+                                    <Animated.View style={{ transform: [{ scale: reorderArrowScale }], opacity: reorderArrowOpacity }}>
+                                      <Ionicons name="chevron-down" size={16} color="rgba(0,0,0,0.85)" />
+                                    </Animated.View>
                                   </TouchableOpacity>
                                 </View>
                               ) : (
