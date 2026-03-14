@@ -33,6 +33,7 @@ import {
   getMemberProfiles,
   leaveGroup,
   updateGroupVisibility,
+  joinGroup,
 } from '../../services/groupService'
 import { getUserProfile } from '../../services/userService'
 import { playClick } from '../../services/soundService'
@@ -56,6 +57,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false)
   const [deleteGroupConfirm, setDeleteGroupConfirm] = useState(false)
   const [leaveGroupConfirm, setLeaveGroupConfirm] = useState(false)
+  const [joiningGroup, setJoiningGroup] = useState(false)
   const [deletePostConfirm, setDeletePostConfirm] = useState({ visible: false, postId: null })
   const [postLastViewed, setPostLastViewed] = useState({})
   const [isPublic, setIsPublic] = useState(false)
@@ -227,6 +229,21 @@ const GroupDetailScreen = ({ navigation, route }) => {
     }
   }
 
+  const handleJoinGroup = async () => {
+    if (joiningGroup || isMember) return
+    setJoiningGroup(true)
+    try {
+      await joinGroup(groupId, user.uid)
+      // Refresh group so isMember updates and Join button disappears
+      const result = await getGroup(groupId)
+      if (result.success) setGroup(result.data)
+    } catch (_e) {
+      // silent
+    } finally {
+      setJoiningGroup(false)
+    }
+  }
+
   const handleViewMembers = () => {
     playClick()
     navigation.navigate('GroupMembers', {
@@ -387,27 +404,39 @@ const GroupDetailScreen = ({ navigation, route }) => {
 
               {/* Creator section — avatar links to creator's profile (hidden if blocked) */}
               {creator?.id && !excludedUsers.includes(creator.id) && (
-                <TouchableOpacity
-                  style={styles.creatorSection}
-                  onPress={() => {
-                    navigation.navigate('UserProfile', { userId: creator.id })
-                  }}
-                >
-                  {creator?.profilePhoto ? (
-                    <Image
-                      source={{ uri: creator.profilePhoto, cache: 'reload' }}
-                      style={styles.creatorAvatar}
-                    />
-                  ) : (
-                    <View style={styles.creatorAvatarPlaceholder}>
-                      <Ionicons name="person" size={18} color="#666" />
-                    </View>
+                <View style={styles.creatorRow}>
+                  {!isMember && !isCreator && (
+                    <TouchableOpacity
+                      onPress={handleJoinGroup}
+                      disabled={joiningGroup}
+                      style={styles.joinGroupBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.joinGroupBtnText}>{joiningGroup ? '…' : 'Join'}</Text>
+                    </TouchableOpacity>
                   )}
-                  <View style={styles.creatorInfo}>
-                    <Text style={styles.creatorName}>{creator?.name || 'creator'}</Text>
-                    <Text style={styles.creatorLabel}>creator</Text>
-                  </View>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.creatorSection}
+                    onPress={() => {
+                      navigation.navigate('UserProfile', { userId: creator.id })
+                    }}
+                  >
+                    {creator?.profilePhoto ? (
+                      <Image
+                        source={{ uri: creator.profilePhoto, cache: 'reload' }}
+                        style={styles.creatorAvatar}
+                      />
+                    ) : (
+                      <View style={styles.creatorAvatarPlaceholder}>
+                        <Ionicons name="person" size={18} color="#666" />
+                      </View>
+                    )}
+                    <View style={styles.creatorInfo}>
+                      <Text style={styles.creatorName}>{creator?.name || 'creator'}</Text>
+                      <Text style={styles.creatorLabel}>creator</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           </View>
@@ -678,6 +707,23 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   // Creator Section
+  creatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  joinGroupBtn: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    marginRight: 10,
+  },
+  joinGroupBtnText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
   creatorSection: {
     flexDirection: 'row',
     alignItems: 'center',

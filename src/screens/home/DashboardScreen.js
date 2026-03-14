@@ -844,6 +844,11 @@ const DashboardScreen = ({ navigation }) => {
     const arr = [...currentList];
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= arr.length) return;
+    // For public groups: never allow swapping across the member / non-member boundary
+    if (section === 'public') {
+      const isMem = (g) => g.members?.includes(user?.uid);
+      if (isMem(arr[index]) !== isMem(arr[newIndex])) return;
+    }
     [arr[index], arr[newIndex]] = [arr[newIndex], arr[index]];
     if (section === 'private') setManualPrivateOrder(arr.map((g) => g.id));
     else setManualPublicOrder(arr.map((g) => g.id));
@@ -893,7 +898,7 @@ const DashboardScreen = ({ navigation }) => {
         return bActive - aActive;
       });
 
-  const sortedPublicGroups = manualPublicOrder && manualPublicOrder.length > 0
+  const _rawPublicGroups = manualPublicOrder && manualPublicOrder.length > 0
     ? [...displayedPublicGroups].sort((a, b) => {
         const ai = manualPublicOrder.indexOf(a.id);
         const bi = manualPublicOrder.indexOf(b.id);
@@ -907,6 +912,12 @@ const DashboardScreen = ({ navigation }) => {
         const bActive = isGroupActive(b) ? 1 : 0;
         return bActive - aActive;
       });
+  // Always keep groups the user is a member of above groups they haven't joined
+  const _isMemberOf = (pg) => pg.members?.includes(user?.uid);
+  const sortedPublicGroups = [
+    ..._rawPublicGroups.filter(_isMemberOf),
+    ..._rawPublicGroups.filter((pg) => !_isMemberOf(pg)),
+  ];
 
   // --- Event Date Formatter ---
   const formatEventDate = (dateVal) => {
@@ -1394,10 +1405,15 @@ const DashboardScreen = ({ navigation }) => {
                               )}
                               {isReorderingPublic ? (
                                 <View style={styles.reorderArrows}>
+                                  {(() => {
+                                    const pgIsMember = pg.members?.includes(user?.uid);
+                                    const upDisabled = index === 0 || pgIsMember !== sortedPublicGroups[index - 1]?.members?.includes(user?.uid);
+                                    const downDisabled = index === sortedPublicGroups.length - 1 || pgIsMember !== sortedPublicGroups[index + 1]?.members?.includes(user?.uid);
+                                    return (<>
                                   <TouchableOpacity
                                     onPress={() => handleMoveGroup('public', index, -1, sortedPublicGroups)}
-                                    style={[styles.reorderArrowBtn, index === 0 && { opacity: 0.2 }]}
-                                    disabled={index === 0}
+                                    style={[styles.reorderArrowBtn, upDisabled && { opacity: 0.2 }]}
+                                    disabled={upDisabled}
                                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
                                     <Animated.View style={{ opacity: reorderArrowOpacity }}>
@@ -1406,14 +1422,15 @@ const DashboardScreen = ({ navigation }) => {
                                   </TouchableOpacity>
                                   <TouchableOpacity
                                     onPress={() => handleMoveGroup('public', index, 1, sortedPublicGroups)}
-                                    style={[styles.reorderArrowBtn, index === sortedPublicGroups.length - 1 && { opacity: 0.2 }]}
-                                    disabled={index === sortedPublicGroups.length - 1}
+                                    style={[styles.reorderArrowBtn, downDisabled && { opacity: 0.2 }]}
+                                    disabled={downDisabled}
                                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                   >
                                     <Animated.View style={{ opacity: reorderArrowOpacity }}>
                                       <Ionicons name="chevron-down" size={16} color="rgba(0,0,0,0.85)" />
                                     </Animated.View>
                                   </TouchableOpacity>
+                                  </>); })()}
                                 </View>
                               ) : (
                                 <Ionicons name="chevron-forward" size={18} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
