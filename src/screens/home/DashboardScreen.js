@@ -33,12 +33,6 @@ import { getUserGroups, deleteGroup, leaveGroup, getMemberProfiles, getPublicGro
 import { updateUserProfile } from '../../services/userService';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {
-  ScaleDecorator,
-  ShadowDecorator,
-  NestableScrollContainer,
-  NestableDraggableFlatList,
-} from 'react-native-draggable-flatlist';
-import {
   subscribeToActiveRooms,
   subscribeToConfluencePosts,
   subscribeToEvents,
@@ -57,7 +51,8 @@ import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { playClick, playSwoosh } from '../../services/soundService';
 
-const MAX_GROUPS = 50;
+const MAX_GROUPS = 50;          // max groups any user can create/join
+const MAX_PUBLIC_GROUPS = 100; // max public groups shown on dashboard
 
 const EVENT_THUMBNAILS = [
   require('../../assets/event-thumbnails/Galaxy.png'),
@@ -166,10 +161,14 @@ const DashboardScreen = ({ navigation }) => {
   const [publicGroupCreators, setPublicGroupCreators] = useState({});
   const [manualPrivateOrder, setManualPrivateOrder] = useState(null); // null = activity sort
   const [manualPublicOrder, setManualPublicOrder] = useState(null);
+  const [isReorderingPrivate, setIsReorderingPrivate] = useState(false);
+  const [isReorderingPublic, setIsReorderingPublic] = useState(false);
   const [roomsLoaded, setRoomsLoaded] = useState(false);
   const [privateGroupsExpanded, setPrivateGroupsExpanded] = useState(false);
   const privateGroupsHeight = useRef(new Animated.Value(0)).current;
   const privateChevronRotation = useRef(new Animated.Value(0)).current;
+  const wiggleAnims = useRef({}).current;   // { [groupId]: Animated.Value }
+  const wiggleLoops = useRef({}).current;   // { [groupId]: Animated.CompositeAnimation }
   const groupsFade = useRef(new Animated.Value(0)).current;
   const roomsFade = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
@@ -777,113 +776,60 @@ const DashboardScreen = ({ navigation }) => {
     );
   };
 
-  // --- Drag Reorder ---
+  // --- Wiggle Reorder ---
 
-  const onPrivateDragEnd = ({ data }) => {
-    const newOrder = data.map((g) => g.id);
-    setManualPrivateOrder(newOrder);
-    updateUserProfile(user.uid, { groupOrder: newOrder }).catch(() => {});
-  };
-
-  const onPublicDragEnd = ({ data }) => {
-    const newOrder = data.map((g) => g.id);
-    setManualPublicOrder(newOrder);
-    updateUserProfile(user.uid, { publicGroupOrder: newOrder }).catch(() => {});
-  };
-
-  const renderPrivateGroupItem = ({ item: group, drag, isActive }) => {
-    const active = isGroupActive(group);
-    const creator = groupCreators[group.creatorId];
-    return (
-      <ScaleDecorator>
-        <ShadowDecorator>
-          <Swipeable
-            renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
-            rightThreshold={40}
-            overshootRight={false}
-            enabled={!isActive}
-          >
-            <TouchableOpacity
-              style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
-              onPress={() => { if (!isActive) handleGroupPress(group.id); }}
-              onLongPress={drag}
-              delayLongPress={200}
-              activeOpacity={0.9}
-            >
-              <View style={[styles.groupRow, { backgroundColor: '#222222' }]}>
-                <View style={styles.groupCreatorAvatar}>
-                  {creator?.profilePhoto ? (
-                    <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
-                  ) : (
-                    <View style={styles.groupCreatorPlaceholder}>
-                      <Ionicons name="person" size={12} color="#999" />
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.groupName, { color: '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
-                {active && !isActive && (
-                  <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
-                )}
-                <Ionicons name="chevron-forward" size={16} color="rgba(187,187,187,0.6)" style={{ marginLeft: 8 }} />
-              </View>
-            </TouchableOpacity>
-          </Swipeable>
-        </ShadowDecorator>
-      </ScaleDecorator>
+  const startWiggle = (groupId) => {
+    if (!wiggleAnims[groupId]) wiggleAnims[groupId] = new Animated.Value(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(wiggleAnims[groupId], { toValue: 1, duration: 70, useNativeDriver: true }),
+        Animated.timing(wiggleAnims[groupId], { toValue: -1, duration: 70, useNativeDriver: true }),
+        Animated.timing(wiggleAnims[groupId], { toValue: 0.6, duration: 55, useNativeDriver: true }),
+        Animated.timing(wiggleAnims[groupId], { toValue: -0.6, duration: 55, useNativeDriver: true }),
+      ])
     );
+    loop.start();
+    wiggleLoops[groupId] = loop;
   };
 
-  const renderPublicGroupItem = ({ item: pg, drag, isActive }) => {
-    const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
-    const pgActive = isGroupActive(pg);
-    return (
-      <ScaleDecorator>
-        <ShadowDecorator>
-          <Swipeable
-            renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, pg)}
-            rightThreshold={40}
-            overshootRight={false}
-            enabled={!isActive}
-          >
-            <TouchableOpacity
-              style={[styles.pubGroupRowOuter, !pgActive && styles.groupRowInactive]}
-              onPress={() => {
-                if (!isActive) {
-                  playSwoosh();
-                  markGroupVisited(pg.id);
-                  navigation.navigate('GroupDetail', { groupId: pg.id });
-                }
-              }}
-              onLongPress={drag}
-              delayLongPress={200}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#d8f434', '#b3f425', '#93f478']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.pubGroupRow}
-              >
-                <View style={styles.pubGroupCreatorAvatar}>
-                  {pgCreator?.profilePhoto ? (
-                    <Image source={{ uri: pgCreator.profilePhoto }} style={styles.groupCreatorImage} />
-                  ) : (
-                    <View style={styles.groupCreatorPlaceholder}>
-                      <Ionicons name="person" size={14} color="#666" />
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.pubGroupName} numberOfLines={1}>{pg.name || '------'}</Text>
-                {pgActive && !isActive && (
-                  <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1a1a1a', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
-                )}
-                <Ionicons name="chevron-forward" size={18} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
-              </LinearGradient>
-            </TouchableOpacity>
-          </Swipeable>
-        </ShadowDecorator>
-      </ScaleDecorator>
-    );
+  const stopWiggle = (groupId) => {
+    if (wiggleLoops[groupId]) { wiggleLoops[groupId].stop(); wiggleLoops[groupId] = null; }
+    if (wiggleAnims[groupId]) {
+      Animated.timing(wiggleAnims[groupId], { toValue: 0, duration: 100, useNativeDriver: true }).start();
+    }
+  };
+
+  const enterReorderMode = (section, groups) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (section === 'private') {
+      setIsReorderingPrivate(true);
+      groups.forEach((g) => startWiggle(g.id));
+    } else {
+      setIsReorderingPublic(true);
+      groups.forEach((g) => startWiggle(g.id));
+    }
+  };
+
+  const exitReorderMode = (section, orderedGroups) => {
+    if (section === 'private') {
+      setIsReorderingPrivate(false);
+      orderedGroups.forEach((g) => stopWiggle(g.id));
+      updateUserProfile(user.uid, { groupOrder: orderedGroups.map((g) => g.id) }).catch(() => {});
+    } else {
+      setIsReorderingPublic(false);
+      orderedGroups.forEach((g) => stopWiggle(g.id));
+      updateUserProfile(user.uid, { publicGroupOrder: orderedGroups.map((g) => g.id) }).catch(() => {});
+    }
+  };
+
+  const handleMoveGroup = (section, index, direction, currentList) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const arr = [...currentList];
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= arr.length) return;
+    [arr[index], arr[newIndex]] = [arr[newIndex], arr[index]];
+    if (section === 'private') setManualPrivateOrder(arr.map((g) => g.id));
+    else setManualPublicOrder(arr.map((g) => g.id));
   };
 
 
@@ -1002,7 +948,7 @@ const DashboardScreen = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#000000" />
 
-      <NestableScrollContainer
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         onScroll={handleScroll}
@@ -1335,55 +1281,118 @@ const DashboardScreen = ({ navigation }) => {
             <View style={[styles.sectionHeaderRow, { alignItems: 'flex-start' }]}>
               <View>
                 <Animated.Text style={[styles.publicGroupsTitle, { opacity: shimmerPublicGroups.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>Public Groups</Animated.Text>
-                {groups.length > 0 && <Text style={styles.publicGroupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>}
+                {groups.length > 0 && <Text style={styles.publicGroupCounter}>{groups.length}/{MAX_GROUPS} groups created</Text>}
                 <Text style={styles.pinHintText}>hold to reorder</Text>
               </View>
-              <Animated.View style={{ transform: [{ scale: bounceAddPublicGroup.scale }] }}>
-              <TouchableOpacity
-                style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
-                onPress={() => handleCreateGroup(true)}
-                onPressIn={bounceAddPublicGroup.onPressIn}
-                onPressOut={bounceAddPublicGroup.onPressOut}
-                disabled={groups.length >= MAX_GROUPS}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={['#cafb6c', '#71f200', '#23ff0d']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.addButtonGradient}
+              {isReorderingPublic ? (
+                <TouchableOpacity style={styles.doneReorderButton} onPress={() => exitReorderMode('public', sortedPublicGroups)}>
+                  <Text style={styles.doneReorderText}>Done</Text>
+                </TouchableOpacity>
+              ) : (
+                <Animated.View style={{ transform: [{ scale: bounceAddPublicGroup.scale }] }}>
+                <TouchableOpacity
+                  style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
+                  onPress={() => handleCreateGroup(true)}
+                  onPressIn={bounceAddPublicGroup.onPressIn}
+                  onPressOut={bounceAddPublicGroup.onPressOut}
+                  disabled={groups.length >= MAX_GROUPS}
+                  activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
-                    style={styles.addButtonHighlight}
-                  />
-                  <Ionicons name="add" size={12} color="#1a1a1a" />
-                  <Text style={styles.addButtonText}>Public Group</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              </Animated.View>
+                    colors={['#cafb6c', '#71f200', '#23ff0d']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.addButtonGradient}
+                  >
+                    <LinearGradient
+                      colors={['rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0)']}
+                      style={styles.addButtonHighlight}
+                    />
+                    <Ionicons name="add" size={12} color="#1a1a1a" />
+                    <Text style={styles.addButtonText}>Public Group</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                </Animated.View>
+              )}
             </View>
 
             {/* Glass container wraps only the group buttons */}
             <BlurView intensity={10} tint="dark" style={styles.publicGroupsGlass}>
               <View style={styles.publicGroupsContainer}>
-                <View style={{ maxHeight: 190, overflow: 'hidden' }}>
-                  <NestableDraggableFlatList
-                    data={sortedPublicGroups}
-                    renderItem={renderPublicGroupItem}
-                    keyExtractor={(item) => item.id}
-                    onDragEnd={onPublicDragEnd}
-                    onDragBegin={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
-                    showsVerticalScrollIndicator={false}
-                    ListFooterComponent={
-                      sortedPublicGroups.length < 3 ? (
-                        <TouchableOpacity style={styles.pubGroupPlaceholder} onPress={() => handleCreateGroup(true)}>
-                          <Text style={styles.emptyText}>make your group public</Text>
-                        </TouchableOpacity>
-                      ) : null
-                    }
-                  />
-                </View>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 190 }}>
+                  {sortedPublicGroups.slice(0, MAX_PUBLIC_GROUPS).map((pg, index) => {
+                    const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
+                    const pgActive = isGroupActive(pg);
+                    if (!wiggleAnims[pg.id]) wiggleAnims[pg.id] = new Animated.Value(0);
+                    return (
+                      <Animated.View
+                        key={pg.id}
+                        style={{ transform: [{ rotate: wiggleAnims[pg.id].interpolate({ inputRange: [-1, 0, 1], outputRange: ['-2deg', '0deg', '2deg'] }) }] }}
+                      >
+                        <Swipeable
+                          renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, pg)}
+                          rightThreshold={40}
+                          overshootRight={false}
+                          enabled={!isReorderingPublic}
+                        >
+                          <TouchableOpacity
+                            style={[styles.pubGroupRowOuter, !pgActive && styles.groupRowInactive]}
+                            onPress={() => { if (!isReorderingPublic) { playSwoosh(); markGroupVisited(pg.id); navigation.navigate('GroupDetail', { groupId: pg.id }); } }}
+                            onLongPress={() => { if (!isReorderingPublic) enterReorderMode('public', sortedPublicGroups); }}
+                            delayLongPress={400}
+                            activeOpacity={0.9}
+                          >
+                            <LinearGradient
+                              colors={['#d8f434', '#b3f425', '#93f478']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={[styles.pubGroupRow, isReorderingPublic && styles.reorderingRowAccentPublic]}
+                            >
+                              <View style={styles.pubGroupCreatorAvatar}>
+                                {pgCreator?.profilePhoto ? (
+                                  <Image source={{ uri: pgCreator.profilePhoto }} style={styles.groupCreatorImage} />
+                                ) : (
+                                  <View style={styles.groupCreatorPlaceholder}>
+                                    <Ionicons name="person" size={14} color="#666" />
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={styles.pubGroupName} numberOfLines={1}>{pg.name || '------'}</Text>
+                              {pgActive && !isReorderingPublic && (
+                                <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1a1a1a', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
+                              )}
+                              {isReorderingPublic ? (
+                                <View style={styles.reorderArrows}>
+                                  <TouchableOpacity
+                                    onPress={() => handleMoveGroup('public', index, -1, sortedPublicGroups)}
+                                    style={[styles.reorderArrowBtn, index === 0 && { opacity: 0.2 }]}
+                                    disabled={index === 0}
+                                  >
+                                    <Ionicons name="chevron-up" size={14} color="rgba(0,0,0,0.5)" />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => handleMoveGroup('public', index, 1, sortedPublicGroups)}
+                                    style={[styles.reorderArrowBtn, index === sortedPublicGroups.length - 1 && { opacity: 0.2 }]}
+                                    disabled={index === sortedPublicGroups.length - 1}
+                                  >
+                                    <Ionicons name="chevron-down" size={14} color="rgba(0,0,0,0.5)" />
+                                  </TouchableOpacity>
+                                </View>
+                              ) : (
+                                <Ionicons name="chevron-forward" size={18} color="rgba(0,0,0,0.4)" style={{ marginLeft: 8 }} />
+                              )}
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </Swipeable>
+                      </Animated.View>
+                    );
+                  })}
+                  {groups.length < MAX_GROUPS && sortedPublicGroups.length < MAX_PUBLIC_GROUPS && !isReorderingPublic && (
+                    <TouchableOpacity style={styles.pubGroupPlaceholder} onPress={() => handleCreateGroup(true)}>
+                      <Text style={styles.emptyText}>make your group public</Text>
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
               </View>
             </BlurView>
           </View>
@@ -1448,35 +1457,41 @@ const DashboardScreen = ({ navigation }) => {
         <Animated.View style={{ opacity: sectionFadePrivate, transform: [{ translateY: sectionSlidePrivate }] }}>
         <BlurView intensity={10} tint="dark" style={styles.privateGroupsGlass}>
           <View style={styles.privateGroupsSection}>
-            {/* Section Header — tappable toggle */}
-            <TouchableOpacity style={styles.sectionHeaderRow} onPress={togglePrivateGroups} activeOpacity={0.7}>
+            {/* Section Header — tappable toggle (disabled during reorder) */}
+            <TouchableOpacity style={styles.sectionHeaderRow} onPress={isReorderingPrivate ? undefined : togglePrivateGroups} activeOpacity={isReorderingPrivate ? 1 : 0.7}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Animated.View style={{ transform: [{ rotate: privateChevronRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) }], marginRight: 8 }}>
-                  <Ionicons name="chevron-forward" size={16} color="#bbbbbb" />
-                </Animated.View>
+                {!isReorderingPrivate && (
+                  <Animated.View style={{ transform: [{ rotate: privateChevronRotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) }], marginRight: 8 }}>
+                    <Ionicons name="chevron-forward" size={16} color="#bbbbbb" />
+                  </Animated.View>
+                )}
                 <View>
                   <Animated.Text style={[styles.privateGroupsTitle, { opacity: shimmerPrivate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Private Groups</Animated.Text>
-                  {groups.length > 0 && <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} total groups</Text>}
+                  {groups.length > 0 && <Text style={styles.groupCounter}>{groups.length}/{MAX_GROUPS} groups created</Text>}
                   <Text style={styles.pinHintText}>hold to reorder</Text>
                 </View>
               </View>
-              {privateGroupsExpanded && (
-              <Animated.View style={{ transform: [{ scale: bounceAddGroup.scale }] }}>
-              <TouchableOpacity
-                style={[styles.addButton, { shadowColor: 'transparent', shadowOpacity: 0 }, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
-                onPress={() => handleCreateGroup(false)}
-                onPressIn={bounceAddGroup.onPressIn}
-                onPressOut={bounceAddGroup.onPressOut}
-                disabled={groups.length >= MAX_GROUPS}
-                activeOpacity={0.9}
-              >
-                <View style={[styles.addButtonGradient, { backgroundColor: '#222222', borderColor: 'rgba(255,255,255,0.1)', borderTopColor: 'rgba(255,255,255,0.15)', borderLeftColor: 'rgba(255,255,255,0.12)' }]}>
-                  <Ionicons name="add" size={12} color="#bbbbbb" />
-                  <Text style={[styles.addButtonText, { color: '#bbbbbb' }]}>Private Group</Text>
-                </View>
-              </TouchableOpacity>
-              </Animated.View>
-              )}
+              {isReorderingPrivate ? (
+                <TouchableOpacity style={styles.doneReorderButton} onPress={() => exitReorderMode('private', sortedGroups)}>
+                  <Text style={styles.doneReorderText}>Done</Text>
+                </TouchableOpacity>
+              ) : privateGroupsExpanded ? (
+                <Animated.View style={{ transform: [{ scale: bounceAddGroup.scale }] }}>
+                <TouchableOpacity
+                  style={[styles.addButton, { shadowColor: 'transparent', shadowOpacity: 0 }, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
+                  onPress={() => handleCreateGroup(false)}
+                  onPressIn={bounceAddGroup.onPressIn}
+                  onPressOut={bounceAddGroup.onPressOut}
+                  disabled={groups.length >= MAX_GROUPS}
+                  activeOpacity={0.9}
+                >
+                  <View style={[styles.addButtonGradient, { backgroundColor: '#222222', borderColor: 'rgba(255,255,255,0.1)', borderTopColor: 'rgba(255,255,255,0.15)', borderLeftColor: 'rgba(255,255,255,0.12)' }]}>
+                    <Ionicons name="add" size={12} color="#bbbbbb" />
+                    <Text style={[styles.addButtonText, { color: '#bbbbbb' }]}>Private Group</Text>
+                  </View>
+                </TouchableOpacity>
+                </Animated.View>
+              ) : null}
             </TouchableOpacity>
 
           {/* Groups Scrollable Container — collapsible */}
@@ -1489,22 +1504,76 @@ const DashboardScreen = ({ navigation }) => {
                 <SkeletonGroupRow delay={300} />
               </View>
             ) : (
-              <Animated.View style={[{ opacity: groupsFade }, { maxHeight: 190, overflow: 'hidden' }]}>
-                <NestableDraggableFlatList
-                  data={sortedGroups}
-                  renderItem={renderPrivateGroupItem}
-                  keyExtractor={(item) => item.id}
-                  onDragEnd={onPrivateDragEnd}
-                  onDragBegin={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
-                  showsVerticalScrollIndicator={false}
-                  ListFooterComponent={
-                    sortedGroups.length < MAX_GROUPS ? (
-                      <TouchableOpacity style={styles.groupPlaceholder} onPress={() => handleCreateGroup(false)}>
-                        <Text style={styles.emptyText}>create a group</Text>
-                      </TouchableOpacity>
-                    ) : null
-                  }
-                />
+              <Animated.View style={{ opacity: groupsFade }}>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 190 }}>
+                  {sortedGroups.map((group, index) => {
+                    const active = isGroupActive(group);
+                    const creator = groupCreators[group.creatorId];
+                    if (!wiggleAnims[group.id]) wiggleAnims[group.id] = new Animated.Value(0);
+                    return (
+                      <Animated.View
+                        key={group.id}
+                        style={{ transform: [{ rotate: wiggleAnims[group.id].interpolate({ inputRange: [-1, 0, 1], outputRange: ['-2deg', '0deg', '2deg'] }) }] }}
+                      >
+                        <Swipeable
+                          renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
+                          rightThreshold={40}
+                          overshootRight={false}
+                          enabled={!isReorderingPrivate}
+                        >
+                          <TouchableOpacity
+                            style={[styles.groupRowOuter, !active && styles.groupRowInactive]}
+                            onPress={() => { if (!isReorderingPrivate) handleGroupPress(group.id); }}
+                            onLongPress={() => { if (!isReorderingPrivate) enterReorderMode('private', sortedGroups); }}
+                            delayLongPress={400}
+                            activeOpacity={0.9}
+                          >
+                            <View style={[styles.groupRow, { backgroundColor: '#222222' }, isReorderingPrivate && styles.reorderingRowAccentPrivate]}>
+                              <View style={styles.groupCreatorAvatar}>
+                                {creator?.profilePhoto ? (
+                                  <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
+                                ) : (
+                                  <View style={styles.groupCreatorPlaceholder}>
+                                    <Ionicons name="person" size={12} color="#999" />
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={[styles.groupName, { color: '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
+                              {active && !isReorderingPrivate && (
+                                <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
+                              )}
+                              {isReorderingPrivate ? (
+                                <View style={styles.reorderArrows}>
+                                  <TouchableOpacity
+                                    onPress={() => handleMoveGroup('private', index, -1, sortedGroups)}
+                                    style={[styles.reorderArrowBtn, index === 0 && { opacity: 0.2 }]}
+                                    disabled={index === 0}
+                                  >
+                                    <Ionicons name="chevron-up" size={14} color="#bbbbbb" />
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => handleMoveGroup('private', index, 1, sortedGroups)}
+                                    style={[styles.reorderArrowBtn, index === sortedGroups.length - 1 && { opacity: 0.2 }]}
+                                    disabled={index === sortedGroups.length - 1}
+                                  >
+                                    <Ionicons name="chevron-down" size={14} color="#bbbbbb" />
+                                  </TouchableOpacity>
+                                </View>
+                              ) : (
+                                <Ionicons name="chevron-forward" size={16} color="rgba(187,187,187,0.6)" style={{ marginLeft: 8 }} />
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        </Swipeable>
+                      </Animated.View>
+                    );
+                  })}
+                  {sortedGroups.length < MAX_GROUPS && !isReorderingPrivate && (
+                    <TouchableOpacity style={styles.groupPlaceholder} onPress={() => handleCreateGroup(false)}>
+                      <Text style={styles.emptyText}>create a group</Text>
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
               </Animated.View>
             )}
           </View>
@@ -1513,7 +1582,7 @@ const DashboardScreen = ({ navigation }) => {
         </BlurView>
         </Animated.View>
 
-      </NestableScrollContainer>
+      </ScrollView>
 
       {/* Notification Modal */}
       <NotificationListModal
@@ -2302,6 +2371,36 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     alignSelf: 'flex-end',
     marginTop: 2,
+  },
+
+  // ---- Reorder Mode ----
+  reorderArrows: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  reorderArrowBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  doneReorderButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+  },
+  doneReorderText: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: '#1a1a1a',
+  },
+  reorderingRowAccentPrivate: {
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(255,255,255,0.25)',
+  },
+  reorderingRowAccentPublic: {
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(0,0,0,0.2)',
   },
 
 });
