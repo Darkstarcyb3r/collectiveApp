@@ -33,6 +33,7 @@
  */
 
 const { setGlobalOptions } = require("firebase-functions/v2");
+const { defineSecret } = require("firebase-functions/v2/params");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const {
   onDocumentCreated,
@@ -61,6 +62,10 @@ setGlobalOptions({
 
 // Cloudinary credentials (loaded from functions/.env)
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+
+// Secrets stored in Google Cloud Secret Manager (firebase functions:secrets:set)
+const newsApiSecret = defineSecret("NEWS_API_KEY");
+const geminiApiSecret = defineSecret("GEMINI_API_KEY");
 
 // =============================================================
 // RATE LIMIT HELPER
@@ -3285,10 +3290,12 @@ exports.createBotChatroom = onSchedule(
     schedule: "0 8,12,16 * * *",
     timeZone: "America/Los_Angeles",
     memory: "256MiB",
+    secrets: [newsApiSecret, geminiApiSecret],
   },
   async () => {
-    const newsApiKey = process.env.NEWS_API_KEY;
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+    // .value() reads from Secret Manager at runtime; falls back to .env for local dev
+    const newsApiKey = newsApiSecret.value() || process.env.NEWS_API_KEY;
+    const geminiApiKey = geminiApiSecret.value() || process.env.GEMINI_API_KEY;
 
     let roomName = null;
 
