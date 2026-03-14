@@ -3290,6 +3290,7 @@ exports.createBotChatroom = onSchedule(
     schedule: "0 8,12,16 * * *",
     timeZone: "America/Los_Angeles",
     memory: "256MiB",
+    cpu: 0.083,
     secrets: [newsApiSecret, geminiApiSecret],
   },
   async () => {
