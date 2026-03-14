@@ -1347,7 +1347,7 @@ const DashboardScreen = ({ navigation }) => {
             {/* Glass container wraps only the group buttons */}
             <BlurView intensity={10} tint="dark" style={styles.publicGroupsGlass}>
               <View style={styles.publicGroupsContainer}>
-                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 190 }}>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 231 }}>
                   {sortedPublicGroups.slice(0, MAX_PUBLIC_GROUPS).map((pg, index) => {
                     const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
                     const pgActive = isGroupActive(pg);
