@@ -1313,7 +1313,7 @@ const DashboardScreen = ({ navigation }) => {
                             activeOpacity={0.9}
                           >
                             <LinearGradient
-                              colors={['#cafb6c', '#71f200', '#23ff0d']}
+                              colors={isReorderingPublic ? [colors.primary, colors.primary] : ['#cafb6c', '#71f200', '#23ff0d']}
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 1 }}
                               style={styles.pubGroupRow}
