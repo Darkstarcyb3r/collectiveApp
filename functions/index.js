@@ -40,6 +40,7 @@ const {
   onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
@@ -49,11 +50,15 @@ const logger = require("firebase-functions/logger");
 initializeApp();
 const db = getFirestore();
 
-// Global options for v2 functions (not applied to v1 functions)
+// Global options for all v2 functions
 setGlobalOptions({
   maxInstances: 5,
   region: "us-central1",
 });
+
+// Secret Manager references (Function 29)
+const NEWS_API_KEY_SECRET = defineSecret("NEWS_API_KEY");
+const GEMINI_API_KEY_SECRET = defineSecret("GEMINI_API_KEY");
 
 // Cloudinary credentials (loaded from functions/.env)
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
@@ -3277,16 +3282,16 @@ const FALLBACK_TOPICS = [
   "What does success look like to you in five years",
 ];
 
-// v1 scheduled function — avoids Cloud Run CPU quota (uses gen1 infrastructure)
-const functionsV1 = require("firebase-functions/v1");
-exports.createBotChatroom = functionsV1
-  .runWith({ secrets: ["NEWS_API_KEY", "GEMINI_API_KEY"] })
-  .pubsub.schedule("0 8,12,16 * * *")
-  .timeZone("America/Los_Angeles")
-  .onRun(async () => {
-    // v1 secrets are injected as plain env vars at runtime
-    const newsApiKey = process.env.NEWS_API_KEY;
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+exports.createBotChatroom = onSchedule(
+  {
+    schedule: "0 8,12,16 * * *",
+    timeZone: "America/Los_Angeles",
+    secrets: [NEWS_API_KEY_SECRET, GEMINI_API_KEY_SECRET],
+    memory: "256MiB",
+  },
+  async (event) => {
+    const newsApiKey = NEWS_API_KEY_SECRET.value();
+    const geminiApiKey = GEMINI_API_KEY_SECRET.value();
 
     let roomName = null;
 
@@ -3315,7 +3320,7 @@ exports.createBotChatroom = functionsV1
       try {
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(geminiApiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const prompt = [
           "Based on the news headlines below, write ONE engaging live chat room title (5-9 words).",
