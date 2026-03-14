@@ -786,6 +786,7 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   const exitReorderMode = (section, orderedGroups) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (section === 'private') {
       setIsReorderingPrivate(false);
       updateUserProfile(user.uid, { groupOrder: orderedGroups.map((g) => g.id) }).catch(() => {});
@@ -1297,7 +1298,7 @@ const DashboardScreen = ({ navigation }) => {
                     const pgCreator = publicGroupCreators[pg.creatorId] || groupCreators[pg.creatorId];
                     const pgActive = isGroupActive(pg);
                     return (
-                      <View key={pg.id}>
+                      <View key={pg.id} style={isReorderingPublic ? styles.reorderRowGlow : null}>
                         <Swipeable
                           renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, pg)}
                           rightThreshold={40}
@@ -1317,7 +1318,6 @@ const DashboardScreen = ({ navigation }) => {
                               end={{ x: 1, y: 1 }}
                               style={styles.pubGroupRow}
                             >
-                              {isReorderingPublic && <View style={styles.reorderAccentStripePublic} />}
                               <View style={styles.pubGroupCreatorAvatar}>
                                 {pgCreator?.profilePhoto ? (
                                   <Image source={{ uri: pgCreator.profilePhoto }} style={styles.groupCreatorImage} />
@@ -1476,7 +1476,7 @@ const DashboardScreen = ({ navigation }) => {
                     const active = isGroupActive(group);
                     const creator = groupCreators[group.creatorId];
                     return (
-                      <View key={group.id}>
+                      <View key={group.id} style={isReorderingPrivate ? styles.reorderRowGlow : null}>
                         <Swipeable
                           renderRightActions={(progress, dragX) => renderGroupDeleteAction(progress, dragX, group)}
                           rightThreshold={40}
@@ -1490,8 +1490,7 @@ const DashboardScreen = ({ navigation }) => {
                             delayLongPress={400}
                             activeOpacity={0.9}
                           >
-                            <View style={[styles.groupRow, { backgroundColor: '#222222' }]}>
-                              {isReorderingPrivate && <View style={styles.reorderAccentStripe} />}
+                            <View style={[styles.groupRow, { backgroundColor: isReorderingPrivate ? colors.primary : '#222222' }]}>
                               <View style={styles.groupCreatorAvatar}>
                                 {creator?.profilePhoto ? (
                                   <Image source={{ uri: creator.profilePhoto }} style={styles.groupCreatorImage} />
@@ -1501,7 +1500,7 @@ const DashboardScreen = ({ navigation }) => {
                                   </View>
                                 )}
                               </View>
-                              <Text style={[styles.groupName, { color: '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
+                              <Text style={[styles.groupName, { color: isReorderingPrivate ? '#1a1a1a' : '#bbbbbb' }]} numberOfLines={1}>{group.name || '------'}</Text>
                               {active && !isReorderingPrivate && (
                                 <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#bbbbbb', marginLeft: 6, transform: [{ scale: activityDotScale }], opacity: activityDotOpacity }} />
                               )}
@@ -1512,14 +1511,14 @@ const DashboardScreen = ({ navigation }) => {
                                     style={[styles.reorderArrowBtn, index === 0 && { opacity: 0.2 }]}
                                     disabled={index === 0}
                                   >
-                                    <Ionicons name="chevron-up" size={14} color="#bbbbbb" />
+                                    <Ionicons name="chevron-up" size={14} color="rgba(0,0,0,0.6)" />
                                   </TouchableOpacity>
                                   <TouchableOpacity
                                     onPress={() => handleMoveGroup('private', index, 1, sortedGroups)}
                                     style={[styles.reorderArrowBtn, index === sortedGroups.length - 1 && { opacity: 0.2 }]}
                                     disabled={index === sortedGroups.length - 1}
                                   >
-                                    <Ionicons name="chevron-down" size={14} color="#bbbbbb" />
+                                    <Ionicons name="chevron-down" size={14} color="rgba(0,0,0,0.6)" />
                                   </TouchableOpacity>
                                 </View>
                               ) : (
@@ -2346,36 +2345,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 1,
   },
-  doneReorderButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-  },
-  doneReorderText: {
-    fontSize: 12,
-    fontFamily: fonts.bold,
-    color: '#1a1a1a',
-  },
-  reorderAccentStripe: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: 'rgba(187,187,187,0.7)',
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
-  },
-  reorderAccentStripePublic: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
+  reorderRowGlow: {
+    shadowColor: '#22ff0a',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 10,
+    elevation: 8,
+    borderRadius: 14,
   },
 
 });
