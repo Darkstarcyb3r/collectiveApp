@@ -33,7 +33,6 @@
  */
 
 const { setGlobalOptions } = require("firebase-functions/v2");
-const { defineSecret } = require("firebase-functions/params");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const {
   onDocumentCreated,
@@ -63,9 +62,6 @@ setGlobalOptions({
 // Cloudinary credentials (loaded from functions/.env)
 const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
 
-// Secrets stored in Google Cloud Secret Manager (firebase functions:secrets:set)
-const newsApiSecret = defineSecret("NEWS_API_KEY");
-const geminiApiSecret = defineSecret("GEMINI_API_KEY");
 
 // =============================================================
 // RATE LIMIT HELPER
@@ -3285,18 +3281,16 @@ const FALLBACK_TOPICS = [
   "What does success look like to you in five years",
 ];
 
-exports.createBotChatroom = onSchedule(
-  {
-    schedule: "0 8,12,16 * * *",
-    timeZone: "America/Los_Angeles",
-    memory: "256MiB",
-    cpu: 0.083,
-    secrets: [newsApiSecret, geminiApiSecret],
-  },
-  async () => {
-    // .value() reads from Secret Manager at runtime; falls back to .env for local dev
-    const newsApiKey = newsApiSecret.value() || process.env.NEWS_API_KEY;
-    const geminiApiKey = geminiApiSecret.value() || process.env.GEMINI_API_KEY;
+// v1 scheduled function — avoids Cloud Run CPU quota (uses gen1 infrastructure)
+const functionsV1 = require("firebase-functions/v1");
+exports.createBotChatroom = functionsV1
+  .runWith({ memory: "256MB", secrets: ["NEWS_API_KEY", "GEMINI_API_KEY"] })
+  .pubsub.schedule("0 8,12,16 * * *")
+  .timeZone("America/Los_Angeles")
+  .onRun(async () => {
+    // v1 secrets are injected as plain env vars at runtime
+    const newsApiKey = process.env.NEWS_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY;
 
     let roomName = null;
 
