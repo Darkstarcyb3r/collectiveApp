@@ -381,6 +381,27 @@ const PostDetailScreen = ({ navigation, route }) => {
                     <Ionicons name="trash-outline" size={20} color={colors.offline} />
                   </TouchableOpacity>
                 )}
+                {/* re: create live chat */}
+                <TouchableOpacity
+                  style={styles.liveChatBtnOuter}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    playClick()
+                    navigation.navigate('CyberLoungeCreate', { initialName: post?.title || 're: post' })
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#d8f434', '#b3f425', '#93f478']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.liveChatBtn}
+                  >
+                    <LinearGradient colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} style={styles.liveChatBtnHighlight} />
+                    <Ionicons name="radio-outline" size={12} color="#000" />
+                    <Text style={styles.liveChatBtnText}>re: live chat</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
                 {/* Share and Comment Icons */}
                 <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
                   <Ionicons name="share-outline" size={23} color={colors.offline} />
@@ -787,6 +808,42 @@ const styles = StyleSheet.create({
   // Style for each icon button for consistent spacing
   iconButton: {
     marginLeft: 16, // Adds space between the icons
+  },
+  liveChatBtnOuter: {
+    marginLeft: 16,
+    borderRadius: 12,
+    shadowColor: '#b3f425',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  liveChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.8)',
+    borderLeftColor: 'rgba(255,255,255,0.6)',
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+    borderRightColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    gap: 4,
+  },
+  liveChatBtnHighlight: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: '50%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  liveChatBtnText: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: '#000',
+    fontWeight: '600',
   },
   editPostLink: {
     fontSize: 11,
