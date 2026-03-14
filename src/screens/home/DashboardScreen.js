@@ -29,7 +29,7 @@ import { colors } from '../../theme';
 import { fonts } from '../../theme/typography';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabBar } from '../../contexts/TabBarContext';
-import { getUserGroups, deleteGroup, leaveGroup, getMemberProfiles, getPublicGroups } from '../../services/groupService';
+import { getUserGroups, deleteGroup, leaveGroup, getMemberProfiles, getPublicGroups, joinGroup } from '../../services/groupService';
 import { updateUserProfile } from '../../services/userService';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {
@@ -159,6 +159,7 @@ const DashboardScreen = ({ navigation }) => {
   const [groupsLoaded, setGroupsLoaded] = useState(false);
   const [publicGroups, setPublicGroups] = useState([]);
   const [publicGroupCreators, setPublicGroupCreators] = useState({});
+  const [joiningGroupIds, setJoiningGroupIds] = useState(new Set());
   const [manualPrivateOrder, setManualPrivateOrder] = useState(null); // null = activity sort
   const [manualPublicOrder, setManualPublicOrder] = useState(null);
   const [isReorderingPrivate, setIsReorderingPrivate] = useState(false);
@@ -318,6 +319,22 @@ const DashboardScreen = ({ navigation }) => {
       }
     } catch (err) {
       console.log('[Dashboard] fetchPublicGroups error:', err.message);
+    }
+  };
+
+  const handleJoinGroup = async (groupId) => {
+    if (joiningGroupIds.has(groupId)) return;
+    setJoiningGroupIds((prev) => new Set([...prev, groupId]));
+    try {
+      await joinGroup(groupId, user.uid);
+      // Optimistically add user to members so the Join button disappears immediately
+      setPublicGroups((prev) =>
+        prev.map((g) => g.id === groupId ? { ...g, members: [...(g.members || []), user.uid] } : g)
+      );
+    } catch (_e) {
+      // silent — Firestore subscription will eventually correct state
+    } finally {
+      setJoiningGroupIds((prev) => { const next = new Set(prev); next.delete(groupId); return next; });
     }
   };
 
@@ -1344,6 +1361,18 @@ const DashboardScreen = ({ navigation }) => {
                               end={{ x: 1, y: 1 }}
                               style={styles.pubGroupRow}
                             >
+                              {!isReorderingPublic && !pg.members?.includes(user?.uid) && (
+                                <TouchableOpacity
+                                  onPress={() => handleJoinGroup(pg.id)}
+                                  disabled={joiningGroupIds.has(pg.id)}
+                                  style={styles.joinGroupBtn}
+                                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                                >
+                                  <Text style={styles.joinGroupBtnText}>
+                                    {joiningGroupIds.has(pg.id) ? '…' : 'Join'}
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
                               <View style={styles.pubGroupCreatorAvatar}>
                                 {pgCreator?.profilePhoto ? (
                                   <Image source={{ uri: pgCreator.profilePhoto }} style={styles.groupCreatorImage} />
@@ -2381,6 +2410,19 @@ const styles = StyleSheet.create({
   },
   reorderArrowBtn: {
     paddingHorizontal: 4,
+  },
+  joinGroupBtn: {
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    borderRadius: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    marginRight: 8,
+  },
+  joinGroupBtnText: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: '#1a1a1a',
+    fontWeight: '600',
   },
   reorderRowGlow: {
     shadowColor: '#22ff0a',
