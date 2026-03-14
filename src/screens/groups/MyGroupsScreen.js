@@ -23,7 +23,7 @@ import { useTabBar } from '../../contexts/TabBarContext'
 import { getUserGroups } from '../../services/groupService'
 import { playClick } from '../../services/soundService'
 
-const MAX_GROUPS = 50
+const MAX_GROUPS = 50 // max groups a user can create (no limit on joining)
 
 const MyGroupsScreen = ({ navigation }) => {
   const { user, userProfile } = useAuth()
@@ -134,6 +134,8 @@ const MyGroupsScreen = ({ navigation }) => {
     </View>
   )
 
+  const createdGroupsCount = groups.filter((g) => g.creatorId === user?.uid).length
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
@@ -177,17 +179,17 @@ const MyGroupsScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.newGroupButton,
-                groups.length >= MAX_GROUPS && styles.newGroupButtonDisabled,
+                createdGroupsCount >= MAX_GROUPS && styles.newGroupButtonDisabled,
               ]}
               onPress={() => {
                 playClick()
-                if (groups.length >= MAX_GROUPS) {
+                if (createdGroupsCount >= MAX_GROUPS) {
                   return
                 }
                 const parentNav = navigation.getParent() || navigation
                 parentNav.navigate('CreateGroup')
               }}
-              disabled={groups.length >= MAX_GROUPS}
+              disabled={createdGroupsCount >= MAX_GROUPS}
             >
               <Ionicons name="add" size={18} color={colors.textDark} />
               <Text style={styles.newGroupText}>Group</Text>
@@ -196,7 +198,7 @@ const MyGroupsScreen = ({ navigation }) => {
 
           {/* Group Count */}
           <Text style={styles.groupCount}>
-            {groups.length}/{MAX_GROUPS} groups
+            {createdGroupsCount}/{MAX_GROUPS} groups created
           </Text>
 
           {/* Groups List */}

@@ -51,7 +51,7 @@ import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { playClick, playSwoosh } from '../../services/soundService';
 
-const MAX_GROUPS = 50;          // max groups any user can create/join
+const MAX_GROUPS = 50;          // max groups any user can create (no limit on joining)
 const MAX_PUBLIC_GROUPS = 100; // max public groups shown on dashboard
 
 const EVENT_THUMBNAILS = [
@@ -768,8 +768,8 @@ const DashboardScreen = ({ navigation }) => {
 
   const handleCreateGroup = (isPublic = false) => {
     playClick();
-    if (groups.length >= MAX_GROUPS) {
-      Alert.alert('Group Limit', `You've reached the maximum of ${MAX_GROUPS} groups.`);
+    if (createdGroupsCount >= MAX_GROUPS) {
+      Alert.alert('Group Limit', `You've reached the maximum of ${MAX_GROUPS} groups you can create.`);
       return;
     }
     navigation.navigate('CreateGroup', { isPublic });
@@ -912,6 +912,9 @@ const DashboardScreen = ({ navigation }) => {
         const bActive = isGroupActive(b) ? 1 : 0;
         return bActive - aActive;
       });
+  // Groups the user created (used for the 50-group creation cap)
+  const createdGroupsCount = groups.filter((g) => g.creatorId === user?.uid).length;
+
   // Always keep groups the user is a member of above groups they haven't joined
   const _isMemberOf = (pg) => pg.members?.includes(user?.uid);
   const sortedPublicGroups = [
@@ -1319,11 +1322,11 @@ const DashboardScreen = ({ navigation }) => {
               {!isReorderingPublic && (
                 <Animated.View style={{ transform: [{ scale: bounceAddPublicGroup.scale }] }}>
                 <TouchableOpacity
-                  style={[styles.addButton, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
+                  style={[styles.addButton, createdGroupsCount >= MAX_GROUPS && styles.addButtonDisabled]}
                   onPress={() => handleCreateGroup(true)}
                   onPressIn={bounceAddPublicGroup.onPressIn}
                   onPressOut={bounceAddPublicGroup.onPressOut}
-                  disabled={groups.length >= MAX_GROUPS}
+                  disabled={createdGroupsCount >= MAX_GROUPS}
                   activeOpacity={0.9}
                 >
                   <LinearGradient
@@ -1441,7 +1444,7 @@ const DashboardScreen = ({ navigation }) => {
                       </View>
                     );
                   })}
-                  {groups.length < MAX_GROUPS && sortedPublicGroups.length < MAX_PUBLIC_GROUPS && !isReorderingPublic && (
+                  {createdGroupsCount < MAX_GROUPS && sortedPublicGroups.length < MAX_PUBLIC_GROUPS && !isReorderingPublic && (
                     <TouchableOpacity style={styles.pubGroupPlaceholder} onPress={() => handleCreateGroup(true)}>
                       <Text style={styles.emptyText}>make your group public</Text>
                     </TouchableOpacity>
@@ -1528,11 +1531,11 @@ const DashboardScreen = ({ navigation }) => {
               {!isReorderingPrivate && privateGroupsExpanded ? (
                 <Animated.View style={{ transform: [{ scale: bounceAddGroup.scale }] }}>
                 <TouchableOpacity
-                  style={[styles.addButton, { shadowColor: 'transparent', shadowOpacity: 0 }, groups.length >= MAX_GROUPS && styles.addButtonDisabled]}
+                  style={[styles.addButton, { shadowColor: 'transparent', shadowOpacity: 0 }, createdGroupsCount >= MAX_GROUPS && styles.addButtonDisabled]}
                   onPress={() => handleCreateGroup(false)}
                   onPressIn={bounceAddGroup.onPressIn}
                   onPressOut={bounceAddGroup.onPressOut}
-                  disabled={groups.length >= MAX_GROUPS}
+                  disabled={createdGroupsCount >= MAX_GROUPS}
                   activeOpacity={0.9}
                 >
                   <View style={[styles.addButtonGradient, { backgroundColor: '#222222', borderColor: 'rgba(255,255,255,0.1)', borderTopColor: 'rgba(255,255,255,0.15)', borderLeftColor: 'rgba(255,255,255,0.12)' }]}>
@@ -1620,7 +1623,7 @@ const DashboardScreen = ({ navigation }) => {
                       </View>
                     );
                   })}
-                  {sortedGroups.length < MAX_GROUPS && !isReorderingPrivate && (
+                  {createdGroupsCount < MAX_GROUPS && !isReorderingPrivate && (
                     <TouchableOpacity style={styles.groupPlaceholder} onPress={() => handleCreateGroup(false)}>
                       <Text style={styles.emptyText}>create a group</Text>
                     </TouchableOpacity>
