@@ -1469,8 +1469,8 @@ const DashboardScreen = ({ navigation }) => {
                 )}
                 <View>
                   <Animated.Text style={[styles.privateGroupsTitle, { opacity: shimmerPrivate.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.6, 1] }) }]}>My Private Groups</Animated.Text>
-                  {groups.length > 0 && <Text style={styles.groupCounter}>{groups.length}/50 max groups authored</Text>}
-                  <Text style={styles.pinHintText}>{(isReorderingPrivate || isReorderingPublic) ? 'tap here to finish' : 'hold to reorder'}</Text>
+                  {privateGroupsExpanded && groups.length > 0 && <Text style={styles.groupCounter}>{groups.length}/50 max groups authored</Text>}
+                  {privateGroupsExpanded && <Text style={styles.pinHintText}>{isReorderingPrivate ? 'tap here to finish' : 'hold to reorder'}</Text>}
                 </View>
               </View>
               {!isReorderingPrivate && privateGroupsExpanded ? (
