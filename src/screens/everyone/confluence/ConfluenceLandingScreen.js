@@ -435,11 +435,13 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                       activeOpacity={0.8}
                       onPress={() => {
                         playClick()
-                        navigation.navigate('Chat', {
+                        const params = {
                           otherUserId: selectedPost?.authorId,
                           otherUserName: selectedPost?.authorName || 'Unknown',
                           otherUserPhoto: selectedPost?.authorPhoto || null,
-                        })
+                        }
+                        setSelectedPost(null)
+                        navigation.navigate('Chat', params)
                       }}
                     >
                       <LinearGradient
@@ -459,6 +461,7 @@ const ConfluenceLandingScreen = ({ navigation }) => {
                       activeOpacity={0.8}
                       onPress={() => {
                         playClick()
+                        setSelectedPost(null)
                         navigation.navigate('CyberLoungeCreate', { initialName: 'confluence: ' })
                       }}
                     >
