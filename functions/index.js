@@ -3373,7 +3373,7 @@ exports.createBotChatroom = onSchedule(
       try {
         const { GoogleGenerativeAI } = require("@google/generative-ai");
         const genAI = new GoogleGenerativeAI(geminiApiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
         const prompt = [
           "You're writing a casual group chat topic for a social app. Think group chat energy, not a TED talk.",
@@ -3405,7 +3405,8 @@ exports.createBotChatroom = onSchedule(
 
     // --- Step 4: write the Firestore room ---
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + BOT_CHATROOM_HOURS * 60 * 60 * 1000);
+    // Expire 15 min early so the next scheduled room doesn't overlap
+    const expiresAt = new Date(now.getTime() + (BOT_CHATROOM_HOURS * 60 - 15) * 60 * 1000);
 
     try {
       const roomRef = await db.collection("cyberLoungeRooms").add({
