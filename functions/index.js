@@ -29,6 +29,7 @@
  * Function 26: onMutualAidCommentReaction — Notify comment author when someone reacts to their mutual aid comment
  * Function 27: requestCategoryChat       — "Request another category" creates a DM request to the app creator (callable)
  * Function 28: onConfluencePostCreate   — Notify followers when someone posts to Confluence
+ * Function 29: createBotChatroom        — Scheduled bot: creates an AI-titled chatroom at 8am/12pm/4pm PST using NewsAPI + Gemini Flash
  */
 
 const { setGlobalOptions } = require("firebase-functions/v2");
@@ -3250,6 +3251,123 @@ exports.onConfluencePostCreate = onDocumentCreated(
       }
     } catch (error) {
       logger.error("Confluence post follower notification error:", error);
+    }
+  }
+);
+
+// =============================================================
+// FUNCTION 29: createBotChatroom
+// Scheduled: 8am, 12pm, 4pm PST daily
+// Fetches top US headlines via NewsAPI → sends to Gemini Flash
+// → creates a 4-hour Cyber Lounge room under the "Collective" bot identity
+// =============================================================
+
+const BOT_ID = "collective-bot";
+const BOT_NAME = "Collective";
+const BOT_PHOTO = null;
+const BOT_CHATROOM_HOURS = 4;
+
+const FALLBACK_TOPICS = [
+  "What would you change about the world today",
+  "The most underrated skill everyone should learn",
+  "Would you live off the grid if you could",
+  "What does community mean to you right now",
+  "The future of cities — what are we building toward",
+  "Is social media making us more or less connected",
+  "What tech are you most excited about this year",
+  "What local issue deserves more national attention",
+  "If you could redesign one thing about daily life, what would it be",
+  "What does success look like to you in five years",
+];
+
+exports.createBotChatroom = onSchedule(
+  {
+    schedule: "0 8,12,16 * * *",
+    timeZone: "America/Los_Angeles",
+    memory: "256MiB",
+  },
+  async () => {
+    const newsApiKey = process.env.NEWS_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+
+    let roomName = null;
+
+    // --- Step 1: fetch headlines ---
+    let headlines = [];
+    if (newsApiKey && !newsApiKey.startsWith("YOUR_")) {
+      try {
+        const fetch = require("node-fetch");
+        const res = await fetch(
+          `https://newsapi.org/v2/top-headlines?country=us&pageSize=6&apiKey=${newsApiKey}`
+        );
+        const data = await res.json();
+        if (data.status === "ok" && Array.isArray(data.articles)) {
+          headlines = data.articles
+            .map((a) => a.title)
+            .filter(Boolean)
+            .slice(0, 6);
+        }
+      } catch (newsErr) {
+        logger.warn("createBotChatroom: NewsAPI fetch failed", newsErr.message);
+      }
+    }
+
+    // --- Step 2: call Gemini Flash for a chat title ---
+    if (headlines.length > 0 && geminiApiKey && !geminiApiKey.startsWith("YOUR_")) {
+      try {
+        const { GoogleGenerativeAI } = require("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = [
+          "Based on the news headlines below, write ONE engaging live chat room title (5-9 words).",
+          "The title should invite broad, curious conversation — not political or divisive.",
+          "Return ONLY the title text. No quotes, no period at the end, nothing else.",
+          "",
+          "Headlines:",
+          ...headlines.map((h, i) => `${i + 1}. ${h}`),
+        ].join("\n");
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text().trim().replace(/^["']|["']$/g, "");
+        if (text && text.length > 3 && text.length < 120) {
+          roomName = text;
+        }
+      } catch (geminiErr) {
+        logger.warn("createBotChatroom: Gemini call failed", geminiErr.message);
+      }
+    }
+
+    // --- Step 3: fallback if either API failed ---
+    if (!roomName) {
+      roomName = FALLBACK_TOPICS[Math.floor(Math.random() * FALLBACK_TOPICS.length)];
+      logger.info("createBotChatroom: using fallback topic:", roomName);
+    }
+
+    // --- Step 4: write the Firestore room ---
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + BOT_CHATROOM_HOURS * 60 * 60 * 1000);
+
+    try {
+      await db.collection("cyberLoungeRooms").add({
+        name: roomName,
+        hostId: BOT_ID,
+        hostName: BOT_NAME,
+        hostPhoto: BOT_PHOTO,
+        createdAt: Timestamp.fromDate(now),
+        expiresAt: Timestamp.fromDate(expiresAt),
+        participants: [],
+        participantCount: 0,
+        isActive: true,
+        vibe: "none",
+        stickers: [],
+        background: "none",
+        customBackground: null,
+        isBot: true,
+      });
+      logger.info("createBotChatroom: room created →", roomName);
+    } catch (writeErr) {
+      logger.error("createBotChatroom: Firestore write failed", writeErr);
     }
   }
 );
