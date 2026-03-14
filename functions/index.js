@@ -49,14 +49,11 @@ const logger = require("firebase-functions/logger");
 initializeApp();
 const db = getFirestore();
 
-// Global options for cost control + quota management
-// memory: "256MiB" and cpu: 1 reduce per-function resource allocation
-// to stay within Cloud Run's per-project CPU quota (27 functions)
+// Global options for v2 functions (not applied to v1 functions)
 setGlobalOptions({
   maxInstances: 5,
   region: "us-central1",
   memory: "256MiB",
-  cpu: 1,
 });
 
 // Cloudinary credentials (loaded from functions/.env)
