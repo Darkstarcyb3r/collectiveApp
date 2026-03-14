@@ -2314,7 +2314,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 20,
     padding: 12,
-    height: 231,
   },
   subSectionTitle: {
     fontSize: 14,
