@@ -573,7 +573,8 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
 
   const isHost = room?.hostId === user?.uid
   const roomBackground = getBackgroundById(room?.background)
-  const hasBackground = roomBackground.source !== null
+  const hasCustomBackground = !!room?.customBackground
+  const hasBackground = hasCustomBackground || roomBackground.source !== null
   const participantCount = room?.participantCount || room?.participants?.length || 0
 
   // Handle chatroom message delete (sender or host)
@@ -1033,7 +1034,7 @@ const CyberLoungeDetailScreen = ({ route, navigation }) => {
           <View style={styles.chatContainer}>
             {hasBackground ? (
               <ImageBackground
-                source={roomBackground.source}
+                source={hasCustomBackground ? { uri: room.customBackground } : roomBackground.source}
                 style={styles.chatBackgroundImage}
                 imageStyle={styles.chatBackgroundImageStyle}
                 resizeMode="cover"

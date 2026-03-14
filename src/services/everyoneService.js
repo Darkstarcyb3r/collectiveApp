@@ -103,7 +103,7 @@ export const getHostRoomCount = async (hostId) => {
 };
 
 // Create a new chatroom
-export const createChatroom = async (hostId, hostName, hostPhoto, roomName, vibe = 'none', stickers = [], background = 'none') => {
+export const createChatroom = async (hostId, hostName, hostPhoto, roomName, vibe = 'none', stickers = [], background = 'none', customBackground = null) => {
   try {
     // Check active room count
     const activeRooms = await firestore().collection('cyberLoungeRooms')
@@ -149,6 +149,7 @@ export const createChatroom = async (hostId, hostName, hostPhoto, roomName, vibe
       vibe: vibe,
       stickers: stickers,
       background: background,
+      customBackground: customBackground,
     });
 
     return { success: true, roomId: docRef.id };

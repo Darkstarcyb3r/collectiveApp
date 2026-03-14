@@ -32,6 +32,7 @@ import { playClick } from '../../../services/soundService'
 const CyberLoungeCreateScreen = ({ navigation, route }) => {
   const { user, userProfile } = useAuth()
   const [roomName, setRoomName] = useState(route?.params?.initialName || '')
+  const initialImageUrl = route?.params?.initialImageUrl || null
   const [selectedVibe, setSelectedVibe] = useState(DEFAULT_VIBE_ID)
   const [vibeDropdownOpen, setVibeDropdownOpen] = useState(false)
   const [selectedStickers, setSelectedStickers] = useState([])
@@ -73,7 +74,8 @@ const CyberLoungeCreateScreen = ({ navigation, route }) => {
       name,
       selectedVibe,
       selectedStickers,
-      selectedBackground
+      selectedBackground,
+      initialImageUrl
     )
 
     if (result.success) {
